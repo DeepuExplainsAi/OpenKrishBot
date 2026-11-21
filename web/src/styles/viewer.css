@@ -136,7 +136,7 @@
 .viewer__close { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: #FFFFFF1A; }
 .viewer__close:hover { background: #FFFFFF2E; }
 .viewer__stage { position: relative; flex: 1 1 0; min-height: 0; width: 100%; padding: 4px 28px 32px; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-/* No scale in this entrance: noVNC fits the picture to the frame's on-screen size when it connects, so a
+/* No scale in this entrance: the canvas fits the picture to the frame's on-screen size when it connects, so a
    scaled frame would leave the picture slightly too small until the next resize. */
 .viewer__stage .screen__body { pointer-events: auto; animation: rise 200ms var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .viewer__stage .screen__body { animation: none; } }

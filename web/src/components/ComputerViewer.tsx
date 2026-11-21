@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import type RFBType from '@novnc/novnc';
 import type { Bot } from '@shared/types';
 import { BotAvatarFor } from '../avatar/BotAvatar';
 import { api } from '../lib/api';
@@ -28,7 +27,7 @@ interface ScreenProps {
 }
 
 /**
- * A bot's screen on the shared computer: noVNC over our relay inside a rounded frame that keeps the
+ * A bot's screen on the shared computer: live JPEG frames over our relay inside a rounded frame that keeps the
  * screen's aspect ratio. Watching is view-only. Taking control reconnects with mode=control and shows
  * a chin under the frame with the way back.
  */
@@ -36,7 +35,6 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
   const computer = useStore((s) => s.computer);
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const rfbRef = useRef<RFBType | null>(null);
   const hadFrame = useRef(false);
   const autoWoke = useRef(false);
 
@@ -90,31 +88,55 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
 
   useEffect(() => {
     if (!wantLive || !canvasRef.current) { setConn('idle'); return; }
+    const host = canvasRef.current;
     let disposed = false;
-    let rfb: RFBType | null = null;
     setConn('connecting');
-    (async () => {
-      const { default: RFB } = await import('@novnc/novnc');
-      if (disposed || !canvasRef.current) return;
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const url = `${proto}://${location.host}/api/bots/${bot.id}/screen?mode=${mode}`;
-      rfb = new RFB(canvasRef.current, url, { shared: true });
-      rfb.viewOnly = mode === 'watch';
-      rfb.scaleViewport = true;
-      rfb.resizeSession = false;
-      rfb.background = 'transparent';
-      rfb.focusOnClick = mode === 'control';
-      rfb.addEventListener('connect', () => { if (!disposed) { hadFrame.current = true; setConn('connected'); if (mode === 'control') rfb?.focus(); } });
-      rfb.addEventListener('disconnect', (e) => { if (!disposed) setConn((e as CustomEvent<{ clean: boolean }>).detail?.clean ? 'disconnected' : 'error'); });
-      rfb.addEventListener('securityfailure', () => { if (!disposed) setConn('error'); });
-      rfbRef.current = rfb;
-    })().catch(() => { if (!disposed) setConn('error'); });
-    const el = canvasRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.className = 'screen__frame';
+    canvas.style.cssText = 'width:100%;height:100%;display:block;outline:none';
+    canvas.tabIndex = 0;
+    host.appendChild(canvas);
+    const g = canvas.getContext('2d')!;
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${location.host}/api/bots/${bot.id}/screen?mode=${mode}`);
+    ws.binaryType = 'blob';
+    let size = { w: 1280, h: 800 };
+    ws.onmessage = async (e) => {
+      if (typeof e.data === 'string') { const m = JSON.parse(e.data); if (m.t === 'size') size = { w: m.w, h: m.h }; return; }
+      const bmp = await createImageBitmap(e.data as Blob);
+      if (disposed) return;
+      if (canvas.width !== bmp.width || canvas.height !== bmp.height) { canvas.width = bmp.width; canvas.height = bmp.height; }
+      g.drawImage(bmp, 0, 0);
+      bmp.close();
+      if (!hadFrame.current) hadFrame.current = true;
+      setConn('connected');
+    };
+    ws.onclose = (e) => { if (!disposed) setConn(e.code === 1000 || e.code === 1005 ? 'disconnected' : 'error'); };
+    ws.onerror = () => { if (!disposed) setConn('error'); };
+    const send = (m: object) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m)); };
+    const at = (e: MouseEvent) => { const r = canvas.getBoundingClientRect(); return { x: Math.round(((e.clientX - r.left) / r.width) * size.w), y: Math.round(((e.clientY - r.top) / r.height) * size.h) }; };
+    const cleanups: (() => void)[] = [];
+    if (mode === 'control') {
+      const on = <K extends keyof HTMLElementEventMap>(t: K, f: (e: HTMLElementEventMap[K]) => void) => { canvas.addEventListener(t, f as EventListener); cleanups.push(() => canvas.removeEventListener(t, f as EventListener)); };
+      on('mousedown', (e) => { canvas.focus(); send({ t: 'mouse', k: 'down', b: e.button, buttons: e.buttons, ...at(e) }); });
+      on('mouseup', (e) => send({ t: 'mouse', k: 'up', b: e.button, buttons: e.buttons, ...at(e) }));
+      on('mousemove', (e) => send({ t: 'mouse', k: 'move', b: 0, buttons: e.buttons, ...at(e) }));
+      on('wheel', (e) => { e.preventDefault(); send({ t: 'wheel', dx: e.deltaX, dy: e.deltaY, ...at(e) }); });
+      on('contextmenu', (e) => e.preventDefault());
+      const key = (k: 'down' | 'up') => (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && document.fullscreenElement) return;
+        e.preventDefault();
+        send({ t: 'key', k, key: e.key, code: e.code, vk: e.keyCode, ctrl: e.ctrlKey, alt: e.altKey, meta: e.metaKey, shift: e.shiftKey });
+      };
+      on('keydown', key('down')); on('keyup', key('up'));
+      on('paste', (e) => { e.preventDefault(); send({ t: 'text', text: e.clipboardData?.getData('text') ?? '' }); });
+      canvas.focus();
+    }
     return () => {
       disposed = true;
-      try { rfb?.disconnect(); } catch { /* already closed */ }
-      rfbRef.current = null;
-      el.innerHTML = '';
+      cleanups.forEach((f) => f());
+      try { ws.close(); } catch { /* already closed */ }
+      canvas.remove();
     };
   }, [bot.id, wantLive, mode, attempt]);
 
@@ -187,7 +209,7 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
       <div className="screen__body">
         <div className="screen__view" style={{ aspectRatio: `${width} / ${height}` }}>
           <div ref={canvasRef} className="screen__canvas" />
-          {/* noVNC swallows clicks on its canvas, so the way into the large view is a button laid over it. */}
+          {/* The canvas takes clicks while driving, so the way into the large view is a button laid over it. */}
           {expandable && <button type="button" className="screen__expand" onClick={() => onExpand?.('watch')} aria-label={`Open ${bot.name}’s computer in the large view`} title="Open the large view" />}
 
           {phase === 'live' && !driving && (

@@ -73,7 +73,6 @@ export const env = {
   xaiKey: process.env.XAI_API_KEY ?? '',
   xaiModel: process.env.XAI_MODEL ?? 'grok-4.7',
   composioKey: process.env.COMPOSIO_API_KEY ?? '',
-  orgoKey: process.env.ORGO_API_KEY ?? '',
   sessionSecret: sessionSecret(),
   /** Krishbot runs on your own computer: requests from this machine sign in automatically as the owner. */
   autoLocalLogin: process.env.AUTO_LOCAL_LOGIN !== '0',
@@ -101,8 +100,6 @@ export const env = {
   primaryBotLabel: process.env.PRIMARY_BOT_LABEL ?? 'Chief of Staff',
 
   // ---- the one shared computer ----
-  /** The Orgo computer every bot works on (one screen each). Empty = legacy one-box-per-user mode is not supported. */
-  orgoComputerId: process.env.ORGO_COMPUTER_ID ?? '',
   /** This server runs on that computer, so shell commands run locally instead of through Orgo's API. */
   localBox: process.env.HQ_LOCAL === '1',
   /**

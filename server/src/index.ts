@@ -6,7 +6,7 @@ import path from 'node:path';
 import type { Server } from 'node:http';
 import { compatEnv, env } from './env.js';
 import { api } from './routes.js';
-import { attachVncRelay } from './vnc.js';
+import { attachScreenRelay } from './screen/relay.js';
 import { initRoutines } from './routines.js';
 import { initTriggers } from './triggers.js';
 import { initProactive } from './proactive.js';
@@ -15,16 +15,12 @@ import { initRooms } from './agent/rooms.js';
 import { checkinsApi } from './routes-proactive.js';
 import { roomsApi } from './routes-rooms.js';
 import { enqueue, expireStaleApprovals } from './agent/loop.js';
-import { desSelfTest } from './lib/des.js';
 import { configApi } from './routes-config.js';
-import { startIdleWatcher } from './idle.js';
 import { mcpApi } from './mcp.js';
 import { krishApi, providersApi } from './krish/engine.js';
 import { initEngines } from './engine.js';
 import { sameOriginWrites } from './lib/auth.js';
-import { resolveBoxData } from './paths.js';
 
-if (!desSelfTest()) throw new Error('DES self-test failed');
 initSubagents();
 initRooms();
 // Approvals wait in memory; whatever was still open when the last process stopped can no longer be answered.
@@ -51,13 +47,11 @@ if (fs.existsSync(webDist)) {
 }
 
 const server = serve({ fetch: app.fetch, port: env.port, hostname: env.host }, (info) => console.log(`[bothq] server on http://localhost:${info.port}`));
-attachVncRelay(server as unknown as Server);
+attachScreenRelay(server as unknown as Server);
 // BOTHQ_NO_SCHEDULER=1 for extra dev/test servers sharing a database copy, so routines and triggers don't fire twice.
 if (compatEnv('NO_SCHEDULER') !== '1') {
   initRoutines(enqueue);
   void initTriggers(enqueue);
 initProactive(enqueue);
 } else console.log('[bothq] scheduler disabled (BOTHQ_NO_SCHEDULER=1)');
-startIdleWatcher();
-resolveBoxData().catch((e) => console.warn('[bothq] could not check the computer for its data folder:', e?.message ?? e));
 initEngines();

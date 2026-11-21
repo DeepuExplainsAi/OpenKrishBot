@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { BROWSER_TOOLS } from '../screen/tools.js';
 
 /** Local tools every Krishbot agent has (from the OpenManus toolset: shell, python, file edit, web). They run on this computer. */
 export interface LocalTool {
@@ -29,7 +30,7 @@ function sh(cmd: string, args: string[], cwd: string, timeoutSec: number, input?
 const abs = (p: string, cwd: string) => (path.isAbsolute(p) ? p : path.join(cwd, p));
 const stripHtml = (h: string) => h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
-export const LOCAL_TOOLS: LocalTool[] = [
+const BASE_TOOLS: LocalTool[] = [
   {
     name: 'terminal', ask: 'Run a command on your computer',
     description: 'Run a shell command on the user\'s computer and get its output. Use for anything: files, git, installs, scripts.',
@@ -123,5 +124,6 @@ export const LOCAL_TOOLS: LocalTool[] = [
   },
 ];
 
+export const LOCAL_TOOLS: LocalTool[] = [...BASE_TOOLS, ...BROWSER_TOOLS];
 export const localToolMap = new Map(LOCAL_TOOLS.map((t) => [t.name, t]));
 export const botHome = (botId: string) => path.join(os.homedir(), '.krishbot', 'bots', botId);
