@@ -14,7 +14,7 @@ Licenses: do NOT add third-party licenses yet (owner will add later). About sect
 3. Tick the checklist below and update the Status section.
 
 ## Parts
-- [ ] P0 baseline imported (bot-hq as-is)
+- [x] P0 baseline imported (bot-hq as-is)
 - [ ] P1 Rebrand to Krishbot AI + remove Orgo/Composio/xAI/Hermes cloud coupling, hide the licenses/credits from About
 - [ ] P2 Local engine: Ollama + OpenAI-compatible (LM Studio, llama.cpp) + free providers; model picker with many models; no key needed to start
 - [ ] P3 Local computer/screen per bot (replace Orgo): local browser (Playwright/CDP) + shell, watch / take control
@@ -26,4 +26,4 @@ Licenses: do NOT add third-party licenses yet (owner will add later). About sect
 - [ ] P9 Voice (local STT/TTS), polish, packaging (desktop launcher), final audit
 
 ## Status
-Part 0 in progress.
+P0 pushed. Next: P1.
