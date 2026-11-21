@@ -29,7 +29,7 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 
 ## Parts
 - [x] P0 baseline imported (bot-hq as-is)
-- [ ] P1 Rebrand to Krishbot (name is exactly "Krishbot") + remove Orgo/Composio/xAI/Hermes cloud coupling, hide the licenses/credits from About
+- [x] P1 Rebrand to Krishbot (name is exactly "Krishbot"); Orgo/Composio/xAI keys now optional (server boots with none); no sign-in screen (loopback auto-login as owner); session secret auto-generated in ~/.krishbot. NOTE: Hermes/Orgo/Composio code still present - removed in P2/P3/P4 as replaced
 - [ ] P2 Local engine: Ollama + OpenAI-compatible (LM Studio, llama.cpp) + free providers; model picker with many models; no key needed to start
 - [ ] P3 Local computer/screen per bot (replace Orgo): local browser (Playwright/CDP) + shell, watch / take control
 - [ ] P4 MCP connectors: add/remove MCP servers (stdio + HTTP), provider catalog, per-tool approvals
@@ -40,4 +40,4 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [ ] P9 Voice (local STT/TTS), polish, packaging (desktop launcher), final audit
 
 ## Status
-P0 pushed. Next: P1.
+P0, P1 done. Server boots with zero keys (verified). Next: P2 Krishbot engine (replaces Hermes). Remaining 'bothq'/'Bot HQ' internal identifiers (cookie, localStorage, db name) intentionally kept for now; rename in P9 with migration.

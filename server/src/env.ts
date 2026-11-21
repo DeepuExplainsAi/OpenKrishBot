@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -22,6 +23,12 @@ function secret(name: string): string {
  * one (the placeholder from .env.example, or anything short) would let anyone in.
  */
 function sessionSecret(): string {
+  const file = path.join(os.homedir(), '.krishbot', 'session-secret');
+  if (!process.env.SESSION_SECRET) {
+    try { fs.mkdirSync(path.dirname(file), { recursive: true }); } catch { /* ignore */ }
+    if (!fs.existsSync(file)) fs.writeFileSync(file, crypto.randomBytes(32).toString('hex'), { mode: 0o600 });
+    return fs.readFileSync(file, 'utf8').trim();
+  }
   const v = req('SESSION_SECRET');
   if (/^change-me/i.test(v) || v.length < 16) {
     throw new Error('SESSION_SECRET is the example placeholder or too short. Set it to a long random value, e.g. `openssl rand -hex 32`.');
@@ -63,11 +70,15 @@ export const env = {
   serverUrl: process.env.SERVER_URL ?? `http://localhost:${process.env.PORT ?? 8787}`,
   /** The app is only reachable at a local address (development). Some conveniences are limited to this. */
   localOnly: isLoopbackUrl(appUrl),
-  xaiKey: req('XAI_API_KEY'),
+  xaiKey: process.env.XAI_API_KEY ?? '',
   xaiModel: process.env.XAI_MODEL ?? 'grok-4.7',
-  composioKey: req('COMPOSIO_API_KEY'),
-  orgoKey: secret('ORGO_API_KEY'),
+  composioKey: process.env.COMPOSIO_API_KEY ?? '',
+  orgoKey: process.env.ORGO_API_KEY ?? '',
   sessionSecret: sessionSecret(),
+  /** Krishbot runs on your own computer: requests from this machine sign in automatically as the owner. */
+  autoLocalLogin: process.env.AUTO_LOCAL_LOGIN !== '0',
+  ownerEmail: process.env.OWNER_EMAIL ?? 'me@krishbot.local',
+  ownerName: process.env.OWNER_NAME ?? 'Krish',
   /** Email-only sign-in for testing. Honoured only when APP_URL is a local address (see routes.ts). */
   devLogin: process.env.DEV_LOGIN === '1' && isLoopbackUrl(appUrl),
   dbPath: process.env.DB_PATH ?? defaultDbPath(),
@@ -86,7 +97,7 @@ export const env = {
   mcpBaseUrl: (process.env.MCP_BASE_URL ?? `http://127.0.0.1:${process.env.PORT ?? 8787}`).replace(/\/+$/, ''),
   /** Extra MCP servers every managed bot gets, as a JSON object of Hermes `mcp_servers` entries (e.g. X's XMCP). */
   extraMcpServers: process.env.EXTRA_MCP_SERVERS ?? '',
-  primaryBotName: process.env.PRIMARY_BOT_NAME ?? 'Doug',
+  primaryBotName: process.env.PRIMARY_BOT_NAME ?? 'Krish',
   primaryBotLabel: process.env.PRIMARY_BOT_LABEL ?? 'Chief of Staff',
 
   // ---- the one shared computer ----

@@ -4,7 +4,7 @@ import { db } from './db.js';
 import { env } from './env.js';
 import type { Toolkit } from './types.js';
 
-export const composio = new Composio({ apiKey: env.composioKey, provider: new OpenAIResponsesProvider() });
+export const composio = new Composio({ apiKey: env.composioKey || 'unset', provider: new OpenAIResponsesProvider() });
 
 const REST = 'https://backend.composio.dev/api/v3.1';
 async function rest<T = any>(path: string): Promise<T> {

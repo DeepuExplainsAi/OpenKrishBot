@@ -80,7 +80,13 @@ function findOrCreateUser(email: string, name?: string, preferId?: string, opts:
 // ---------- auth ----------
 
 api.get('/auth/me', (c) => {
-  const user = userFromCookieHeader(c.req.header('cookie'));
+  let user = userFromCookieHeader(c.req.header('cookie'));
+  // Local app: a request from this machine is the owner. No sign-in screen, no cloud account.
+  if (!user && env.autoLocalLogin && isLoopbackAddress(getConnInfo(c).remote.address)) {
+    const { id } = findOrCreateUser(env.ownerEmail, env.ownerName, undefined, { owner: true });
+    createSession(c, id);
+    user = { id, email: env.ownerEmail, name: env.ownerName, avatarUrl: null } as any;
+  }
   return c.json({ user, devLogin: env.devLogin });
 });
 

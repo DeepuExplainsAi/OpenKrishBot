@@ -1,7 +1,7 @@
 {
-  "name": "bot-hq",
+  "name": "krishbot",
   "private": true,
-  "description": "Bot HQ: a team of Hermes agents, each with its own screen on one Orgo computer, with Composio apps and xAI voice.",
+  "description": "Krishbot: a team of AI agents on your own computer. Free, local, Mera AI.",
   "workspaces": ["server", "web"],
   "scripts": {
     "dev": "npm run dev -w server & npm run dev -w web",
