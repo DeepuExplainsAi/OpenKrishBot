@@ -37,7 +37,7 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 ## Parts
 - [x] P0 baseline imported (bot-hq as-is)
 - [x] P1 Rebrand to Krishbot (name is exactly "Krishbot"); Orgo/Composio/xAI keys now optional (server boots with none); no sign-in screen (loopback auto-login as owner); session secret auto-generated in ~/.krishbot. NOTE: Hermes/Orgo/Composio code still present - removed in P2/P3/P4 as replaced
-- [ ] P2 Local engine: Ollama + OpenAI-compatible (LM Studio, llama.cpp) + free providers; model picker with many models; no key needed to start
+- [x] P2 (DONE, verified e2e: free model -> terminal tool -> approval card -> result 'krish-42') Local engine: Ollama + OpenAI-compatible (LM Studio, llama.cpp) + free providers; model picker with many models; no key needed to start
 - [ ] P3 Local computer/screen per bot (replace Orgo): local browser (Playwright/CDP) + shell, watch / take control
 - [ ] P4 MCP connectors: add/remove MCP servers (stdio + HTTP), provider catalog, per-tool approvals
 - [ ] P5 Phone remote control of the laptop (LAN/PWA + QR pairing, optional free tunnel); laptop does the work
@@ -47,4 +47,13 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [ ] P9 Voice (local STT/TTS), polish, packaging (desktop launcher), final audit
 
 ## Status
-P0, P1 done. Server boots with zero keys (verified). Next: P2 Krishbot engine (replaces Hermes). Remaining 'bothq'/'Bot HQ' internal identifiers (cookie, localStorage, db name) intentionally kept for now; rename in P9 with migration.
+P0, P1, P2 done. Server boots with zero keys (verified). Next: P3 local computer/screen (UI currently shows 'Couldn't wake computer: ORGO_COMPUTER_ID not set'). Remaining 'bothq'/'Bot HQ' internal identifiers (cookie, localStorage, db name) intentionally kept for now; rename in P9 with migration.
+
+## P2 notes (for next agent)
+- server/src/engine.ts is now a slim replacement (old Hermes engine deleted). Every bot -> in-process engine at /krish/v1/responses (server/src/krish/engine.ts), guarded by engineKey().
+- krish/providers.ts: presets (Pollinations keyless default, Ollama, LM Studio, llama.cpp, OpenRouter, Groq, Cerebras, Gemini, Mistral, Together, DeepSeek, OpenAI, custom). Keys saved to ~/.krishbot/providers.json. REST: GET/PUT /api/krish/providers.
+- krish/tools.ts: terminal, execute_code, read_file, write_file, patch, search_files, web_search (DuckDuckGo), web_extract, memory. Write/exec tools go through approval cards (policy key local:<tool>).
+- krish/mcp-client.ts is a STUB -> implement in P4.
+- App tools still come from agent/tools.ts via mcp.ts listTools/callTool (exported).
+- Still TODO from Hermes era: routes-config.ts engine/login + screen routes (dead), Composio calls (401 warnings in log), 'Add to Slack' suggestion, x_search/xAI, voice.ts (xAI) -> P4/P9.
+- Typecheck needs NODE_OPTIONS=--max-old-space-size=1400 (swap enabled). Web build: npx vite build in web/.

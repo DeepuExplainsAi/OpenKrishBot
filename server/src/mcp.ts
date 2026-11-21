@@ -40,7 +40,7 @@ function caller(slug: string, auth: string | undefined): { botId: string | null 
   return getBotRow(slug) ? { botId: slug } : null;
 }
 
-async function listTools(botId: string | null) {
+export async function listTools(botId: string | null) {
   const own = TOOLS.map((t) => ({ name: t.name, description: t.description, inputSchema: t.parameters }));
   const bot = botId ? getBotRow(botId) : null;
   if (!bot) return own;
@@ -50,7 +50,7 @@ async function listTools(botId: string | null) {
   return [...own, ...apps];
 }
 
-async function callTool(botId: string | null, rawName: string, args: any): Promise<CallResult> {
+export async function callTool(botId: string | null, rawName: string, args: any): Promise<CallResult> {
   const bot = botId ? getBotRow(botId) : null;
   if (!botId || !bot) return text('The team app has no bot for this agent yet. Ask the user to open the app once, then try again.', true);
   const userId: string = bot.user_id;
