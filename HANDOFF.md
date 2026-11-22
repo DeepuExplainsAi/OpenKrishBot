@@ -446,3 +446,7 @@ Done:
 ## P30 — fence untrusted text, webhook rate limit (suparagent `fence.py` / openfuse rate-limit ideas, from scratch)
 - `lib/fence.ts`: `fenceUntrusted` (webhook body and feed item go into the routine prompt as one JSON string under an "untrusted data" label) and `rateLimiter`. `triggers.ts`: 30 calls/min per webhook secret, else 429. Test `fence.test.mts`.
 - Not done: HMAC/header auth for webhooks (secret in path only), login-attempt limiter (`login_attempts` table unused), scrubbing credential-looking values inside fenced text. A model can still be talked into things by data; the fence lowers the risk, it does not remove it.
+
+## P31 — routine catch-up after downtime (suparagent idea, from scratch)
+- `routines.ts` `missedSince`: at startup a cron routine whose latest due time in the last 24 h is after its last run (or creation) runs once. Test `routine-catchup.test.mts`.
+- Not done: retry on failure (no failure signal on routine runs yet), per-routine catch-up window setting.
