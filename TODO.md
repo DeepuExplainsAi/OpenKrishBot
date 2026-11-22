@@ -16,6 +16,13 @@ Rule: finish one part fully, ask you, update HANDOFF.md, then go on. Earlier par
 - [ ] **P24 Computer and Settings black screen**
   - Find why the Computer view and its Settings are empty and black, and fix it
   - Add the missing option (the one you said was absent)
+- [ ] **P24b Computer view** (add to P24)
+  - Computer view is always black: show the live screen, plus a history of what the bot did (copy OpenMausBot's)
+- [ ] **P29 Bot menus (copy OpenMausBot's)**
+  - Bot right-click / "..." menu: New thread, New thread in a working folder, New folder, Delete all threads, Pin, Make Chief of Staff, Move to department, Mark as unread, Mark all as read, Edit Profile, Duplicate, Pause bot, Pause every bot, Copy conversation ID, Archive, Delete
+  - "+" menu: New chat, New bot (Ctrl N), New group chat, Add department, Templates, Import
+  - Pencil icon next to the Chief of Staff name to rename it
+- [ ] **Reference repos for P26/P29:** elie222/rakazo, paperclipai/paperclip, nickvasilescu/orgo-teammates, nickvasilescu/bot-hq, CopilotKit/OpenBot, FoundationAgents/OpenManus, nickvasilescu/openman, CopilotKit/openfuse, HarnessMD/munder-difflin, Anil-matcha/superagent
 - [ ] **P25 Chat box and language**
   - Placeholder: "Hi, I am OpenKrishBot" (not "Hey Krish")
   - Hinglish stays Hinglish: reply in the language you write in
