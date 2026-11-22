@@ -148,3 +148,11 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 - Verified live with scripted fake model: fork/join (2 parallel + merge) gave correct merged output; a 400 from the provider failed step a with the friendly message and skipped b; unknown bot rejected at save.
 - Found while testing: when the chosen provider is dead, the bot falls back to Pollinations (works; takes ~60s with retries).
 - NOT DONE: bot tool to start a workflow from chat; cron-triggered flows; step-level approval cards appear in each bot's own chat (a flow waits on them).
+
+## P11c: Paperclip-style issues (delegation between bots)
+- `server/src/issues.ts` + `routes-issues.ts` (`/api/issues`) + Settings -> Issues. Table `issues`: assignee, created_by, parent_id (sub-issues), checkout_bot, result.
+- Atomic checkout = one conditional UPDATE (only assignee/first claimer wins; others get a reason). Only the holder can complete/block; a parent can't complete while sub-issues are open; last sub-issue done nudges the parent's owner. Creator is woken with the result.
+- Heartbeat (every 60s, per-issue 10 min): idle assignee that never checked out gets nudged again. User reassign/status change releases checkout. Cap: 40 open bot-created issues (stops runaway delegation).
+- Bot tools: create_issue, list_my_issues, checkout_issue, complete_issue, block_issue (+ prompt lines).
+- 8 unit tests (`test/issues.test.mts`). Live: Boss bot -> create_issue(Worker) -> Worker woken, checkout, complete -> Boss received the result. (Test-only gotcha: ids contain `-`.)
+- NOT DONE: budgets/cost tracking, goals tree, issue comments.

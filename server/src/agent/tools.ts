@@ -1,3 +1,4 @@
+import { checkout, createIssue, finish, issuesFor } from '../issues.js';
 import { db, now } from '../db.js';
 import { activePlan, createPlan, markStep, render, saveSteps } from '../plan.js';
 import { newId } from '../lib/ids.js';
@@ -210,6 +211,57 @@ export const TOOLS: ToolDef[] = [
       hub.emit(ctx.userId, { type: 'tasks', botId: ctx.botId });
       return { output: 'Updated.' };
     },
+  },
+  {
+    name: 'create_issue',
+    description: "Create an issue (a unit of work) and optionally assign it to another Bot by name; they are woken up to do it and you are told when it is done. Pass parent_id to split a bigger issue you hold into sub-issues.",
+    parameters: obj({ title: { type: 'string' }, details: { type: 'string' }, assignee: { type: 'string', description: 'Bot name; omit to leave unassigned' }, parent_id: { type: 'string' } }, ['title']),
+    activity: 'messaging_named',
+    label: 'Creating an issue',
+    impl: async (a, ctx) => {
+      let assigneeBotId: string | null = null;
+      if (a.assignee) {
+        const t = botByName(ctx.userId, a.assignee);
+        if (!t || t.kind === 'room') return { output: `No bot named "${a.assignee}".` };
+        assigneeBotId = t.id;
+      }
+      try {
+        const i = createIssue({ userId: ctx.userId, title: String(a.title), body: a.details, assigneeBotId, parentId: a.parent_id, createdByBotId: ctx.botId });
+        return { output: JSON.stringify({ issue_id: i.id, assigned_to: a.assignee ?? null }), summary: `Issue: ${i.title}` };
+      } catch (e: any) { return { output: e.message }; }
+    },
+  },
+  {
+    name: 'list_my_issues',
+    description: 'Issues assigned to you that are not finished.',
+    parameters: obj({}),
+    activity: 'working',
+    label: 'Checking my issues',
+    impl: async (_a, ctx) => ({ output: JSON.stringify(issuesFor(ctx.botId).map((i) => ({ id: i.id, title: i.title, status: i.status, details: i.body }))) }),
+  },
+  {
+    name: 'checkout_issue',
+    description: 'Take an issue before working on it. Only one Bot can hold an issue; if this fails, leave it alone.',
+    parameters: obj({ issue_id: { type: 'string' } }, ['issue_id']),
+    activity: 'working',
+    label: 'Taking an issue',
+    impl: async (a, ctx) => { const r = checkout(String(a.issue_id), ctx.botId); return { output: r.ok ? `Checked out: ${r.issue.title}` : `Cannot check out: ${r.reason}` }; },
+  },
+  {
+    name: 'complete_issue',
+    description: 'Finish an issue you hold, with a short result. Whoever created it is told.',
+    parameters: obj({ issue_id: { type: 'string' }, result: { type: 'string' } }, ['issue_id', 'result']),
+    activity: 'working',
+    label: 'Finishing an issue',
+    impl: async (a, ctx) => { const r = finish(String(a.issue_id), ctx.botId, 'done', String(a.result)); return { output: r.ok ? 'Done.' : `Cannot complete: ${r.reason}` }; },
+  },
+  {
+    name: 'block_issue',
+    description: 'Mark an issue you hold as blocked, saying what you need. Whoever created it is told.',
+    parameters: obj({ issue_id: { type: 'string' }, reason: { type: 'string' } }, ['issue_id', 'reason']),
+    activity: 'working',
+    label: 'Blocking an issue',
+    impl: async (a, ctx) => { const r = finish(String(a.issue_id), ctx.botId, 'blocked', String(a.reason)); return { output: r.ok ? 'Marked blocked.' : `Cannot block: ${r.reason}` }; },
   },
   {
     name: 'send_to_bot',

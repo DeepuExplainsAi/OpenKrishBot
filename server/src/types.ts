@@ -232,6 +232,7 @@ export type ServerEvent =
   | { type: 'computer'; state: ComputerState }
   | { type: 'routines'; botId: string }
   | { type: 'tasks'; botId: string }
+  | { type: 'issues' }
   | { type: 'memories'; botId: string }
   | { type: 'connections' }
   | { type: 'ping' };

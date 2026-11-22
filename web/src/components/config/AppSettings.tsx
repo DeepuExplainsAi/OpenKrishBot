@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type AuditEntry, type Flow, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
+import { configApi, type AuditEntry, type Flow, type Issue, type IssueStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -19,6 +19,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'apps', label: 'Connected apps' },
   { id: 'phone', label: 'Phone' },
   { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'issues', label: 'Issues' },
   { id: 'workflows', label: 'Workflows' },
   { id: 'activity', label: 'Activity log' },
   { id: 'account', label: 'Account' },
@@ -55,6 +56,7 @@ export function AppSettings() {
           {section === 'apps' && <AppsSection />}
           {section === 'phone' && <PhoneSection />}
           {section === 'whatsapp' && <WhatsAppSection />}
+          {section === 'issues' && <IssuesSection />}
           {section === 'workflows' && <WorkflowsSection />}
           {section === 'activity' && <ActivitySection />}
           {section === 'account' && <AccountSection />}
@@ -570,6 +572,64 @@ function WorkflowsSection() {
           </div>
         </section>
       )}
+    </>
+  );
+}
+
+const ISSUE_LABEL: Record<IssueStatus, string> = { todo: 'To do', in_progress: 'In progress', blocked: 'Blocked', done: 'Done', cancelled: 'Cancelled' };
+
+function IssuesSection() {
+  const bots = useStore((s) => s.bots).filter((b) => b.kind !== 'room');
+  const [issues, setIssues] = useState<Issue[] | null>(null);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [assignee, setAssignee] = useState('');
+  const [err, setErr] = useState('');
+  const load = useCallback(() => configApi.issues().then((r) => setIssues(r.issues)).catch(() => setIssues([])), []);
+  useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, [load]);
+  const nameOf = (id: string | null) => bots.find((b) => b.id === id)?.name ?? (id ? 'Unknown bot' : 'Nobody');
+  const act = (p: Promise<unknown>) => p.then(() => { setErr(''); load(); }).catch((e) => setErr(e.message));
+  const add = () => act(configApi.addIssue({ title, body, assigneeBotId: assignee || null }).then(() => { setTitle(''); setBody(''); }));
+
+  return (
+    <>
+      <PageHead title="Issues" sub="Shared work for your Bots. An assigned issue wakes that Bot; it takes the issue, does it, and reports back. Bots can also create and hand off issues to each other." />
+      <section className="cfg-section">
+        <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
+          <input className="text-input" placeholder="What needs doing?" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <textarea className="text-input" rows={2} placeholder="Details (optional)" value={body} onChange={(e) => setBody(e.target.value)} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select className="text-input" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+              <option value="">Unassigned</option>
+              {bots.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <button type="button" className="cfg-btn cfg-btn--primary" disabled={!title.trim()} onClick={add}>Create</button>
+          </div>
+          {err && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{err}</div>}
+        </div>
+      </section>
+      <section className="cfg-section">
+        <div className="cfg-card">
+          {issues === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : issues.length === 0 ? <div className="cfg-empty cfg-empty--flat">No issues yet.</div> : issues.map((i) => (
+            <div key={i.id} className="cfg-row" style={{ alignItems: 'flex-start' }}>
+              <div className="cfg-row__text">
+                <div className="cfg-row__title">{i.parentId ? '↳ ' : ''}{i.title}</div>
+                <div className="cfg-row__sub" style={{ whiteSpace: 'pre-wrap' }}>
+                  {ISSUE_LABEL[i.status]} · {i.checkoutBotId ? `${nameOf(i.checkoutBotId)} is on it` : `Assigned to ${nameOf(i.assigneeBotId)}`}{i.result ? `\n${i.result.slice(0, 500)}` : ''}
+                </div>
+              </div>
+              <select className="text-input" style={{ width: 120 }} value={i.assigneeBotId ?? ''} onChange={(e) => act(configApi.patchIssue(i.id, { assigneeBotId: e.target.value || null }))} aria-label="Assignee">
+                <option value="">Unassigned</option>
+                {bots.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+              <select className="text-input" style={{ width: 120 }} value={i.status} onChange={(e) => act(configApi.patchIssue(i.id, { status: e.target.value as IssueStatus }))} aria-label="Status">
+                {(Object.keys(ISSUE_LABEL) as IssueStatus[]).map((s) => <option key={s} value={s}>{ISSUE_LABEL[s]}</option>)}
+              </select>
+              <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Delete" onConfirm={() => act(configApi.deleteIssue(i.id))}>Delete</ConfirmButton>
+            </div>
+          ))}
+        </div>
+      </section>
     </>
   );
 }

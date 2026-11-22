@@ -49,7 +49,14 @@ export interface Flow { id: string; name: string; steps: FlowStep[] }
 export interface StepResult { status: 'pending' | 'running' | 'done' | 'failed' | 'skipped'; output?: string; error?: string; attempts: number }
 export interface FlowRun { id: string; flowId: string; input: string; status: 'running' | 'done' | 'failed' | 'stopped'; results: Record<string, StepResult> }
 
+export type IssueStatus = 'todo' | 'in_progress' | 'blocked' | 'done' | 'cancelled';
+export interface Issue { id: string; title: string; body: string; status: IssueStatus; assigneeBotId: string | null; parentId: string | null; checkoutBotId: string | null; result: string; updatedAt: number }
+
 export const configApi = {
+  issues: () => req<{ issues: Issue[] }>('GET', '/issues'),
+  addIssue: (i: { title: string; body?: string; assigneeBotId?: string | null }) => req<{ issue: Issue }>('POST', '/issues', i),
+  patchIssue: (id: string, p: { status?: IssueStatus; assigneeBotId?: string | null }) => req<{ issue: Issue }>('PATCH', `/issues/${id}`, p),
+  deleteIssue: (id: string) => req<{ ok: true }>('DELETE', `/issues/${id}`),
   flows: () => req<{ flows: Flow[] }>('GET', '/flows'),
   saveFlow: (f: { id?: string; name: string; steps: FlowStep[] }) => req<{ flow: Flow }>('PUT', '/flows', f),
   deleteFlow: (id: string) => req<{ ok: true }>('DELETE', `/flows/${id}`),
