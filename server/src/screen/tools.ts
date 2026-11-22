@@ -5,6 +5,7 @@ import type { LocalTool } from '../krish/tools.js';
 import { screenOf } from './manager.js';
 import { db } from '../db.js';
 import { secretValue } from '../vault.js';
+import { extractScript, stuckNote } from './extract.js';
 import { htmlToMarkdown } from '../krish/scrape.js';
 
 /** Browser tools for a bot (the OpenManus browser_use set): look at the page as a numbered list, then act on a number. */
@@ -33,7 +34,7 @@ async function snapshot(botId: string): Promise<string> {
   const s = await screenOf(botId);
   await new Promise((r) => setTimeout(r, 400));
   const v = await s.eval<{ url: string; title: string; elements: string[]; text: string }>(SNAPSHOT_JS);
-  return `Page: ${v.title}\nURL: ${v.url}\n\nClickable / typeable (use the number):\n${v.elements.join('\n') || '(none)'}\n\nVisible text:\n${v.text}`;
+  return `Page: ${v.title}\nURL: ${v.url}\n\nClickable / typeable (use the number):\n${v.elements.join('\n') || '(none)'}\n\nVisible text:\n${v.text}${stuckNote(botId, v.url + v.elements.join('|') + v.text.slice(0, 500))}`;
 }
 
 async function center(botId: string, index: number): Promise<{ x: number; y: number }> {
@@ -93,6 +94,17 @@ export const BROWSER_TOOLS: LocalTool[] = [
     description: 'Look at the current page again: numbered clickable elements and the visible text.',
     parameters: obj({}),
     run: (_a, c) => snapshot(botOf(c.home)),
+  },
+  {
+    name: 'browser_extract',
+    description: 'Pull structured data out of the current page with CSS selectors, e.g. each="div.product", fields={"title":"h2","price":".price","link":"a@href"} (name@attr reads an attribute). Returns JSON rows. Cheaper and more exact than reading the whole page.',
+    parameters: obj({ fields: { type: 'object', description: 'field name -> CSS selector' }, each: { type: 'string', description: 'CSS selector of the repeated row; omit for one record' } }, ['fields']),
+    async run(a, c) {
+      const s = await screenOf(botOf(c.home));
+      const out = await s.eval<unknown>(extractScript({ each: a.each ? String(a.each) : undefined, fields: a.fields as Record<string, string> }));
+      const text = JSON.stringify(out, null, 1);
+      return text.length > 20000 ? `${text.slice(0, 20000)}\n...(cut)` : text;
+    },
   },
   {
     name: 'browser_click',
