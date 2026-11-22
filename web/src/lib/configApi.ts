@@ -56,7 +56,15 @@ export interface BudgetInfo { dailyTokens: number | null; today: { tokensIn: num
 
 export interface LibrarySkill { id: string; name: string; description: string; triggers: string[]; enabled: boolean }
 
+export interface TelegramInfo { status: 'off' | 'running' | 'error'; bot: string | null; error: string | null; hasToken: boolean; paired: number; pairCode: string | null }
+
 export const configApi = {
+  telegram: () => req<TelegramInfo>('GET', '/telegram'),
+  telegramToken: (token: string) => req<{ status: string; error: string | null }>('PUT', '/telegram/token', { token }),
+  telegramPairCode: () => req<{ pairCode: string }>('POST', '/telegram/pair-code', {}),
+  telegramStart: () => req<{ status: string; error: string | null }>('POST', '/telegram/start', {}),
+  telegramStop: () => req<{ ok: true }>('POST', '/telegram/stop', {}),
+  telegramUnlink: () => req<{ ok: true }>('POST', '/telegram/unlink', {}),
   skillLibrary: () => req<{ skills: LibrarySkill[] }>('GET', '/skill-library'),
   setLibrarySkill: (id: string, enabled: boolean) => req<{ id: string; enabled: boolean }>('PUT', `/skill-library/${id}`, { enabled }),
   budget: (botId: string) => req<BudgetInfo>('GET', `/bots/${botId}/budget`),

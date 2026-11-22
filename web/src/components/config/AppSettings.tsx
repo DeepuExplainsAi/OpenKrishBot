@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type AuditEntry, type Flow, type LibrarySkill, type Issue, type IssueStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
+import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -19,6 +19,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'apps', label: 'Connected apps' },
   { id: 'phone', label: 'Phone' },
   { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'telegram', label: 'Telegram' },
   { id: 'issues', label: 'Issues' },
   { id: 'workflows', label: 'Workflows' },
   { id: 'skills', label: 'Skills' },
@@ -57,6 +58,7 @@ export function AppSettings() {
           {section === 'apps' && <AppsSection />}
           {section === 'phone' && <PhoneSection />}
           {section === 'whatsapp' && <WhatsAppSection />}
+          {section === 'telegram' && <TelegramSection />}
           {section === 'issues' && <IssuesSection />}
           {section === 'skills' && <SkillsSection />}
           {section === 'workflows' && <WorkflowsSection />}
@@ -657,6 +659,46 @@ function SkillsSection() {
               <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => toggle(s)} aria-pressed={s.enabled}>{s.enabled ? 'On' : 'Off'}</button>
             </div>
           ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function TelegramSection() {
+  const [info, setInfo] = useState<TelegramInfo | null>(null);
+  const [token, setToken] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(() => { configApi.telegram().then(setInfo).catch((e) => setError((e as Error).message)); }, []);
+  useEffect(() => { load(); const t = setInterval(load, 3000); return () => clearInterval(t); }, [load]);
+  const run = (fn: () => Promise<unknown>) => { setError(null); fn().then(load).catch((e) => setError((e as Error).message)); };
+  const label = info?.status === 'running' ? `Running as @${info.bot}` : info?.status === 'error' ? 'Problem' : 'Not connected';
+  return (
+    <>
+      <PageHead title="Telegram" sub="Talk to your main Bot from Telegram. It runs on this computer: Krishbot asks Telegram for your messages, nothing is hosted." />
+      <section className="cfg-section">
+        <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
+          <div className="cfg-row__title">{label}{info && info.paired > 0 ? ` · ${info.paired} chat${info.paired === 1 ? '' : 's'} paired` : ''}</div>
+          {(error || info?.error) && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{error ?? info?.error}</div>}
+          {!info?.hasToken ? (
+            <>
+              <div className="cfg-row__sub">1. In Telegram, open @BotFather, send /newbot and copy the token it gives you. 2. Paste it here.</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input className="text-input" placeholder="123456:ABC-DEF…" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
+                <button type="button" className="cfg-btn cfg-btn--primary" disabled={!token.trim()} onClick={() => run(() => configApi.telegramToken(token.trim()).then(() => setToken('')))}>Connect</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="cfg-row__sub">Only chats you pair can use your Bot. Click “New code”, then send <b>/pair CODE</b> to your bot in Telegram.</div>
+              {info.pairCode && <div className="cfg-row__title" style={{ fontSize: 22, letterSpacing: 3 }}>/pair {info.pairCode}</div>}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button" className="cfg-btn cfg-btn--primary" onClick={() => run(configApi.telegramPairCode)}>New code</button>
+                {info.status === 'off' ? <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => run(configApi.telegramStart)}>Turn on</button> : <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => run(configApi.telegramStop)}>Turn off</button>}
+                <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Remove token and paired chats" onConfirm={async () => run(configApi.telegramUnlink)}>Disconnect</ConfirmButton>
+              </div>
+            </>
+          )}
         </div>
       </section>
     </>

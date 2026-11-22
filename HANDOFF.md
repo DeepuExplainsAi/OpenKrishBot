@@ -166,3 +166,8 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 - `server/skills/<id>/{manifest.json,SKILL.md}`: social-posts, verify-project, research-report, daily-brief (written for Krishbot; OpenMausBot's own skills depend on its show_html/publish/phone tools, which don't exist here, so they were not copied).
 - `server/src/skill-library.ts`: loader (bad skills skipped), trigger-term match, max 3 per turn, injected into the system prompt in `krish/engine.ts`; on/off in kv `skill:<id>`; API `/api/skill-library`; UI Settings -> Skills.
 - Tests `test/skills.test.mts` (3). Live: triggered message gets the skill text, other message doesn't, off switch removes it.
+
+## P11f: Telegram (second chat app, after WhatsApp)
+- `server/src/telegram.ts`: plain HTTPS long-polling of the Bot API (no library, no webhook, nothing hosted), reuses `whatsapp-relay` (replies, approval cards 1/2/3, errors, stop). Access: a chat is allowed only after `/pair <one-time code>` from Settings -> Telegram; groups ignored; strangers get nothing. Token in local kv (`tg_token`). API `/api/telegram` (status, token, pair-code, start, stop, unlink). Backoff on network errors, 401 -> clear message.
+- Tests `test/telegram.test.mts` (3). Live against a fake Telegram server (`KRISH_TELEGRAM_API` overrides the URL): bad token format rejected, wrong token -> 'rejected', good token -> running, stranger ignored, wrong code refused, right code paired, then the bot answered.
+- NOT VERIFIED: real Telegram servers / a real BotFather token. Slack/Discord not done (OpenMausBot's Slack is hosted-admin based, not portable).
