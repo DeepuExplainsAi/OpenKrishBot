@@ -1,0 +1,11 @@
+services:
+  openkrishbot:
+    build: .
+    restart: unless-stopped
+    ports: ["127.0.0.1:8787:8787"]   # put a TLS proxy in front before exposing it
+    environment:
+      APP_URL: http://localhost:8787   # the public URL if you proxy it
+      SERVER_URL: http://localhost:8787
+    volumes: ["openkrishbot-data:/data"]
+volumes:
+  openkrishbot-data:

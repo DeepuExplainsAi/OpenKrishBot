@@ -12,3 +12,16 @@ test('fetchPage returns the article as markdown and resolves links', async () =>
     assert.ok(p.links.includes(`http://127.0.0.1:${port}/x`));
   } finally { srv.close(); }
 });
+
+import { crawlSite } from '../src/krish/scrape.ts';
+test('crawlSite stays on the host and prefix, never repeats, respects the limit', async () => {
+  const site: Record<string, string[]> = {
+    'https://a.test/docs/': ['https://a.test/docs/x', 'https://b.test/y', 'https://a.test/blog/z', 'https://a.test/docs/logo.png'],
+    'https://a.test/docs/x': ['https://a.test/docs/', 'https://a.test/docs/w#top'],
+    'https://a.test/docs/w': [],
+  };
+  const fetchOne = async (u: string) => ({ title: u, markdown: 'm', links: site[u] ?? [] });
+  const pages = await crawlSite('https://a.test/docs/', { pathPrefix: '/docs', fetchOne });
+  assert.deepEqual(pages.map((p) => p.url), ['https://a.test/docs/', 'https://a.test/docs/x', 'https://a.test/docs/w']);
+  assert.equal((await crawlSite('https://a.test/docs/', { maxPages: 1, fetchOne })).length, 1);
+});

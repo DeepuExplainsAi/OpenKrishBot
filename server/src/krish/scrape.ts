@@ -22,3 +22,28 @@ export async function fetchPage(url: string): Promise<{ title: string; markdown:
   if (!/html/i.test(r.headers.get('content-type') ?? '')) return { title: url, markdown: body, links: [] };
   return htmlToMarkdown(body, r.url);
 }
+
+export interface CrawledPage { url: string; title: string; markdown: string }
+
+/** Breadth-first crawl of one site (crawl4ai idea): same host only, bounded pages, optional path prefix. Free, no browser. */
+export async function crawlSite(start: string, opts: { maxPages?: number; pathPrefix?: string; fetchOne?: typeof fetchPage } = {}): Promise<CrawledPage[]> {
+  const { maxPages = 10, pathPrefix = '', fetchOne = fetchPage } = opts;
+  const host = new URL(start).host;
+  const seen = new Set<string>([start]);
+  const queue = [start];
+  const out: CrawledPage[] = [];
+  while (queue.length && out.length < Math.min(maxPages, 50)) {
+    const url = queue.shift()!;
+    try {
+      const p = await fetchOne(url);
+      out.push({ url, title: p.title, markdown: p.markdown });
+      for (const l of p.links) {
+        const u = new URL(l);
+        u.hash = '';
+        const href = u.href;
+        if (u.host === host && u.pathname.startsWith(pathPrefix) && !seen.has(href) && !/\.(png|jpe?g|gif|svg|pdf|zip|css|js)$/i.test(u.pathname)) { seen.add(href); queue.push(href); }
+      }
+    } catch { /* skip pages that fail */ }
+  }
+  return out;
+}
