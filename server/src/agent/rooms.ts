@@ -16,6 +16,13 @@ const MAX_RESPONDERS = 3;
 /** `@name` as a whole word, so @Sam does not also wake @Samantha. */
 export const mentions = (lowerText: string, name: string) => new RegExp(`@${name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}_])`, 'u').test(lowerText);
 
+/** @mentioned members answer (capped). With no mention the group rotates: the next MAX_RESPONDERS members after the last one who was asked, so members past the third also get their turn. */
+export function pickResponders<T extends { id: string }>(members: T[], mentioned: T[], lastId?: string | null): T[] {
+  if (mentioned.length) return mentioned.slice(0, MAX_RESPONDERS);
+  const start = (members.findIndex((m) => m.id === lastId) + 1) % members.length;
+  return Array.from({ length: Math.min(MAX_RESPONDERS, members.length) }, (_, i) => members[(start + i) % members.length]);
+}
+
 export function initRooms() {
   for (const col of ["kind TEXT NOT NULL DEFAULT 'agent'", 'members TEXT']) {
     try { db.exec(`ALTER TABLE bots ADD COLUMN ${col}`); } catch (e: any) { if (!/duplicate column/i.test(e?.message)) throw e; }
@@ -50,7 +57,9 @@ export function dispatchRoomMessage(roomId: string, text: string, enqueue: (botI
   }
   const lower = text.toLowerCase();
   const mentioned = members.filter((m) => mentions(lower, m.name));
-  const responders = (mentioned.length ? mentioned : members).slice(0, MAX_RESPONDERS);
+  const lastKey = `roomlast:${roomId}`;
+  const responders = pickResponders(members, mentioned, (db.prepare('SELECT value FROM kv WHERE key=?').get(lastKey) as any)?.value);
+  if (!mentioned.length) db.prepare('INSERT OR REPLACE INTO kv(key,value) VALUES (?,?)').run(lastKey, responders[responders.length - 1].id);
   const recent = (db.prepare("SELECT body FROM rows WHERE bot_id=? AND generation=? AND kind='message' ORDER BY seq DESC LIMIT 12").all(roomId, room.generation) as any[])
     .reverse()
     .map((r) => {

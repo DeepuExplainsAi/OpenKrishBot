@@ -450,3 +450,7 @@ Done:
 ## P31 — routine catch-up after downtime (suparagent idea, from scratch)
 - `routines.ts` `missedSince`: at startup a cron routine whose latest due time in the last 24 h is after its last run (or creation) runs once. Test `routine-catchup.test.mts`.
 - Not done: retry on failure (no failure signal on routine runs yet), per-routine catch-up window setting.
+
+## P32 — group chat rotation (autogen selector-group-chat idea, from scratch)
+- Bug: a message to the whole group always woke the first 3 members, so members 4+ never answered. `agent/rooms.ts` `pickResponders` now rotates (last asked id kept in `kv` `roomlast:<room>`); @mentions unchanged. Test in `rooms.test.mts`.
+- From the stagehand/langgraph/autogen review, still open: flow resume after crash, approval with edited args, room termination conditions, human gate between flow steps, selector cache for `browser_extract`.
