@@ -46,49 +46,6 @@ function botByName(userId: string, name: string) {
   return db.prepare('SELECT * FROM bots WHERE user_id=? AND lower(name)=lower(?)').get(userId, name.trim()) as any;
 }
 
-/** Live X research through xAI's search tool. Returns the answer text followed by the posts it cites. */
-async function xSearch(a: any): Promise<string> {
-  const clean = (v: unknown) => (Array.isArray(v) ? v.map((h) => String(h).replace(/^@/, '').trim()).filter(Boolean).slice(0, 10) : []);
-  const tool: Record<string, unknown> = { type: 'x_search' };
-  const only = clean(a.handles);
-  const not = clean(a.exclude_handles);
-  if (only.length) tool.allowed_x_handles = only;
-  else if (not.length) tool.excluded_x_handles = not;
-  const day = /^\d{4}-\d{2}-\d{2}$/;
-  if (day.test(String(a.from_date ?? ''))) tool.from_date = a.from_date;
-  if (day.test(String(a.to_date ?? ''))) tool.to_date = a.to_date;
-  const res = await fetch('https://api.x.ai/v1/responses', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${env.xaiKey}`, 'Content-Type': 'application/json' },
-    signal: AbortSignal.timeout(240_000),
-    body: JSON.stringify({
-      model: env.xaiModel,
-      store: false,
-      tools: [tool],
-      input: [
-        { role: 'system', content: 'You are a research tool used by another AI agent. Search X and answer the question precisely. For each post you rely on give the author handle, the date, engagement numbers when you can see them, and the link. No preamble and no advice.' },
-        { role: 'user', content: String(a.query ?? '') },
-      ],
-    }),
-  });
-  if (!res.ok) throw new Error(`X search failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
-  const data: any = await res.json();
-  const parts: string[] = [];
-  const links = new Set<string>();
-  for (const item of data.output ?? []) {
-    if (item?.type !== 'message') continue;
-    for (const c of item.content ?? []) {
-      if (typeof c?.text === 'string') parts.push(c.text);
-      for (const an of c?.annotations ?? []) if (an?.url) links.add(String(an.url));
-    }
-  }
-  for (const u of data.citations ?? []) if (typeof u === 'string') links.add(u);
-  const text = parts.join('\n\n').trim() || 'No answer came back.';
-  const sources = [...links].slice(0, 40);
-  return (sources.length ? `${text}\n\nSources:\n${sources.map((u) => `- ${u}`).join('\n')}` : text).slice(0, 60000);
-}
-
-
 export const TOOLS: ToolDef[] = [
   {
     name: 'save_file',
@@ -101,23 +58,6 @@ export const TOOLS: ToolDef[] = [
       const file = `${libraryRoot()}/${ctx.botId}/${name}`;
       await box.writeFile(file, String(a.content ?? ''));
       return { output: JSON.stringify({ ok: true, path: file }), summary: `Saved ${name}` };
-    },
-  },
-  {
-    name: 'x_search',
-    description: "Research X (Twitter) live: what people are posting about a topic, what is going viral, reactions to news, or one account's recent posts. Returns a written answer with links to the posts. Ask one focused question per call and say what you want back, e.g. \"the 10 most-engaged posts about AI agents from the last 48 hours, with author, likes and link\".",
-    parameters: obj({
-      query: { type: 'string', description: 'What to find out, in plain words.' },
-      handles: { type: 'array', items: { type: 'string' }, description: 'Only search posts from these accounts (without @). Up to 10.' },
-      exclude_handles: { type: 'array', items: { type: 'string' }, description: 'Leave out posts from these accounts.' },
-      from_date: { type: 'string', description: 'Earliest post date, YYYY-MM-DD.' },
-      to_date: { type: 'string', description: 'Latest post date, YYYY-MM-DD.' },
-    }, ['query']),
-    activity: 'searching_web',
-    label: 'Searching X',
-    impl: async (a) => {
-      const r = await xSearch(a);
-      return { output: r, summary: 'Searched X' };
     },
   },
   {
@@ -389,7 +329,7 @@ export function activityFor(raw: string): { kind: ActivityKind; label: string; d
   const { name, ours, server } = appToolName(raw);
   if (ours) {
     const t = toolMap.get(name);
-    if (t) return { kind: t.activity, label: t.label, ...(name === 'x_search' ? { detail: 'X' } : {}) };
+    if (t) return { kind: t.activity, label: t.label,  };
     return { kind: 'connecting_service', label: 'Using a connected app' };
   }
   if (server) return { kind: 'connecting_service', label: `Using ${words(server)}`, detail: sentence(words(server)) };
@@ -398,7 +338,6 @@ export function activityFor(raw: string): { kind: ActivityKind; label: string; d
   if (name === 'read_file' || name === 'search_files') return { kind: 'working', label: 'Reading files' };
   if (name === 'web_search') return { kind: 'searching_web', label: 'Searching the web' };
   if (name === 'web_extract') return { kind: 'reading_web', label: 'Reading a page' };
-  if (name === 'x_search') return { kind: 'searching_web', label: 'Searching X', detail: 'X' };
   if (name.startsWith('browser_')) return { kind: 'browsing_web', label: 'Browsing a site' };
   if (name === 'computer_use') return { kind: 'on_its_computer', label: 'Using its computer' };
   if (name === 'vision_analyze') return { kind: 'working', label: 'Looking at an image' };

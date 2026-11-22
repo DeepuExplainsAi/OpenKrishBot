@@ -24,7 +24,7 @@ export interface Bot {
   kind?: 'agent' | 'room';
   pinned: boolean;
   effort: 'low' | 'medium' | 'high' | 'xhigh';
-  /** Voice chat settings: xAI voice id, speed multiplier (0.7–1.5), BCP-47 language or 'auto'. */
+  /** Voice chat settings: browser voice id, speed multiplier (0.7–1.5), BCP-47 language or 'auto'. */
   voice: string;
   voiceSpeed: number;
   voiceLanguage: string;

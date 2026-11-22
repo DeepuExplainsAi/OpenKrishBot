@@ -109,3 +109,7 @@ P0-P8 done. Server boots with zero keys (verified). Next: P9 polish/About/packag
 - `server/src/danger.ts`: dangerous commands/paths (rm -rf /, curl|sh, force push, disk writes, ssh/key files) ask EVERY time, even after "Always allow"; the card says why. Tool output is redacted (API keys/tokens -> `[secret hidden]`) before it reaches the model or chat. Every tool run is appended to `~/.krishbot/audit.log` (JSON lines, local only, args redacted). Tests: `server/test/danger.test.mts`.
 - Not ported from OpenBot: AG-UI protocol, Tauri desktop shell, other agent adapters (not needed for single-user local app).
 - Pending UI idea: audit log viewer in Settings.
+
+## P9a notes (voice)
+- Voice is now fully free and local to the browser: `web/src/voice/speech.ts` (Web Speech recognition + speechSynthesis), `call.ts` (hands-free loop: listen -> send as normal message -> read the reply aloud, announces approvals), `dictation.ts` (mic in composer). xAI realtime/STT/TTS server code deleted (`server/src/voice.ts` only lists languages/speeds); `x_search` and XAI env removed.
+- Needs Chrome/Edge/Safari (Firefox has no speech recognition: shows a clear message). Chrome's recognition uses Google's service online; offline voice would need a local Whisper (not done).

@@ -3,11 +3,11 @@ import type { Bot } from '@shared/types';
 import { useStore } from '../store';
 import { voiceApi, type VoiceOptions } from '../voice/api';
 import { endCall, isCallActive, previewVoice, startCall, useVoice } from '../voice/call';
+import { listVoices } from '../voice/speech';
 import { Icon } from './Icon';
 
 const FALLBACK: VoiceOptions = {
-  voices: ['ara', 'eve', 'leo', 'luna', 'rex', 'sal'].map((id) => ({ id, name: id[0].toUpperCase() + id.slice(1) })),
-  languages: [{ code: 'auto', name: 'Auto-detect' }, { code: 'en', name: 'English' }],
+  languages: [{ code: 'auto', name: 'Auto-detect' }, { code: 'en-US', name: 'English' }],
   speeds: [0.7, 0.85, 1, 1.15, 1.3, 1.5],
 };
 
@@ -36,11 +36,13 @@ function NativeSelect<T extends string | number>({ label, value, options, onChan
 /** "Voice chat" section of the details panel: voice, speed, language (saved per bot), preview, start a call. */
 export function VoiceSettings({ bot }: { bot: Bot }) {
   const [opts, setOpts] = useState<VoiceOptions>(FALLBACK);
+  const [browserVoices, setBrowserVoices] = useState<{ id: string; name: string }[]>([]);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inCall = useVoice((s) => isCallActive(s) && s.botId === bot.id);
 
   useEffect(() => { voiceApi.options().then(setOpts).catch(() => {}); }, []);
+  useEffect(() => { void listVoices().then((v) => setBrowserVoices([{ id: '', name: 'Automatic' }, ...v.map((x) => ({ id: x.voiceURI, name: `${x.name} (${x.lang})` }))])); }, []);
   useEffect(() => setError(null), [bot.id]);
 
   const save = async (patch: Partial<Pick<Bot, 'voice' | 'voiceSpeed' | 'voiceLanguage'>>) => {
@@ -65,7 +67,7 @@ export function VoiceSettings({ bot }: { bot: Bot }) {
     finally { setPreviewing(false); }
   };
 
-  const voices = opts.voices.some((v) => v.id === bot.voice) ? opts.voices : [{ id: bot.voice, name: bot.voice }, ...opts.voices];
+  const voices = browserVoices.some((v) => v.id === bot.voice) ? browserVoices : [{ id: bot.voice, name: bot.voice === 'luna' || !bot.voice ? 'Automatic' : bot.voice }, ...browserVoices.filter((v) => v.id !== bot.voice)];
   const speeds = opts.speeds.includes(bot.voiceSpeed) ? opts.speeds : [...opts.speeds, bot.voiceSpeed].sort((a, b) => a - b);
 
   return (

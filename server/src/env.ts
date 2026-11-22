@@ -70,8 +70,6 @@ export const env = {
   serverUrl: process.env.SERVER_URL ?? `http://localhost:${process.env.PORT ?? 8787}`,
   /** The app is only reachable at a local address (development). Some conveniences are limited to this. */
   localOnly: isLoopbackUrl(appUrl),
-  xaiKey: process.env.XAI_API_KEY ?? '',
-  xaiModel: process.env.XAI_MODEL ?? 'grok-4.7',
   sessionSecret: sessionSecret(),
   /** Krishbot runs on your own computer: requests from this machine sign in automatically as the owner. */
   autoLocalLogin: process.env.AUTO_LOCAL_LOGIN !== '0',
