@@ -7,6 +7,8 @@ import { hub } from '../lib/hub.js';
 import { box } from '../box.js';
 import { env } from '../env.js';
 import { libraryRoot } from '../paths.js';
+import { installSkill } from '../skill-library.js';
+import { siteFile } from '../sites.js';
 import { appendRow, getBotRow, listRoutines, toRoutine, describeCron } from '../store.js';
 import { appInfo, cachedAppTool, findAppTool, humanizeTool } from '../apps.js';
 import { scheduleRoutine, unscheduleRoutine } from '../routines.js';
@@ -67,6 +69,31 @@ export const TOOLS: ToolDef[] = [
       const file = `${libraryRoot()}/${ctx.botId}/${name}`;
       await box.writeFile(file, String(a.content ?? ''));
       return { output: JSON.stringify({ ok: true, path: file }), summary: `Saved ${name}` };
+    },
+  },
+  {
+    name: 'save_skill',
+    description: 'Turn what you just did into a reusable skill so you (and other bots) do it the same way next time. Write the steps as instructions to a future you: what to ask for, what to run, what to check, what to avoid. Only save a skill for work the user would want repeated. `triggers` are phrases in a user message that should bring the skill in.',
+    parameters: obj({ name: { type: 'string', description: 'Short title, e.g. "Weekly sales report"' }, description: { type: 'string' }, instructions: { type: 'string', description: 'Markdown steps' }, triggers: { type: 'array', items: { type: 'string' } } }, ['name', 'instructions']),
+    activity: 'working',
+    label: 'Saving a skill',
+    impl: async (a) => {
+      const triggers = Array.isArray(a.triggers) ? a.triggers.map((t: unknown) => String(t).replace(/[,\n]/g, ' ').trim()).filter(Boolean) : [];
+      const md = `---\nname: ${String(a.name).replace(/\n/g, ' ')}\ndescription: ${String(a.description ?? '').replace(/\n/g, ' ')}\n${triggers.length ? `triggers: ${triggers.join(', ')}\n` : ''}---\n${String(a.instructions)}`;
+      try { const sk = installSkill(md); return { output: JSON.stringify({ ok: true, id: sk.id, triggers: sk.triggerTerms }), summary: `Saved skill ${sk.name}` }; }
+      catch (e: any) { return { output: JSON.stringify({ error: e.message }), summary: 'Skill not saved' }; }
+    },
+  },
+  {
+    name: 'publish_site',
+    description: 'Show a website you built. Put its files (index.html, css, js, images) in a folder under your Library, e.g. site/, then call this with the folder name. It is served on this computer and only the user can open it; the result is the address.',
+    parameters: obj({ folder: { type: 'string', description: 'Folder under your Library that holds index.html (default "site")' } }),
+    activity: 'working',
+    label: 'Publishing a site',
+    impl: async (a, ctx) => {
+      const folder = String(a.folder || 'site').replace(/^\/+|\/+$/g, '');
+      if (!siteFile(ctx.botId, `${folder}/index.html`)) return { output: JSON.stringify({ error: `No ${folder}/index.html in your Library yet. Write it with save_file or the terminal first.` }), summary: 'Nothing to publish' };
+      return { output: JSON.stringify({ ok: true, url: `/sites/${ctx.botId}/${folder}/` }), summary: `Published ${folder}/` };
     },
   },
   {

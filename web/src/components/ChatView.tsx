@@ -52,6 +52,7 @@ export function ChatView() {
                 { label: detailsOpen ? 'Hide details' : 'Show details', hint: '⇧⌘,', onSelect: () => set({ detailsOpen: !detailsOpen }) },
                 { label: 'Open computer', onSelect: () => set({ viewerOpen: true, viewerMode: 'watch', viewerHint: null }) },
                 { label: 'New conversation', onSelect: () => api.fresh(bot.id).then(() => flash('Started a new conversation')).catch((e) => flash(e.message)) },
+                { label: 'Open website', onSelect: () => window.open(`/sites/${bot.id}/site/`, '_blank') },
                 { label: 'Bot settings', onSelect: () => useConfigUI.getState().openBotSettings(bot.id) },
               ]}
             />
@@ -63,7 +64,7 @@ export function ChatView() {
               <Icon name="sidebar" opacity={0.66} style={{ transform: 'scaleX(-1)' }} />
             </button>
           )}
-          <button type="button" className="share-btn" onClick={() => flash('Sharing isn’t available in OpenKrishbot yet')}>Share</button>
+          <button type="button" className="share-btn" title="Download this conversation as one HTML file you can send to anyone" onClick={() => { const a = document.createElement('a'); a.href = `/api/bots/${bot.id}/share`; a.download = ''; a.click(); flash('Saved a read-only copy of this conversation'); }}>Share</button>
         </div>
       </header>
       {toast && <div className="toast" role="status">{toast}</div>}

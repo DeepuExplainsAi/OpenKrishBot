@@ -347,3 +347,10 @@ Verified: server started with `env -i PATH=/nonexistent` still connects the npx 
 ## P17: speed (2026-11-22)
 Measured: `/api/krish/providers` and `/api/bots/:id/engine` took ~0.35-0.39 s each, because every call re-ran `which` for each CLI preset and re-fetched `/models` for every provider (cloud ones with no key too). Now `cliFound` is cached 30 s, `liveModels` 60 s, and a keyless-less cloud provider skips the network. Settings -> Models opens with `?fresh=1`, and Test clears the cache. Result: 0.057 s first call, 0.001 s after. Unit 99/99.
 Not measured: UI render speed in a browser (no Chrome here); startup time of the packaged app on Windows.
+
+## P13f: websites, share, skill-from-task (2026-11-22), OpenMan items 7-9 (all local, no cloud)
+- (7) Websites: `server/src/sites.ts` serves any Library folder with an index.html at `/sites/<botId>/<folder>/` (owner only, sandboxed CSP, path-traversal blocked). Tool `publish_site`. Chat menu: "Open website". Only reachable on this computer / your tunnel; there is no public hosting.
+- (8) Share: `server/src/share.js` + `GET /api/bots/:id/share` = the conversation as one offline read-only HTML file (no scripts). The header Share button used to say "not available"; it now downloads it. No live collaboration (OpenMan's needs its cloud).
+- (9) Skill from task: tool `save_skill` writes a user skill (`~/.krishbot/skills`) through `installSkill`, so triggers/enable/remove in Settings -> Skills already work; built-in ids are refused.
+Tested: sites.test (5), share.test (2); real HTTP: site 200, `..` and `%2e%2e` -> 404, no cookie 401, share 200 with CSP.
+NOT tested: a real model calling save_skill/publish_site; browser rendering of the Share/Open website menu entries.

@@ -18,6 +18,7 @@ import { addCustomApp, appInfo, connectCatalogApp, forgetAppTools, listApps, rem
 import { runRoutine, scheduleRoutine, unscheduleRoutine } from './routines.js';
 import { dispatchRoomMessage } from './agent/rooms.js';
 import { voiceApi } from './voice.js';
+import { conversationHtml } from './share.js';
 import type { AvatarColor, AvatarShape, Toolkit } from './types.js';
 
 export const api = new Hono<AuthVars>();
@@ -346,6 +347,15 @@ api.delete('/routines/:id', async (c) => {
 api.get('/bots/:id/tasks', (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   return b ? c.json({ tasks: listTasks(b.id) }) : c.json({ error: 'not found' }, 404);
+});
+
+/** Read-only snapshot of a conversation as one HTML file the user can send to anyone. */
+api.get('/bots/:id/share', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  const html = conversationHtml(b.name, listRows(b.id, { limit: 500 }));
+  const file = `${String(b.name).replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'conversation'}.html`;
+  return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'content-disposition': `attachment; filename="${file}"`, 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'" } });
 });
 
 api.get('/tasks', (c) => {
