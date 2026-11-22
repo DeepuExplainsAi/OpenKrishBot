@@ -238,3 +238,11 @@
 .task-step.is-done { color: var(--color-text-tertiary); text-decoration: line-through; }
 .task-step.is-done i { border-color: var(--color-text-tertiary); background: var(--color-text-tertiary); }
 .task-step.is-blocked i { border-color: #d14343; background: #d14343; }
+
+.engine__modelbox { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 1; justify-content: flex-end; }
+.engine__refresh { flex: none; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--color-text-secondary); box-shadow: var(--color-border-secondary) 0 0 0 0.5px inset; }
+.engine__refresh:hover:not(:disabled) { background: var(--color-bg-active); color: var(--color-text-primary); }
+.engine__refresh .is-spinning { animation: engine-spin 0.8s linear infinite; }
+@keyframes engine-spin { to { transform: rotate(360deg); } }
+.cfg-refresh { margin-left: 10px; vertical-align: middle; }
+.cfg-note-err { margin-top: 8px; font-size: 12px; line-height: 16px; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

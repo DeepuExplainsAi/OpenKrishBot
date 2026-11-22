@@ -34,11 +34,11 @@ function Row({ p, onChange }: { p: Provider; onChange: () => void }) {
       </div>
       {open && (
         <div className="cfg-form">
-          {p.canLogin && <button type="button" className="cfg-btn cfg-btn--secondary" disabled={!!busy} onClick={() => run('login', async () => { const r = await call('POST', `/api/krish/providers/${p.id}/login`); return `To sign in, run this in a terminal yourself, then press Test: ${r.command}`; })}>Sign in with your account</button>}
+          {p.canLogin && <button type="button" className="cfg-btn cfg-btn--secondary" disabled={!!busy} onClick={() => run('login', async () => { const r = await call('POST', `/api/krish/providers/${p.id}/login`); return r.mode === 'terminal' ? 'A sign-in window opened. Finish signing in there, then press Test.' : 'Sign-in opened in your browser. Finish it there, then press Test.'; })}>Sign in with your account</button>}
           {needsKey && <><label className="cfg-field__label">API key{p.env ? ` (or ${p.env})` : ''}</label><input className="text-input" type="password" value={key} placeholder={p.hasKey ? 'Saved. Type to replace.' : 'Paste your key'} autoComplete="off" onChange={(e) => setKey(e.target.value)} /></>}
           {!p.cli && <><label className="cfg-field__label">Address</label><input className="text-input" value={url} placeholder="https://…/v1" spellCheck={false} onChange={(e) => setUrl(e.target.value)} /></>}
           {p.models.length > 0 && <div className="cfg-field__hint">Models: {p.models.slice(0, 6).join(', ')}{p.models.length > 6 ? ` and ${p.models.length - 6} more` : ''}. Pick one in the chat's Engine panel.</div>}
-          {note && <div className={note.ok ? 'cfg-field__hint' : 'cfg-error cfg-error--small'}>{note.text}</div>}
+          {note && <div className={note.ok ? 'cfg-field__hint' : 'cfg-note-err'} title={note.text}>{note.text}</div>}
           <div className="cfg-form__actions">
             {!p.cli && <button type="button" className="cfg-btn cfg-btn--primary" disabled={!!busy} onClick={() => run('save', async () => { await save(); return 'Saved.'; })}>{busy === 'save' ? 'Saving…' : 'Save'}</button>}
             <button type="button" className="cfg-btn cfg-btn--secondary" disabled={!!busy} onClick={() => run('test', async () => { if (!p.cli) await save(); const r = await call('POST', `/api/krish/providers/${p.id}/test`); return `Works${r.model ? ` (${r.model})` : ''}. It answered: “${r.reply}”`; })}>{busy === 'test' ? 'Testing…' : p.cli ? 'Test' : 'Save and test'}</button>
@@ -57,7 +57,7 @@ export function ModelsSection() {
   useEffect(() => { load(); }, [load]);
   return (
     <>
-      <div className="app-settings__head"><h1>Models</h1><p>Connect the AI your Bots think with: a plan you already pay for, one on this computer, a free tier, or your own key. Requests go straight from this computer.</p></div>
+      <div className="app-settings__head"><h1>Models<button type="button" className="engine__refresh cfg-refresh" aria-label="Refresh models" title="Refresh models" onClick={load}><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 4v5h-5" /></svg></button></h1><p>Connect the AI your Bots think with: a plan you already pay for, one on this computer, a free tier, or your own key. Requests go straight from this computer.</p></div>
       {err ? <div className="cfg-error">{err}</div> : !list ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : GROUPS.map((g) => (
         <section key={g} className="cfg-section">
           <div className="cfg-section__label">{g}</div>

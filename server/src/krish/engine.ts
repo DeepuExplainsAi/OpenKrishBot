@@ -11,13 +11,13 @@ import { skillsPrompt } from '../skill-library.js';
 import { estimateTokens, overBudget, recordUsage } from '../usage.js';
 import { SUMMARY_PROMPT, compactHistory, recentWindow, type Msg } from './compact.js';
 import { loopNudge } from '../plan.js';
-import { DEFAULT_PROVIDER, PRESETS, hasKey, liveModels, resolve, saveProvider } from './providers.js';
+import { DEFAULT_PROVIDER, PRESETS, hasKey, liveModels, forgetModelLists, resolve, saveProvider } from './providers.js';
 import { botHome, localToolMap, LOCAL_TOOLS } from './tools.js';
 import { TOOLS, policyFor, toolMap } from '../agent/tools.js';
 import { callTool as callHqTool, listTools as listHqTools } from '../mcp.js';
 import { claimToolRow, noteToolOutcome, requestApproval } from '../agent/loop.js';
 import { audit, autoSkips, dangerReason, getDangerMode, redact, riskyReason } from '../danger.js';
-import { runCli, cliFound, forgetCliLookups } from './cli.js';
+import { runCli, cliFound, forgetCliLookups, startLogin } from './cli.js';
 import { extraTools, callExtraTool } from './mcp-client.js';
 
 /**
@@ -112,7 +112,7 @@ krishApi.post('/v1/responses', async (c) => {
       try {
         if (preset.cli) {
           // subscription model: the CLI is its own agent and runs its own tools
-          const answer = await runCli(preset, system, history, c.req.raw.signal).catch((e) => { throw Object.assign(e, { name: 'ModelError' }); });
+          const answer = await runCli(preset, system, history, c.req.raw.signal, model).catch((e) => { throw Object.assign(e, { name: 'ModelError' }); });
           history.push({ role: 'assistant', content: answer });
           recordUsage(botId, estimateTokens(system.length + JSON.stringify(history).length), estimateTokens(answer.length));
           send('response.output_item.done', { item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: answer }] } });
@@ -270,7 +270,7 @@ const groupOf = (p: (typeof PRESETS)[number]) => p.cli ? 'Your subscription' : p
 export const providersApi = new Hono<AuthVars>();
 providersApi.use('*', requireUser);
 providersApi.get('/providers', async (c) => {
-  if (c.req.query('fresh')) forgetCliLookups();
+  if (c.req.query('fresh')) { forgetCliLookups(); forgetModelLists(); }
   const out = await Promise.all(PRESETS.map(async (p) => ({ id: p.id, name: p.name, local: !!p.local, keyless: !!p.keyless, connected: p.cli ? cliFound(p.cli.bin) : p.keyless ? (p.local ? (await liveModels(p.id)).ok : true) : hasKey(p.id), models: (await liveModels(p.id)).models, note: p.note ?? null, baseUrl: resolve(p.id).baseUrl, group: groupOf(p), cli: !!p.cli, canLogin: !!p.cli?.login, hasKey: hasKey(p.id), env: p.env ?? null })));
   return c.json({ providers: out, default: DEFAULT_PROVIDER });
 });
@@ -305,11 +305,11 @@ providersApi.post('/providers/:id/test', async (c) => {
   } catch (e: any) { return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 502); }
 });
 
-/** Never opens a terminal window by itself: gives the sign-in command for the user to run. */
+/** The user pressed "Sign in with your account": start the provider's own sign-in (browser, or a terminal for CLIs that need one). */
 providersApi.post('/providers/:id/login', async (c) => {
-  const cli = PRESETS.find((p) => p.id === c.req.param('id'))?.cli;
-  if (!cli?.login) return c.json({ error: 'No sign-in for this one.' }, 400);
-  if (!cliFound(cli.bin)) return c.json({ error: `"${cli.bin}" is not installed yet.` }, 409);
-  return c.json({ ok: true, opened: false, command: cli.login });
+  const preset = PRESETS.find((p) => p.id === c.req.param('id'));
+  if (!preset?.cli?.login) return c.json({ error: 'No sign-in for this one.' }, 400);
+  if (!cliFound(preset.cli.bin)) return c.json({ error: `"${preset.cli.bin}" is not installed yet. ${preset.note ?? ''}` }, 409);
+  return c.json({ ok: true, ...(await startLogin(preset)) });
 });
 void env; void TOOLS; void toolMap;

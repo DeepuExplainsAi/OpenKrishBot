@@ -23,7 +23,8 @@ export function EngineSettings({ bot }: { bot: Bot }) {
   const [phase, setPhase] = useState<'loading' | 'ok' | 'unavailable'>('loading');
   const [provider, setProvider] = useState('');
   const [model, setModel] = useState('');
-  const [busy, setBusy] = useState<'save' | 'signin' | 'restart' | 'screen' | 'key' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'signin' | 'restart' | 'screen' | 'key' | 'refresh' | null>(null);
+  const [custom, setCustom] = useState(false);
   const [keyText, setKeyText] = useState('');
   const [urlText, setUrlText] = useState('');
   const [note, setNote] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export function EngineSettings({ bot }: { bot: Bot }) {
     return () => { alive = false; };
   }, [botId, apply]);
 
-  useEffect(() => { dirty.current = false; setEngine(null); setNote(null); setSigningIn(false); return load(); }, [load]);
+  useEffect(() => { dirty.current = false; setCustom(false); setEngine(null); setNote(null); setSigningIn(false); return load(); }, [load]);
 
   // The agent takes a moment to come up after a change or a restart.
   const starting = engine?.status === 'starting';
@@ -119,6 +120,14 @@ export function EngineSettings({ bot }: { bot: Bot }) {
     finally { setBusy(null); }
   };
 
+  const refreshModels = async () => {
+    if (busy) return;
+    setBusy('refresh'); setNote(null);
+    try { await fetch('/api/krish/providers?fresh=1'); await load(true); }
+    catch (e) { setNote(`Couldn’t refresh: ${(e as Error).message}`); }
+    finally { setBusy(null); }
+  };
+
   const restart = async () => {
     if (busy) return;
     setBusy('restart'); setNote(null);
@@ -156,13 +165,29 @@ export function EngineSettings({ bot }: { bot: Bot }) {
       )}
       <div className="panel-row panel-row--setting">
         <label htmlFor={`${listId}-input`}>Model</label>
-        <input
-          id={`${listId}-input`} className="engine__model" list={listId} value={model} spellCheck={false} autoComplete="off"
-          placeholder={suggestions[0] ?? 'Model id'}
-          onChange={(e) => { dirty.current = true; setNote(null); setModel(e.target.value); }}
-          onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
-        />
-        <datalist id={listId}>{suggestions.map((m) => <option key={m} value={m} />)}</datalist>
+        <span className="engine__modelbox">
+          {suggestions.length > 0 && !custom ? (
+            <span className="mini-select mini-select--native engine__select">
+              <span>{model || suggestions[0]}</span>
+              <Icon name="chev_down" size={10} opacity={0.66} />
+              <select id={`${listId}-input`} aria-label="Model" value={model} onChange={(e) => { if (e.target.value === '__custom') { setCustom(true); return; } dirty.current = true; setNote(null); setModel(e.target.value); }}>
+                {model && !suggestions.includes(model) && <option value={model}>{model}</option>}
+                {suggestions.map((m) => <option key={m} value={m}>{m}</option>)}
+                <option value="__custom">Type another model…</option>
+              </select>
+            </span>
+          ) : (
+            <input
+              id={`${listId}-input`} className="engine__model" value={model} spellCheck={false} autoComplete="off"
+              placeholder={suggestions[0] ?? 'Model id'}
+              onChange={(e) => { dirty.current = true; setNote(null); setModel(e.target.value); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+            />
+          )}
+          <button type="button" className="engine__refresh" aria-label="Refresh models" title="Refresh models" disabled={busy === 'refresh'} onClick={refreshModels}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={busy === 'refresh' ? 'is-spinning' : ''}><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 4v5h-5" /></svg>
+          </button>
+        </span>
       </div>
       <div className="engine__actions">
         <button type="button" className="btn btn--sm btn--bot" onClick={save} disabled={!changed || busy === 'save'}>{busy === 'save' ? 'Saving…' : 'Save'}</button>

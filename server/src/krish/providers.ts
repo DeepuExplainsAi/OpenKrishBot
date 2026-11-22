@@ -19,9 +19,9 @@ export const PRESETS: Preset[] = [
   { id: 'together', name: 'Together AI', baseUrl: 'https://api.together.xyz/v1', models: ['meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', 'deepseek-ai/DeepSeek-V3'], env: 'TOGETHER_API_KEY' },
   { id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com', models: ['deepseek-chat', 'deepseek-reasoner'], env: 'DEEPSEEK_API_KEY' },
   { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', models: ['gpt-5', 'gpt-5-mini', 'gpt-4.1'], env: 'OPENAI_API_KEY' },
-  { id: 'claude-cli', name: 'Claude (your Pro/Max plan, via Claude Code)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Claude Code and run `claude` once to sign in', cli: { command: 'claude -p', bin: 'claude', login: 'claude' } },
-  { id: 'codex-cli', name: 'ChatGPT (your Plus/Pro plan, via Codex)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Codex CLI and run `codex login`', cli: { command: 'codex exec --skip-git-repo-check -', bin: 'codex', login: 'codex login' } },
-  { id: 'gemini-cli', name: 'Gemini (your Google account, via Gemini CLI)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Gemini CLI and run `gemini` once (has a free tier)', cli: { command: 'gemini -p " "', bin: 'gemini', login: 'gemini' } },
+  { id: 'claude-cli', name: 'Claude (your Pro/Max plan, via Claude Code)', baseUrl: '', keyless: true, local: true, models: ['default', 'sonnet', 'opus', 'haiku'], note: 'Install Claude Code and run `claude` once to sign in', cli: { command: 'claude -p', bin: 'claude', login: 'claude' } },
+  { id: 'codex-cli', name: 'ChatGPT (your Plus/Pro plan, via Codex)', baseUrl: '', keyless: true, local: true, models: ['default', 'gpt-5', 'gpt-5-codex', 'gpt-5-mini'], note: 'Install Codex CLI and run `codex login`', cli: { command: 'codex exec --skip-git-repo-check -', bin: 'codex', login: 'codex login' } },
+  { id: 'gemini-cli', name: 'Gemini (your Google account, via Gemini CLI)', baseUrl: '', keyless: true, local: true, models: ['default', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'], note: 'Install Gemini CLI and run `gemini` once (has a free tier)', cli: { command: 'gemini -p " "', bin: 'gemini', login: 'gemini' } },
   { id: 'grok-cli', name: 'Grok (via Grok CLI)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Grok CLI and sign in', cli: { command: 'grok -p', bin: 'grok', login: 'grok' } },
   { id: 'kimi-cli', name: 'Kimi (via Kimi CLI)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Kimi CLI and sign in', cli: { command: 'kimi --print', bin: 'kimi', login: 'kimi' } },
   { id: 'cursor-cli', name: 'Cursor (via cursor-agent)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Cursor CLI, run `cursor-agent login`', cli: { command: 'cursor-agent -p', bin: 'cursor-agent', login: 'cursor-agent login' } },
@@ -67,6 +67,7 @@ export function resolve(id: string | null | undefined): { preset: Preset; baseUr
 export const hasKey = (id: string) => !!resolve(id).apiKey;
 
 /** Live model list for a provider (Ollama/LM Studio/custom list what is installed); falls back to the preset's. */
+export const forgetModelLists = () => listed.clear();
 const listed = new Map<string, { at: number; v: { ok: boolean; models: string[] } }>();
 export async function liveModels(id: string): Promise<{ ok: boolean; models: string[] }> {
   const { preset, baseUrl, apiKey } = resolve(id);
