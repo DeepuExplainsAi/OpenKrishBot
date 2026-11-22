@@ -189,9 +189,9 @@ export function EngineSettings({ bot }: { bot: Bot }) {
       )}
       {note && <div className="voice-error" role="alert">{note}</div>}
       <div className="engine__meta">
-        <span className={`engine__state is-${engine.status}`} title="OpenKrishbot engine">
+        <span className={`engine__state is-${engine.status}`} title="OpenKrishBot engine">
           <i aria-hidden />
-          OpenKrishbot engine · {STATUS[engine.status] ?? engine.status}
+          OpenKrishBot engine · {STATUS[engine.status] ?? engine.status}
         </span>
         {(engine.status === 'error' || engine.status === 'stopped') && (
           <button type="button" className="link-btn link-btn--small" onClick={restart} disabled={busy === 'restart'}>{busy === 'restart' ? 'Restarting…' : 'Restart agent'}</button>

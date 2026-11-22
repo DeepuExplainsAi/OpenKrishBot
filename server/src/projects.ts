@@ -148,7 +148,7 @@ export function exportCompany(userId: string, id: string): CompanyExport | null 
 }
 
 export function importCompany(userId: string, data: any, hire: (b: { name: string; label: string; description: string; instructions: string; avatarShape: string; avatarColor: string }) => string): Project | { error: string } {
-  if (data?.format !== 'openkrishbot-company-v1' || !Array.isArray(data.bots)) return { error: 'Not an OpenKrishbot company file.' };
+  if (data?.format !== 'openkrishbot-company-v1' || !Array.isArray(data.bots)) return { error: 'Not an OpenKrishBot company file.' };
   if (data.bots.length > 20) return { error: 'A company file can hold at most 20 bots.' };
   if (data.bots.some((b: any) => !b || typeof b !== 'object')) return { error: 'The file has a broken bot entry.' };
   let name = String(data.name || 'Company').slice(0, 190);

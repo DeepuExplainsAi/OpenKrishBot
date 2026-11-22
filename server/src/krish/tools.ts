@@ -5,7 +5,7 @@ import path from 'node:path';
 import { BROWSER_TOOLS } from '../screen/tools.js';
 import { stamp, transcribeFile, transcriptText } from '../transcribe.js';
 
-/** Local tools every OpenKrishbot agent has (from the OpenManus toolset: shell, python, file edit, web). They run on this computer. */
+/** Local tools every OpenKrishBot agent has (from the OpenManus toolset: shell, python, file edit, web). They run on this computer. */
 export interface LocalTool {
   name: string;
   description: string;
@@ -181,4 +181,4 @@ const BASE_TOOLS: LocalTool[] = [
 
 export const LOCAL_TOOLS: LocalTool[] = [...BASE_TOOLS, ...BROWSER_TOOLS];
 export const localToolMap = new Map(LOCAL_TOOLS.map((t) => [t.name, t]));
-export const botHome = (botId: string) => path.join(os.homedir(), '.krishbot', 'bots', botId);
+export const botHome = (botId: string) => path.join(os.homedir(), '.openkrishbot', 'bots', botId);

@@ -6,7 +6,7 @@ import { db, now } from '../db.js';
 import { token } from './ids.js';
 import type { User } from '../types.js';
 
-const COOKIE = 'bothq_session';
+const COOKIE = 'openkrishbot_session';
 /** The cookie's name before the project was renamed; still read so existing sign-ins keep working. */
 const TTL_MS = 30 * 24 * 3600 * 1000;
 

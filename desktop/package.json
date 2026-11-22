@@ -1,9 +1,9 @@
 {
   "name": "openkrishbot-desktop",
-  "productName": "OpenKrishbot",
+  "productName": "OpenKrishBot",
   "version": "1.1.3",
-  "description": "OpenKrishbot: a team of AI agents on your own computer. Free, local, Mera AI.",
-  "author": "OpenKrishbot <DeepuExplainsAi@users.noreply.github.com>",
+  "description": "OpenKrishBot: a team of AI agents on your own computer. Free, local, Mera AI.",
+  "author": "OpenKrishBot <DeepuExplainsAi@users.noreply.github.com>",
   "homepage": "https://github.com/DeepuExplainsAi/krishbot-ai",
   "main": "main.cjs",
   "private": true,
@@ -30,7 +30,7 @@
   },
   "build": {
     "appId": "ai.openkrishbot.app",
-    "productName": "OpenKrishbot",
+    "productName": "OpenKrishBot",
     "asar": false,
     "npmRebuild": false,
     "directories": {
@@ -47,7 +47,7 @@
       "web/dist/**",
       "!**/*.map"
     ],
-    "artifactName": "OpenKrishbot-${version}-${os}-${arch}.${ext}",
+    "artifactName": "OpenKrishBot-${version}-${os}-${arch}.${ext}",
     "win": {
       "target": [
         {
@@ -69,7 +69,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
-      "artifactName": "OpenKrishbot-Setup-${version}-win-x64.${ext}",
+      "artifactName": "OpenKrishBot-Setup-${version}-win-x64.${ext}",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
@@ -101,14 +101,14 @@
     },
     "linux": {
       "category": "Utility",
-      "maintainer": "OpenKrishbot",
+      "maintainer": "OpenKrishBot",
       "target": [
         "AppImage",
         "deb"
       ]
     },
     "portable": {
-      "artifactName": "OpenKrishbot-Portable-${version}-win-x64.${ext}"
+      "artifactName": "OpenKrishBot-Portable-${version}-win-x64.${ext}"
     }
   },
   "license": "AGPL-3.0-only"

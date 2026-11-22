@@ -10,10 +10,10 @@ console.log('release dirs:', dirs.join(', '));
 // electron-builder makes `mac` (x64) and `mac-arm64`: run the one that matches this machine
 const pick = process.platform === 'darwin' ? (process.arch === 'arm64' ? 'mac-arm64' : 'mac') : dirs[0];
 const unpacked = path.join(rel, dirs.includes(pick) ? pick : dirs[0]);
-const exe = process.platform === 'win32' ? path.join(unpacked, 'OpenKrishbot.exe')
-  : process.platform === 'darwin' ? path.join(unpacked, 'OpenKrishbot.app/Contents/MacOS/OpenKrishbot')
+const exe = process.platform === 'win32' ? path.join(unpacked, 'OpenKrishBot.exe')
+  : process.platform === 'darwin' ? path.join(unpacked, 'OpenKrishBot.app/Contents/MacOS/OpenKrishBot')
   : path.join(unpacked, 'openkrishbot-desktop');
-const resources = process.platform === 'darwin' ? path.join(unpacked, 'OpenKrishbot.app/Contents/Resources/app') : path.join(unpacked, 'resources/app');
+const resources = process.platform === 'darwin' ? path.join(unpacked, 'OpenKrishBot.app/Contents/Resources/app') : path.join(unpacked, 'resources/app');
 const app = fs.existsSync(resources) ? resources : path.resolve('.');
 const port = 18999;
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-smoke-'));

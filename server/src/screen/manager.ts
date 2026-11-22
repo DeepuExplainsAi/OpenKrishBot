@@ -1,6 +1,6 @@
 import { Cdp, launch, profileDirFor, SCREEN_H, SCREEN_W, type Running } from './cdp.js';
 
-/** One Chrome per bot, started on first use. Its profile lives in ~/.krishbot/profiles/<bot>, so logins stay. */
+/** One Chrome per bot, started on first use. Its profile lives in ~/.openkrishbot/profiles/<bot>, so logins stay. */
 
 export interface Frame { jpeg: Buffer; w: number; h: number }
 type FrameFn = (f: Frame) => void;

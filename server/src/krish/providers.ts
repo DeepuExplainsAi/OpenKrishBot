@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { cliFound } from './cli.js';
 
-/** Model providers the OpenKrishbot engine can talk to. All speak the OpenAI chat-completions dialect. */
+/** Model providers the OpenKrishBot engine can talk to. All speak the OpenAI chat-completions dialect. */
 export interface Preset { id: string; name: string; baseUrl: string; keyless?: boolean; local?: boolean; models: string[]; env?: string; note?: string; cli?: { command: string; bin: string; login?: string } }
 
 export const PRESETS: Preset[] = [
@@ -44,7 +44,7 @@ export const PRESETS: Preset[] = [
 export const DEFAULT_PROVIDER = 'pollinations';
 
 interface Saved { apiKey?: string; baseUrl?: string }
-const file = path.join(os.homedir(), '.krishbot', 'providers.json');
+const file = path.join(os.homedir(), '.openkrishbot', 'providers.json');
 
 function load(): Record<string, Saved> {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return {}; }

@@ -11,7 +11,7 @@ import { db } from './db.js';
 export interface LibrarySkill { id: string; name: string; description: string; triggerTerms: string[]; defaultEnabled: boolean; body: string; custom?: boolean }
 
 const DIR = process.env.KRISH_SKILLS_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'skills');
-const USER_DIR = process.env.KRISH_USER_SKILLS_DIR ?? path.join(os.homedir(), '.krishbot', 'skills');
+const USER_DIR = process.env.KRISH_USER_SKILLS_DIR ?? path.join(os.homedir(), '.openkrishbot', 'skills');
 const MAX_INJECT = 3;
 
 /** Shipped skills plus the ones the user imported (a user skill never replaces a shipped one with the same id). */
@@ -86,7 +86,7 @@ export function parseGithubUrl(url: string): { owner: string; repo: string; ref?
 export async function importFromGithub(url: string, fetchImpl: typeof fetch = fetch, dir = USER_DIR): Promise<LibrarySkill> {
   const g = parseGithubUrl(url);
   const api = `https://api.github.com/repos/${g.owner}/${g.repo}/contents/${[g.dir, 'SKILL.md'].filter(Boolean).join('/')}${g.ref ? `?ref=${encodeURIComponent(g.ref)}` : ''}`;
-  const res = await fetchImpl(api, { headers: { accept: 'application/vnd.github.raw+json', 'user-agent': 'krishbot' }, signal: AbortSignal.timeout(15_000) });
+  const res = await fetchImpl(api, { headers: { accept: 'application/vnd.github.raw+json', 'user-agent': 'openkrishbot' }, signal: AbortSignal.timeout(15_000) });
   if (res.status === 404) throw new Error('No SKILL.md found there. Link the folder that contains it.');
   if (!res.ok) throw new Error(`GitHub answered ${res.status}.`);
   return installSkill(await res.text(), dir);

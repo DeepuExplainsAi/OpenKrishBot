@@ -26,7 +26,7 @@ export function SignIn() {
         <div className="signin__hero">
           <BotAvatar shape="blob" color="black" size={84} />
         </div>
-        <h1 className="signin__title">OpenKrishbot</h1>
+        <h1 className="signin__title">OpenKrishBot</h1>
         <p className="signin__sub">Mera AI. Free, local, on your own computer.</p>
         {devLogin && (
           <form className="signin__dev" onSubmit={dev}>
@@ -37,7 +37,7 @@ export function SignIn() {
           </form>
         )}
         {error && <div className="card__error signin__error">{error}</div>}
-        <p className="signin__foot">OpenKrishbot — Mera AI</p>
+        <p className="signin__foot">OpenKrishBot — Mera AI</p>
       </div>
     </div>
   );

@@ -10,13 +10,13 @@ import { appendRow } from './store.js';
 import { chunk, createRelay, digits, MARK } from './whatsapp-relay.js';
 
 /**
- * WhatsApp for the main Bot, on this computer only: OpenKrishbot links as a WhatsApp Web device (scan a QR code in
+ * WhatsApp for the main Bot, on this computer only: OpenKrishBot links as a WhatsApp Web device (scan a QR code in
  * Settings → WhatsApp) with Baileys. You command the Bot from your own "Message yourself" chat; other numbers
  * work only if you add them to the allowed list. Replies and approval questions come back as WhatsApp messages.
  * This is an unofficial client: WhatsApp may restrict accounts that automate heavily, so use a number you can afford to lose.
  */
 
-const AUTH_DIR = path.join(os.homedir(), '.krishbot', 'whatsapp');
+const AUTH_DIR = path.join(os.homedir(), '.openkrishbot', 'whatsapp');
 
 type Status = 'off' | 'starting' | 'qr' | 'connected' | 'error';
 let status: Status = 'off';
@@ -43,7 +43,7 @@ async function start() {
   const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = await import('@whiskeysockets/baileys');
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const version = await fetchLatestBaileysVersion().then((v) => v.version).catch(() => undefined);
-  const s = makeWASocket({ auth: state, version, browser: Browsers.macOS('OpenKrishbot'), syncFullHistory: false, markOnlineOnConnect: false, logger: silent() });
+  const s = makeWASocket({ auth: state, version, browser: Browsers.macOS('OpenKrishBot'), syncFullHistory: false, markOnlineOnConnect: false, logger: silent() });
   sock = s;
 
   const relay = createRelay({

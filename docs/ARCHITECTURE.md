@@ -27,4 +27,4 @@ browser / phone ── HTTP + SSE ──► server ── /krish/v1/responses (i
 ## Security model
 - Auto sign-in only for Host `localhost` from a loopback peer. Tunnel and LAN traffic needs a paired phone cookie.
 - Writes and commands need approval; `danger.ts` patterns ask every time even after "Always allow".
-- Tool output is redacted for common key formats; every tool run is appended to `~/.krishbot/audit.log`.
+- Tool output is redacted for common key formats; every tool run is appended to `~/.openkrishbot/audit.log`.

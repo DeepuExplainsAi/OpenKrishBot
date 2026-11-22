@@ -9,11 +9,11 @@ Every bot is an AI agent with a shell, a browser and your connected apps on **yo
 ## Built-in protection
 - Writes, commands and non-read-only app actions ask first. Dangerous commands (recursive deletes, `curl | sh`, force-push, disk writes, key files) ask every time, even after "Always allow".
 - Keys and tokens are hidden from tool output before the model or the chat sees them.
-- Every tool run is recorded locally in `~/.krishbot/audit.log` (Settings → Activity log).
+- Every tool run is recorded locally in `~/.openkrishbot/audit.log` (Settings → Activity log).
 - The app signs you in automatically only for `localhost` from this computer. A phone must pair with a one-time QR code (5 minutes, single use) and can be revoked.
 - WhatsApp: only your own number and numbers you allow can command the bot.
 
 ## Safe use
 - Keep the phone tunnel off when not needed.
-- API keys are stored in `~/.krishbot/providers.json` and the local database; do not share those files.
-- Use a throwaway browser profile for logins you do not want the bot to reuse (`~/.krishbot/profiles`).
+- API keys are stored in `~/.openkrishbot/providers.json` and the local database; do not share those files.
+- Use a throwaway browser profile for logins you do not want the bot to reuse (`~/.openkrishbot/profiles`).

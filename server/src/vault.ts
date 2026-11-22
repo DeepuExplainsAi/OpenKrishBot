@@ -10,7 +10,7 @@ import { hub } from './lib/hub.js';
  * Local vault (idea from Rakazo's bot secrets, Apache-2.0): the user saves logins and API keys by name.
  * Bots can list NAMES only. They use a value through `secret_request` (HTTP, sent only to the saved origin)
  * or `browser_fill_secret` (typed into a page); the value never enters the model's context.
- * Stored AES-256-GCM encrypted in the local database; the key is ~/.krishbot/vault.key (mode 600).
+ * Stored AES-256-GCM encrypted in the local database; the key is ~/.openkrishbot/vault.key (mode 600).
  */
 db.exec(`CREATE TABLE IF NOT EXISTS vault (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, origin TEXT NOT NULL DEFAULT '', auth TEXT NOT NULL DEFAULT 'bearer',
@@ -18,7 +18,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS vault (
   UNIQUE(user_id, name)
 )`);
 
-const keyFile = () => path.join(process.env.KRISH_VAULT_KEY_DIR ?? path.join(os.homedir(), '.krishbot'), 'vault.key');
+const keyFile = () => path.join(process.env.KRISH_VAULT_KEY_DIR ?? path.join(os.homedir(), '.openkrishbot'), 'vault.key');
 let key: Buffer | null = null;
 function vaultKey(): Buffer {
   if (key) return key;
@@ -98,7 +98,7 @@ export async function secretRequest(userId: string, a: { name: string; url: stri
   if (method !== 'GET' && method !== 'HEAD') return JSON.stringify({ error: 'Vault requests are read-only (GET/HEAD) for now. Ask the user to do writes, or use the browser.' });
   let url: URL; try { url = new URL(a.url); } catch { return JSON.stringify({ error: 'Not a valid URL.' }); }
   if (url.origin !== item.origin) return JSON.stringify({ error: `"${item.name}" may only be used at ${item.origin}.` });
-  const headers: Record<string, string> = { 'user-agent': 'OpenKrishbot' };
+  const headers: Record<string, string> = { 'user-agent': 'OpenKrishBot' };
   if (item.auth === 'bearer') headers.authorization = `Bearer ${value}`;
   else if (item.auth === 'header') headers[item.header] = value;
   else headers.authorization = `Basic ${Buffer.from(`${item.username}:${value}`).toString('base64')}`;

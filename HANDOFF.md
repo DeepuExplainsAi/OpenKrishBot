@@ -302,7 +302,7 @@ Lessons: Electron 33 crashed the server (SIGSEGV) with better-sqlite3 13, Electr
 Open: Railway downloads page (static page that lists the GitHub Release files; the app itself stays local), rpm, auto-update, code signing, goals-tree UI check in a real browser, P13b (trigger conditions, RSS trigger), projects.
 
 ## P14 merge from old repo + rename (2026-11-22)
-- Product name is now **OpenKrishbot** everywhere (launchers OpenKrishbot.bat/.command/openkrishbot.sh, desktop productName, appId ai.openkrishbot.app). Repo name unchanged.
+- Product name is now **OpenKrishBot** (was Krishbot; `~/.krishbot` -> `~/.openkrishbot` and `bothq.db` -> `openkrishbot.db` are migrated by server/src/migrate.ts) everywhere (launchers OpenKrishbot.bat/.command/openkrishbot.sh, desktop productName, appId ai.openkrishbot.app). Repo name unchanged.
 - Desktop: server binds 127.0.0.1 only, window loads 127.0.0.1 (stops the Windows "allow public and private network" prompt).
 - Subscription models (no key): `server/src/krish/cli.ts` runs claude / codex / gemini / grok / kimi / cursor-agent / vibe / opencode / qwen CLIs, prompt on stdin; the CLI is its own agent. Presets with `cli` in krish/providers.ts. Command flags for Grok/Kimi/Cursor/Vibe are NOT verified against real CLIs.
 - Added API providers: Anthropic (via its OpenAI-compatible endpoint, not native format), xAI, Fireworks, NVIDIA, Hugging Face, Moonshot, Z.ai, GitHub Models, Perplexity.

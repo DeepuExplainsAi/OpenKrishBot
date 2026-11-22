@@ -30,7 +30,7 @@ jobs:
         run: node ../scripts/desktop-smoke.mjs
       - uses: actions/upload-artifact@v4
         with:
-          name: krishbot-${{ matrix.os }}
+          name: openkrishbot-${{ matrix.os }}
           path: |
             desktop/release/*.exe
             desktop/release/*.dmg

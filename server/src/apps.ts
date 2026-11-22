@@ -120,7 +120,7 @@ function specOf(r: Row): Spec | null {
 async function connect(slug: string, spec: Spec): Promise<Live> {
   const have = live.get(slug);
   if (have) return have;
-  const client = new Client({ name: 'krishbot', version: '1.0.0' });
+  const client = new Client({ name: 'openkrishbot', version: '1.0.0' });
   const transport = spec.url
     ? new StreamableHTTPClientTransport(new URL(spec.url), { requestInit: { headers: spec.headers ?? {} } })
     : new StdioClientTransport({ command: launchCommand(spec.command!), args: spec.args ?? [], env: launchEnv(spec.env), stderr: 'ignore' });

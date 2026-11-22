@@ -65,7 +65,7 @@ const fake = http.createServer((req, res) => {
 });
 await new Promise((r) => fake.listen(FAKE, '127.0.0.1', r));
 
-const srv = spawn('node', ['dist/index.js'], { cwd: path.join(root, 'server'), env: { ...process.env, HOME: home, USERPROFILE: home, PORT: String(PORT), DB_PATH: path.join(home, 'bothq.db'), KRISH_RETRY_BASE_MS: '10' }, stdio: ['ignore', 'pipe', 'pipe'] });
+const srv = spawn('node', ['dist/index.js'], { cwd: path.join(root, 'server'), env: { ...process.env, HOME: home, USERPROFILE: home, PORT: String(PORT), DB_PATH: path.join(home, 'openkrishbot.db'), KRISH_RETRY_BASE_MS: '10' }, stdio: ['ignore', 'pipe', 'pipe'] });
 let log = '';
 srv.stdout.on('data', (d) => (log += d)); srv.stderr.on('data', (d) => (log += d));
 

@@ -1,11 +1,11 @@
-# OpenKrishbot
+# OpenKrishBot
 
 Your own team of AI agents, running on your own computer. Free, local, no account, no cloud server.
 
 ## Start
 
 1. Install [Node.js 22+](https://nodejs.org) (and Chrome or Edge for the bot's browser and voice).
-2. Double-click `OpenKrishbot.bat` (Windows) or `OpenKrishbot.command` (Mac), or run `./openkrishbot.sh` (Linux).
+2. Double-click `OpenKrishBot.bat` (Windows) or `OpenKrishBot.command` (Mac), or run `./openkrishbot.sh` (Linux).
    First run installs and builds, then opens http://localhost:8787.
 
 It works with no keys: the default model is free (Pollinations). Add Ollama or LM Studio for fully offline models, or paste a free-tier key (Groq, OpenRouter, Cerebras, Gemini, Mistral…) in the bot's Engine panel.
@@ -23,7 +23,7 @@ It works with no keys: the default model is free (Pollinations). Add Ollama or L
 | **WhatsApp** | Settings → WhatsApp: link by QR and message your bot from WhatsApp. |
 | **Voice** | Hands-free voice chat and dictation using the browser's free speech recognition and synthesis. |
 
-Data lives in `data/` and `~/.krishbot`.
+Data lives in `data/` and `~/.openkrishbot`.
 
 ## Develop
 
@@ -40,4 +40,4 @@ See `HANDOFF.md` for design notes and what is not verified yet.
 GNU AGPL-3.0 (see `LICENSE`). Third-party notices: `THIRD_PARTY_NOTICES.md`.
 
 ## Windows install notes
-The installers are unsigned, so Windows SmartScreen shows "Windows protected your PC": click **More info → Run anyway**. The app listens on 127.0.0.1 only, so there is no firewall prompt. If it does not open, read `%USERPROFILE%\.krishbot\desktop.log`.
+The installers are unsigned, so Windows SmartScreen shows "Windows protected your PC": click **More info → Run anyway**. The app listens on 127.0.0.1 only, so there is no firewall prompt. If it does not open, read `%USERPROFILE%\.openkrishbot\desktop.log`.

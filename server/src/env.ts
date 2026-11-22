@@ -24,7 +24,7 @@ function secret(name: string): string {
  * one (the placeholder from .env.example, or anything short) would let anyone in.
  */
 function sessionSecret(): string {
-  const file = path.join(os.homedir(), '.krishbot', 'session-secret');
+  const file = path.join(os.homedir(), '.openkrishbot', 'session-secret');
   if (!process.env.SESSION_SECRET) {
     try { fs.mkdirSync(path.dirname(file), { recursive: true }); } catch { /* ignore */ }
     if (!fs.existsSync(file)) fs.writeFileSync(file, crypto.randomBytes(32).toString('hex'), { mode: 0o600 });
@@ -47,14 +47,14 @@ export function isLoopbackUrl(u: string): boolean {
   }
 }
 
-/** BOTHQ_<name> environment variable. */
+/** OPENKRISHBOT_<name> environment variable. */
 export function compatEnv(name: string): string | undefined {
-  return process.env[`BOTHQ_${name}`];
+  return process.env[`OPENKRISHBOT_${name}`];
 }
 
 /** Default database file. */
 function defaultDbPath(): string {
-  return fileURLToPath(new URL('../../data/bothq.db', import.meta.url));
+  return fileURLToPath(new URL('../../data/openkrishbot.db', import.meta.url));
 }
 
 const hermesHome = process.env.HERMES_HOME_PRIMARY ?? path.join(os.homedir(), '.hermes');
@@ -70,9 +70,9 @@ export const env = {
   /** The app is only reachable at a local address (development). Some conveniences are limited to this. */
   localOnly: isLoopbackUrl(appUrl),
   sessionSecret: sessionSecret(),
-  /** OpenKrishbot runs on your own computer: requests from this machine sign in automatically as the owner. */
+  /** OpenKrishBot runs on your own computer: requests from this machine sign in automatically as the owner. */
   autoLocalLogin: process.env.AUTO_LOCAL_LOGIN !== '0',
-  ownerEmail: process.env.OWNER_EMAIL ?? 'me@krishbot.local',
+  ownerEmail: process.env.OWNER_EMAIL ?? 'me@openkrishbot.local',
   ownerName: process.env.OWNER_NAME ?? 'Krish',
   /** Email-only sign-in for testing. Honoured only when APP_URL is a local address (see routes.ts). */
   devLogin: process.env.DEV_LOGIN === '1' && isLoopbackUrl(appUrl),

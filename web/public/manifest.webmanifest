@@ -1,7 +1,7 @@
 {
-  "name": "OpenKrishbot",
-  "short_name": "OpenKrishbot",
-  "description": "Mera AI. Controls OpenKrishbot on your laptop.",
+  "name": "OpenKrishBot",
+  "short_name": "OpenKrishBot",
+  "description": "Mera AI. Controls OpenKrishBot on your laptop.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1C1C1C",

@@ -12,7 +12,7 @@ const RULES: [RegExp, string][] = [
   [/\bgit\s+push\b[^;&|]*(--force|\s-f\b)/i, 'force-pushes git history'],
   [/\b(shutdown|reboot|halt|poweroff)\b/i, 'turns off the computer'],
   [/:\(\)\s*\{.*\};\s*:/, 'fork bomb'],
-  [/(\.ssh\/|\.aws\/credentials|\.krishbot\/(providers|whatsapp|vault)|vault\.key|bothq\.db)/i, 'touches stored keys or logins'],
+  [/(\.ssh\/|\.aws\/credentials|\.openkrishbot\/(providers|whatsapp|vault)|vault\.key|openkrishbot\.db)/i, 'touches stored keys or logins'],
 ];
 
 export function dangerReason(tool: string, args: any): string | null {
@@ -36,7 +36,7 @@ export function redact(text: string): string {
   return SECRETS.reduce((t, re) => t.replace(re, '[secret hidden]'), text);
 }
 
-const auditFile = path.join(os.homedir(), '.krishbot', 'audit.log');
+const auditFile = path.join(os.homedir(), '.openkrishbot', 'audit.log');
 
 /** One JSON line per tool run, local only. Never throws. */
 export function audit(entry: { bot: string; tool: string; status: string; danger?: string | null; args?: unknown }) {

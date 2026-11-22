@@ -21,7 +21,7 @@ export function parseFeed(xml: string): FeedItem[] {
 
 export async function fetchFeed(url: string, fetchImpl: typeof fetch = fetch): Promise<FeedItem[]> {
   if (!/^https?:\/\//i.test(url)) throw new Error('A feed address must start with http:// or https://');
-  const res = await fetchImpl(url, { headers: { 'user-agent': 'Mozilla/5.0 (OpenKrishbot feed reader)', accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' }, signal: AbortSignal.timeout(15_000) });
+  const res = await fetchImpl(url, { headers: { 'user-agent': 'Mozilla/5.0 (OpenKrishBot feed reader)', accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' }, signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error(`The feed answered ${res.status}.`);
   const xml = await res.text();
   return parseFeed(xml.slice(0, 3_000_000));

@@ -1,5 +1,5 @@
 {
-  "name": "@bot-hq/server",
+  "name": "@openkrishbot/server",
   "private": true,
   "type": "module",
   "scripts": {

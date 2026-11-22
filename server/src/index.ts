@@ -1,3 +1,4 @@
+import './migrate.js';
 import { auditApi } from './audit.js';
 import { flowsApi, initFlowSchedules } from './routes-flows.js';
 import { serve } from '@hono/node-server';
@@ -42,7 +43,7 @@ expireStaleApprovals();
 const app = new Hono();
 // Cookie-authenticated writes must come from the app's own pages (CSRF; see sameOriginWrites).
 app.use('/api/*', sameOriginWrites);
-app.get('/api/health', (c) => c.json({ ok: true, engine: 'krishbot' }));
+app.get('/api/health', (c) => c.json({ ok: true, engine: 'openkrishbot' }));
 // The app's tools for the agent engines (MCP).
 app.route('/mcp', mcpApi);
 app.route('/hooks', hooks);
@@ -71,9 +72,9 @@ if (fs.existsSync(webDist)) {
   app.get('*', (c) => c.req.path.startsWith('/api/') ? c.json({ error: 'not found' }, 404) : c.html(fs.readFileSync(path.join(webDist, 'index.html'), 'utf8')));
 }
 
-const server = serve({ fetch: app.fetch, port: env.port, hostname: env.host }, (info) => console.log(`[bothq] server on http://localhost:${info.port}`));
+const server = serve({ fetch: app.fetch, port: env.port, hostname: env.host }, (info) => console.log(`[openkrishbot] server on http://localhost:${info.port}`));
 attachScreenRelay(server as unknown as Server);
-// BOTHQ_NO_SCHEDULER=1 for extra dev/test servers sharing a database copy, so routines and triggers don't fire twice.
+// OPENKRISHBOT_NO_SCHEDULER=1 for extra dev/test servers sharing a database copy, so routines and triggers don't fire twice.
 if (compatEnv('NO_SCHEDULER') !== '1') {
   initRoutines(enqueue);
   startFeedPolling();
@@ -82,7 +83,7 @@ if (compatEnv('NO_SCHEDULER') !== '1') {
   initIssueControl(interrupt);
   startHeartbeat(isBotBusy);
   initFlowSchedules();
-} else console.log('[bothq] scheduler disabled (BOTHQ_NO_SCHEDULER=1)');
+} else console.log('[openkrishbot] scheduler disabled (OPENKRISHBOT_NO_SCHEDULER=1)');
 initEngines();
 initWhatsApp();
 initTelegram();

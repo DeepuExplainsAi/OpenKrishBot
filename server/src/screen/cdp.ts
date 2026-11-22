@@ -100,4 +100,4 @@ export async function launch(profileDir: string): Promise<Running> {
   return { proc, cdp, port: Number(new URL(wsUrl).port), profile: profileDir };
 }
 
-export const profileDirFor = (botId: string) => path.join(os.homedir(), '.krishbot', 'profiles', botId);
+export const profileDirFor = (botId: string) => path.join(os.homedir(), '.openkrishbot', 'profiles', botId);

@@ -21,7 +21,7 @@ print(json.dumps({"language": info.language, "duration": round(len(audio) / 1600
 export interface Segment { start: number; end: number; text: string }
 export interface Transcript { language: string; duration: number; segments: Segment[] }
 
-export const sttHome = () => path.join(process.env.KRISH_STT_HOME || path.join(os.homedir(), '.krishbot'), 'stt');
+export const sttHome = () => path.join(process.env.KRISH_STT_HOME || path.join(os.homedir(), '.openkrishbot'), 'stt');
 const venvPython = () => path.join(sttHome(), 'venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 
 export const stamp = (sec: number) => {

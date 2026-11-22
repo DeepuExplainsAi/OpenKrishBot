@@ -7,7 +7,7 @@ import { botHome } from './krish/tools.js';
 import type { EngineInfo, EngineProvider } from './types.js';
 
 /**
- * Every bot runs on the OpenKrishbot engine (server/src/krish): an agent loop inside this server that
+ * Every bot runs on the OpenKrishBot engine (server/src/krish): an agent loop inside this server that
  * talks to any OpenAI-compatible model. No separate process, no account, no cloud.
  */
 
@@ -80,6 +80,6 @@ export async function engineInfo(botId: string): Promise<EngineInfo> {
   return {
     botId, profile: botId, status: 'ready', error: null,
     model: b.model ?? resolve(provider).preset.models[0] ?? null,
-    provider, version: 'krishbot', providers, ownScreen: false,
+    provider, version: 'openkrishbot', providers, ownScreen: false,
   };
 }
