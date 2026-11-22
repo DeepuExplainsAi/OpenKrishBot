@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { cliFound } from './cli.js';
 
 /** Model providers the Krishbot engine can talk to. All speak the OpenAI chat-completions dialect. */
-export interface Preset { id: string; name: string; baseUrl: string; keyless?: boolean; local?: boolean; models: string[]; env?: string; note?: string }
+export interface Preset { id: string; name: string; baseUrl: string; keyless?: boolean; local?: boolean; models: string[]; env?: string; note?: string; cli?: { command: string; bin: string; login?: string } }
 
 export const PRESETS: Preset[] = [
   { id: 'pollinations', name: 'Free cloud (Pollinations, no key)', baseUrl: 'https://text.pollinations.ai/openai', keyless: true, models: ['openai-fast', 'openai', 'mistral', 'deepseek', 'qwen-coder', 'llama'], note: 'Free, no sign-up' },
@@ -18,6 +19,20 @@ export const PRESETS: Preset[] = [
   { id: 'together', name: 'Together AI', baseUrl: 'https://api.together.xyz/v1', models: ['meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', 'deepseek-ai/DeepSeek-V3'], env: 'TOGETHER_API_KEY' },
   { id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com', models: ['deepseek-chat', 'deepseek-reasoner'], env: 'DEEPSEEK_API_KEY' },
   { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', models: ['gpt-5', 'gpt-5-mini', 'gpt-4.1'], env: 'OPENAI_API_KEY' },
+  { id: 'claude-cli', name: 'Claude (your Pro/Max plan, via Claude Code)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Claude Code and run `claude` once to sign in', cli: { command: 'claude -p', bin: 'claude', login: 'claude' } },
+  { id: 'codex-cli', name: 'ChatGPT (your Plus/Pro plan, via Codex)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Codex CLI and run `codex login`', cli: { command: 'codex exec --skip-git-repo-check -', bin: 'codex', login: 'codex login' } },
+  { id: 'gemini-cli', name: 'Gemini (your Google account, via Gemini CLI)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Gemini CLI and run `gemini` once (has a free tier)', cli: { command: 'gemini -p " "', bin: 'gemini', login: 'gemini' } },
+  { id: 'opencode-cli', name: 'OpenCode (via OpenCode CLI)', baseUrl: '', keyless: true, local: true, models: ['default'], cli: { command: 'opencode run', bin: 'opencode', login: 'opencode auth login' } },
+  { id: 'qwen-cli', name: 'Qwen Code', baseUrl: '', keyless: true, local: true, models: ['default'], cli: { command: 'qwen -p " "', bin: 'qwen', login: 'qwen' } },
+  { id: 'anthropic', name: 'Anthropic (Claude API)', baseUrl: 'https://api.anthropic.com/v1', models: ['claude-sonnet-4-5', 'claude-opus-4-1', 'claude-haiku-4-5'], env: 'ANTHROPIC_API_KEY' },
+  { id: 'xai', name: 'xAI (Grok)', baseUrl: 'https://api.x.ai/v1', models: ['grok-4', 'grok-code-fast-1'], env: 'XAI_API_KEY' },
+  { id: 'fireworks', name: 'Fireworks AI', baseUrl: 'https://api.fireworks.ai/inference/v1', models: [], env: 'FIREWORKS_API_KEY' },
+  { id: 'nvidia', name: 'NVIDIA NIM', baseUrl: 'https://integrate.api.nvidia.com/v1', models: [], env: 'NVIDIA_API_KEY' },
+  { id: 'huggingface', name: 'Hugging Face router', baseUrl: 'https://router.huggingface.co/v1', models: [], env: 'HF_TOKEN' },
+  { id: 'moonshot', name: 'Moonshot (Kimi)', baseUrl: 'https://api.moonshot.ai/v1', models: [], env: 'MOONSHOT_API_KEY' },
+  { id: 'zai', name: 'Z.ai (GLM)', baseUrl: 'https://api.z.ai/api/paas/v4', models: [], env: 'ZAI_API_KEY' },
+  { id: 'githubmodels', name: 'GitHub Models', baseUrl: 'https://models.github.ai/inference', models: [], env: 'GITHUB_TOKEN' },
+  { id: 'perplexity', name: 'Perplexity', baseUrl: 'https://api.perplexity.ai', models: ['sonar'], env: 'PERPLEXITY_API_KEY' },
   { id: 'custom', name: 'Custom OpenAI-compatible', baseUrl: '', models: [] },
 ];
 
@@ -49,6 +64,7 @@ export const hasKey = (id: string) => !!resolve(id).apiKey;
 /** Live model list for a provider (Ollama/LM Studio/custom list what is installed); falls back to the preset's. */
 export async function liveModels(id: string): Promise<{ ok: boolean; models: string[] }> {
   const { preset, baseUrl, apiKey } = resolve(id);
+  if (preset.cli) return { ok: cliFound(preset.cli.bin), models: preset.models };
   if (!baseUrl) return { ok: false, models: [] };
   try {
     const r = await fetch(`${baseUrl}/models`, { headers: apiKey ? { authorization: `Bearer ${apiKey}` } : {}, signal: AbortSignal.timeout(preset.local ? 1200 : 4000) });

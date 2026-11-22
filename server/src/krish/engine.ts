@@ -14,6 +14,7 @@ import { TOOLS, policyFor, toolMap } from '../agent/tools.js';
 import { callTool as callHqTool, listTools as listHqTools } from '../mcp.js';
 import { claimToolRow, noteToolOutcome, requestApproval } from '../agent/loop.js';
 import { audit, dangerReason, getDangerMode, redact } from '../danger.js';
+import { runCli, cliFound } from './cli.js';
 import { extraTools, callExtraTool } from './mcp-client.js';
 
 /**
@@ -106,6 +107,15 @@ krishApi.post('/v1/responses', async (c) => {
       const send = (event: string, data: unknown) => ctrl.enqueue(enc.encode(sse(event, data)));
       let n = 0;
       try {
+        if (preset.cli) {
+          // subscription model: the CLI is its own agent and runs its own tools
+          const answer = await runCli(preset, system, history, c.req.raw.signal).catch((e) => { throw Object.assign(e, { name: 'ModelError' }); });
+          history.push({ role: 'assistant', content: answer });
+          recordUsage(botId, estimateTokens(system.length + JSON.stringify(history).length), estimateTokens(answer.length));
+          send('response.output_item.done', { item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: answer }] } });
+          send('response.completed', { response: { status: 'completed' } });
+          return;
+        }
         const tools = await toolsFor(botId);
         for (let step = 0; step < MAX_STEPS; step++) {
           const stop = overBudget(botId);
@@ -237,7 +247,7 @@ async function runToolOnce(botId: string, name: string, rawArgs: string, home: s
 export const providersApi = new Hono<AuthVars>();
 providersApi.use('*', requireUser);
 providersApi.get('/providers', async (c) => {
-  const out = await Promise.all(PRESETS.map(async (p) => ({ id: p.id, name: p.name, local: !!p.local, keyless: !!p.keyless, connected: p.keyless ? (p.local ? (await liveModels(p.id)).ok : true) : hasKey(p.id), models: (await liveModels(p.id)).models, note: p.note ?? null, baseUrl: resolve(p.id).baseUrl })));
+  const out = await Promise.all(PRESETS.map(async (p) => ({ id: p.id, name: p.name, local: !!p.local, keyless: !!p.keyless, connected: p.cli ? cliFound(p.cli.bin) : p.keyless ? (p.local ? (await liveModels(p.id)).ok : true) : hasKey(p.id), models: (await liveModels(p.id)).models, note: p.note ?? null, baseUrl: resolve(p.id).baseUrl })));
   return c.json({ providers: out, default: DEFAULT_PROVIDER });
 });
 providersApi.put('/providers/:id', async (c) => {
