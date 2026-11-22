@@ -36,7 +36,7 @@ export const transcriptText = (t: Transcript) => t.segments.map((s) => `[${stamp
 
 function run(cmd: string, args: string[], timeoutSec: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(cmd, args, { timeout: timeoutSec * 1000, maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile(cmd, args, { timeout: timeoutSec * 1000, maxBuffer: 64 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
       if (!err) return resolve(stdout);
       const e = err as any;
       if (e.code === 'ENOENT') return reject(new Error(`${cmd} is not installed or not on PATH`));

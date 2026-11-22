@@ -14,7 +14,7 @@ export const box = {
 
   bash(command: string, timeoutSec = 60): Promise<BashResult> {
     return new Promise((resolve) => {
-      execFile('bash', ['-c', command], { timeout: timeoutSec * 1000, maxBuffer: 32 * 1024 * 1024 }, (err, stdout, stderr) => {
+      execFile('bash', ['-c', command], { timeout: timeoutSec * 1000, maxBuffer: 32 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
         const code = err ? (typeof (err as any).code === 'number' ? (err as any).code : 1) : 0;
         resolve({ output: `${stdout ?? ''}${stderr ?? ''}`, exit_code: code });
       });

@@ -10,7 +10,7 @@ const found = new Map<string, { at: number; ok: boolean }>();
 export function cliFound(bin: string): boolean {
   const hit = found.get(bin);
   if (hit && Date.now() - hit.at < 30_000) return hit.ok;
-  const ok = spawnSync(process.platform === 'win32' ? 'where' : 'which', [bin], { stdio: 'ignore', env: launchEnv() }).status === 0;
+  const ok = spawnSync(process.platform === 'win32' ? 'where' : 'which', [bin], { stdio: 'ignore', env: launchEnv(), windowsHide: true }).status === 0;
   found.set(bin, { at: Date.now(), ok });
   return ok;
 }

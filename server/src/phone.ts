@@ -43,7 +43,7 @@ let tunnel: { proc: ChildProcess; url: string | null; error: string | null } | n
 
 function startTunnel(): Promise<void> {
   return new Promise((resolve) => {
-    const proc = spawn(process.env.CLOUDFLARED_BIN || 'cloudflared', ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', `http://127.0.0.1:${env.port}`], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const proc = spawn(process.env.CLOUDFLARED_BIN || 'cloudflared', ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', `http://127.0.0.1:${env.port}`], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
     const t = { proc, url: null as string | null, error: null as string | null };
     tunnel = t;
     let done = false;

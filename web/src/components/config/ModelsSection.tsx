@@ -34,7 +34,7 @@ function Row({ p, onChange }: { p: Provider; onChange: () => void }) {
       </div>
       {open && (
         <div className="cfg-form">
-          {p.canLogin && <button type="button" className="cfg-btn cfg-btn--secondary" disabled={!!busy} onClick={() => run('login', async () => { const r = await call('POST', `/api/krish/providers/${p.id}/login`); return r.opened ? 'A terminal window opened. Finish the sign-in there, then press Test.' : `Could not open a terminal. Run this yourself: ${r.command}`; })}>Sign in with your account</button>}
+          {p.canLogin && <button type="button" className="cfg-btn cfg-btn--secondary" disabled={!!busy} onClick={() => run('login', async () => { const r = await call('POST', `/api/krish/providers/${p.id}/login`); return `To sign in, run this in a terminal yourself, then press Test: ${r.command}`; })}>Sign in with your account</button>}
           {needsKey && <><label className="cfg-field__label">API key{p.env ? ` (or ${p.env})` : ''}</label><input className="text-input" type="password" value={key} placeholder={p.hasKey ? 'Saved. Type to replace.' : 'Paste your key'} autoComplete="off" onChange={(e) => setKey(e.target.value)} /></>}
           {!p.cli && <><label className="cfg-field__label">Address</label><input className="text-input" value={url} placeholder="https://…/v1" spellCheck={false} onChange={(e) => setUrl(e.target.value)} /></>}
           {p.models.length > 0 && <div className="cfg-field__hint">Models: {p.models.slice(0, 6).join(', ')}{p.models.length > 6 ? ` and ${p.models.length - 6} more` : ''}. Pick one in the chat's Engine panel.</div>}

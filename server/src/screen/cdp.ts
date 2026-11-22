@@ -84,7 +84,7 @@ export async function launch(profileDir: string): Promise<Running> {
     ...(process.getuid?.() === 0 || process.env.KRISH_NO_SANDBOX === '1' ? ['--no-sandbox'] : []),
     'about:blank',
   ];
-  const proc = spawn(exe, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+  const proc = spawn(exe, args, { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
   const wsUrl = await new Promise<string>((resolve, reject) => {
     let buf = '';
     const t = setTimeout(() => reject(new Error('Chrome did not start in time.')), 20000);

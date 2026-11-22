@@ -60,6 +60,13 @@ class BotScreen {
     if (this.viewers.size) await this.startCast();
   }
 
+  async tabs(): Promise<{ id: string; url: string; title: string; active: boolean }[]> {
+    const { targetInfos } = await this.cdp.send('Target.getTargets');
+    return targetInfos.filter((t: any) => t.type === 'page').map((t: any) => ({ id: t.targetId, url: t.url, title: t.title, active: t.targetId === this.target }));
+  }
+
+  async closeTab(targetId: string) { await this.cdp.send('Target.closeTarget', { targetId }); }
+
   startCast() {
     return this.cdp.send('Page.startScreencast', { format: 'jpeg', quality: 60, maxWidth: SCREEN_W, maxHeight: SCREEN_H, everyNthFrame: 1 }, this.session);
   }

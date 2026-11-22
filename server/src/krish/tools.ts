@@ -21,7 +21,7 @@ const cap = (s: string, n = 12000) => (s.length > n ? `${s.slice(0, n / 2)}\n…
 
 function sh(cmd: string, args: string[], cwd: string, timeoutSec: number, input?: string): Promise<string> {
   return new Promise((resolve) => {
-    const p = execFile(cmd, args, { cwd, timeout: timeoutSec * 1000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, TERM: 'dumb' } }, (err, stdout, stderr) => {
+    const p = execFile(cmd, args, { cwd, timeout: timeoutSec * 1000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, TERM: 'dumb' }, windowsHide: true }, (err, stdout, stderr) => {
       const e = err as any;
       const code = err ? (typeof e.code === 'number' ? e.code : 1) : 0;
       const note = e?.killed ? `\n[timed out after ${timeoutSec}s and was stopped]` : e?.code === 'ENOENT' ? `\n[${cmd} is not installed or not on PATH]` : '';

@@ -52,6 +52,9 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P12 fleet management (from Rakazo): `update_bot` tool (instructions, label, model, provider of another bot) always asks via approval card; `mcp_hq_*` tools now honour policyFor; test in server/test/fleet.test.mts
 - [x] P13 ready-made companies: `server/templates/*.company.json` (Dropship Co, Growth Agency, Dev Studio, Research Desk); `GET /api/projects/templates`, `POST /api/projects/templates/:id` hires the team via importCompany; Settings -> Companies "Hire team". Goals, issues, budgets (Paperclip) were already ported in earlier parts. NOTE: full typecheck needs NODE_OPTIONS=--max-old-space-size=2048 and one workspace at a time on small machines
 
+- [x] P14 browser tools (from Playwright-MCP): `browser_read` (page as Markdown), `browser_tabs`, `browser_hover`, `browser_select`, `browser_upload` (asks), `browser_wait`. NOT verified against a real Chrome: the cloud sandbox's headless Chrome never answers Page.enable (raw CDP too), so server/test/browser-tools.test.mts is skipped when no Chrome is found; run it on a real machine (`CHROME_PATH=... npm test`).
+- [x] P15 no stray terminals (owner rule): the app never opens a terminal/console window by itself. All child processes use `windowsHide`; the old `terminal.ts` (opened Terminal/cmd for model sign-in) is deleted, sign-in now shows the command to run; `OpenKrishBot.bat` starts hidden through `scripts/hidden.vbs` (log: ~/.openkrishbot/launcher.log). Do not add anything that opens a terminal.
+
 ## Status
 P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 notes.
 

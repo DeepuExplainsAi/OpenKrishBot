@@ -1,3 +1,2 @@
 @echo off
-node "%~dp0scripts\launch.mjs" %*
-pause
+wscript //nologo "%~dp0scripts\hidden.vbs"

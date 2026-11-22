@@ -17,7 +17,6 @@ import { callTool as callHqTool, listTools as listHqTools } from '../mcp.js';
 import { claimToolRow, noteToolOutcome, requestApproval } from '../agent/loop.js';
 import { audit, dangerReason, getDangerMode, redact } from '../danger.js';
 import { runCli, cliFound, forgetCliLookups } from './cli.js';
-import { openTerminal } from '../terminal.js';
 import { extraTools, callExtraTool } from './mcp-client.js';
 
 /**
@@ -301,11 +300,11 @@ providersApi.post('/providers/:id/test', async (c) => {
   } catch (e: any) { return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 502); }
 });
 
-/** Open the subscription CLI's own sign-in in a terminal window on this computer. */
+/** Never opens a terminal window by itself: gives the sign-in command for the user to run. */
 providersApi.post('/providers/:id/login', async (c) => {
   const cli = PRESETS.find((p) => p.id === c.req.param('id'))?.cli;
   if (!cli?.login) return c.json({ error: 'No sign-in for this one.' }, 400);
   if (!cliFound(cli.bin)) return c.json({ error: `"${cli.bin}" is not installed yet.` }, 409);
-  return c.json({ ok: true, opened: await openTerminal(cli.login), command: cli.login });
+  return c.json({ ok: true, opened: false, command: cli.login });
 });
 void env; void TOOLS; void toolMap;

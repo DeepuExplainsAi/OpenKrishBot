@@ -5,6 +5,7 @@ import type { LocalTool } from '../krish/tools.js';
 import { screenOf } from './manager.js';
 import { db } from '../db.js';
 import { secretValue } from '../vault.js';
+import { htmlToMarkdown } from '../krish/scrape.js';
 
 /** Browser tools for a bot (the OpenManus browser_use set): look at the page as a numbered list, then act on a number. */
 
@@ -160,6 +161,84 @@ export const BROWSER_TOOLS: LocalTool[] = [
     description: 'Go back one page.',
     parameters: obj({}),
     async run(_a, c) { const s = await screenOf(botOf(c.home)); await s.eval('history.back()'); await new Promise((r) => setTimeout(r, 1000)); return snapshot(botOf(c.home)); },
+  },
+  {
+    name: 'browser_read',
+    description: 'Read the current page (even behind a login) as clean Markdown with its links. Better than the snapshot for articles, docs and long pages.',
+    parameters: obj({}),
+    async run(_a, c) {
+      const s = await screenOf(botOf(c.home));
+      const html = await s.eval<string>('document.documentElement.outerHTML');
+      const p = htmlToMarkdown(html, await s.eval<string>('location.href'));
+      const out = `# ${p.title}\n\n${p.markdown}\n\nLinks:\n${p.links.join('\n')}`;
+      return out.length > 15000 ? `${out.slice(0, 15000)}\n…[cut]` : out;
+    },
+  },
+  {
+    name: 'browser_tabs',
+    description: "Manage your browser tabs. action: list, new (with url), select or close (with the tab's number from list).",
+    parameters: obj({ action: { type: 'string', enum: ['list', 'new', 'select', 'close'] }, index: { type: 'number' }, url: { type: 'string' } }, ['action']),
+    async run(a, c) {
+      const s = await screenOf(botOf(c.home));
+      if (a.action === 'new') await s.openTab(/^[a-z]+:/i.test(String(a.url ?? '')) ? String(a.url) : `https://${a.url ?? 'about:blank'}`);
+      else if (a.action === 'select' || a.action === 'close') {
+        const t = (await s.tabs())[Number(a.index)];
+        if (!t) throw new Error(`No tab ${a.index}. Use action list.`);
+        if (a.action === 'select') await s.attach(t.id); else await s.closeTab(t.id);
+      }
+      await new Promise((r) => setTimeout(r, 500));
+      return (await s.tabs()).map((t, i) => `${t.active ? '*' : ' '}[${i}] ${t.title || '(untitled)'} ${t.url}`).join('\n');
+    },
+  },
+  {
+    name: 'browser_hover',
+    description: 'Move the mouse over the element with this number (opens hover menus).',
+    parameters: obj({ index: { type: 'number' } }, ['index']),
+    async run(a, c) {
+      const id = botOf(c.home); const { x, y } = await center(id, a.index);
+      await (await screenOf(id)).send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+      await new Promise((r) => setTimeout(r, 500));
+      return snapshot(id);
+    },
+  },
+  {
+    name: 'browser_select',
+    description: 'Choose an option in a dropdown (select element) by its number. Give the option text or value.',
+    parameters: obj({ index: { type: 'number' }, option: { type: 'string' } }, ['index', 'option']),
+    async run(a, c) {
+      const id = botOf(c.home); const s = await screenOf(id);
+      const ok = await s.eval<boolean>(`(() => { const e = document.querySelector('[data-kid="${Number(a.index)}"]'); if (!e || e.tagName !== 'SELECT') return false; const want = ${JSON.stringify(String(a.option))}.toLowerCase(); const o = [...e.options].find((x) => x.value.toLowerCase() === want || x.text.trim().toLowerCase() === want); if (!o) return false; e.value = o.value; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+      if (!ok) throw new Error('Not a dropdown, or no such option. Run browser_snapshot and check.');
+      return snapshot(id);
+    },
+  },
+  {
+    name: 'browser_upload', ask: 'Upload a file from your computer to a website',
+    description: 'Put a file from your computer into a file input (by its number). Path is absolute or relative to your workspace.',
+    parameters: obj({ index: { type: 'number' }, path: { type: 'string' } }, ['index', 'path']),
+    async run(a, c) {
+      const id = botOf(c.home); const s = await screenOf(id);
+      const file = path.resolve(path.join(c.home, 'work'), String(a.path));
+      if (!fs.existsSync(file)) throw new Error(`No file at ${file}`);
+      const r = await s.send('Runtime.evaluate', { expression: `document.querySelector('[data-kid="${Number(a.index)}"]')` });
+      if (!r.result?.objectId) throw new Error(`No element [${a.index}]. Run browser_snapshot again.`);
+      await s.send('DOM.setFileInputFiles', { files: [file], objectId: r.result.objectId });
+      return `Attached ${path.basename(file)}.`;
+    },
+  },
+  {
+    name: 'browser_wait',
+    description: 'Wait until some text appears on the page, or just for a number of seconds (max 30).',
+    parameters: obj({ text: { type: 'string' }, seconds: { type: 'number' } }),
+    async run(a, c) {
+      const id = botOf(c.home); const s = await screenOf(id);
+      const end = Date.now() + Math.min(Number(a.seconds) || 10, 30) * 1000;
+      if (a.text) {
+        const q = JSON.stringify(String(a.text).toLowerCase());
+        while (Date.now() < end && !(await s.eval<boolean>(`document.body.innerText.toLowerCase().includes(${q})`))) await new Promise((r) => setTimeout(r, 500));
+      } else await new Promise((r) => setTimeout(r, Math.max(0, end - Date.now())));
+      return snapshot(id);
+    },
   },
   {
     name: 'browser_eval', ask: 'Run a script inside the web page',
