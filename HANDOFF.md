@@ -56,6 +56,8 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P15 no stray terminals (owner rule): the app never opens a terminal/console window by itself. All child processes use `windowsHide`; the old `terminal.ts` (opened Terminal/cmd for model sign-in) is deleted, sign-in now shows the command to run; `OpenKrishBot.bat` starts hidden through `scripts/hidden.vbs` (log: ~/.openkrishbot/launcher.log). Do not add anything that opens a terminal.
 - [x] P16 notices for new libraries, version 1.2.0 (release workflow builds Windows, Mac, Linux on tag v*)
 
+- [x] P17 ideas from nightly-labs/openbot (PolyForm NONCOMMERCIAL: never copy its code; ideas only, written from scratch): (a) long-chat auto-summary `krish/compact.ts` (history over ~20k tokens: old part summarised by the bot's model; window always starts at a user message; env OPENKRISHBOT_COMPACT_TOKENS); (b) Local scripts API `scripts-api.ts`: off by default, per-bot token (hashed), loopback + localhost Host only, `POST /script/messages {text, wait}`, `GET /script/status`; toggle in the bot's Engine panel. Verified over HTTP on a real server. Other ideas not done yet: FIFO message queue with pause/cancel, theme palette files, Docker image, remote server mode.
+
 ## Status
 P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 notes.
 

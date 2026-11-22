@@ -9,6 +9,7 @@ import { engineKey } from '../engine.js';
 import { callModel } from './resilient.js';
 import { skillsPrompt } from '../skill-library.js';
 import { estimateTokens, overBudget, recordUsage } from '../usage.js';
+import { SUMMARY_PROMPT, compactHistory, recentWindow, type Msg } from './compact.js';
 import { loopNudge } from '../plan.js';
 import { DEFAULT_PROVIDER, PRESETS, hasKey, liveModels, resolve, saveProvider } from './providers.js';
 import { botHome, localToolMap, LOCAL_TOOLS } from './tools.js';
@@ -33,7 +34,6 @@ krishApi.use('/v1/*', async (c, next) => {
 });
 
 const SEES_IMAGES = /gpt-4o|gpt-4\.1|gpt-5|gpt-6|claude|gemini|llava|vision|-vl|pixtral|llama-?4|gemma-?3|grok|luna|astra/i;
-type Msg = { role: 'system' | 'user' | 'assistant' | 'tool'; content?: string | any[] | null; tool_calls?: any[]; tool_call_id?: string };
 const threads = new Map<string, Msg[]>();
 const DECLINED = 'The user declined this action. Do not retry it. Find another way, or tell the user what you could not do.';
 const SKIPPED = 'Skipped: the user did not approve this in time. Do not retry unless they ask.';
@@ -120,7 +120,12 @@ krishApi.post('/v1/responses', async (c) => {
           return;
         }
         const tools = await toolsFor(botId);
+        const summarize = async (transcript: string) => {
+          const att = await callModel(botId, { model, stream: false, messages: [{ role: 'system', content: SUMMARY_PROMPT }, { role: 'user', content: transcript }] }, bot?.provider, c.req.raw.signal);
+          return String((await att.res.json() as any)?.choices?.[0]?.message?.content ?? '');
+        };
         for (let step = 0; step < MAX_STEPS; step++) {
+          if (await compactHistory(history, system.length, summarize)) send('krish.notice', { text: 'Long chat: older messages were summarised to keep going.' });
           const stop = overBudget(botId);
           if (stop) throw Object.assign(new Error(stop), { name: 'ModelError' });
           let text = '';
@@ -130,7 +135,7 @@ krishApi.post('/v1/responses', async (c) => {
           for (let tryNo = 0; ; tryNo++) {
             text = ''; calls = {}; emitted = false;
             const byId = new Map<string, number>();
-            const att = await callModel(botId, { model, stream: true, messages: [{ role: 'system', content: system }, ...history.slice(-MAX_HISTORY)], ...(tools.length ? { tools, tool_choice: 'auto' } : {}), ...(effort && /gpt-5|o\d|gpt-oss/.test(model) ? { reasoning_effort: effort } : {}) }, bot?.provider, c.req.raw.signal, { onRetry: (note) => send('krish.notice', { text: note }) });
+            const att = await callModel(botId, { model, stream: true, messages: [{ role: 'system', content: system }, ...recentWindow(history, MAX_HISTORY)], ...(tools.length ? { tools, tool_choice: 'auto' } : {}), ...(effort && /gpt-5|o\d|gpt-oss/.test(model) ? { reasoning_effort: effort } : {}) }, bot?.provider, c.req.raw.signal, { onRetry: (note) => send('krish.notice', { text: note }) });
             if (att.switchedFrom) { send('krish.notice', { text: `${att.switchedFrom} failed, so ${att.providerName} answered.` }); }
             const res = att.res;
             try {
@@ -160,12 +165,12 @@ krishApi.post('/v1/responses', async (c) => {
               // nothing shown yet: a replay is invisible, so try once more. Otherwise keep what arrived and say so.
               if (!emitted && !text && !Object.keys(calls).length && tryNo < 1) { send('krish.notice', { text: 'The model connection dropped, trying again…' }); await new Promise((r) => setTimeout(r, 1500)); continue; }
               if ((text || emitted) && !Object.keys(calls).length) { send('krish.notice', { text: 'The model connection dropped before it finished; this answer may be cut short.' }); break; }
-              recordUsage(botId, estimateTokens(JSON.stringify(history.slice(-MAX_HISTORY)).length + system.length), 0); // the provider still counted this prompt
+              recordUsage(botId, estimateTokens(JSON.stringify(recentWindow(history, MAX_HISTORY)).length + system.length), 0); // the provider still counted this prompt
               throw Object.assign(new Error('The model connection dropped mid-answer. Please send your message again.'), { name: 'ModelError' });
             }
           }
           const list = Object.values(calls).filter((k) => k.name);
-          recordUsage(botId, reported?.prompt_tokens ?? estimateTokens(JSON.stringify(history.slice(-MAX_HISTORY)).length + system.length), reported?.completion_tokens ?? estimateTokens(text.length + list.reduce((n, k) => n + k.args.length, 0)));
+          recordUsage(botId, reported?.prompt_tokens ?? estimateTokens(JSON.stringify(recentWindow(history, MAX_HISTORY)).length + system.length), reported?.completion_tokens ?? estimateTokens(text.length + list.reduce((n, k) => n + k.args.length, 0)));
           history.push({ role: 'assistant', content: text || null, ...(list.length ? { tool_calls: list.map((k) => ({ id: k.id, type: 'function', function: { name: k.name, arguments: k.args || '{}' } })) } : {}) });
           if (text) send('response.output_item.done', { item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] } });
           if (!list.length) break;
@@ -182,7 +187,7 @@ krishApi.post('/v1/responses', async (c) => {
       } catch (e: any) {
         if (!c.req.raw.signal.aborted) send('response.failed', { response: { error: { message: String(e?.message ?? e), friendly: e?.name === 'ModelError' } } });
       } finally {
-        threads.set(convo, history.slice(-MAX_HISTORY * 2));
+        threads.set(convo, recentWindow(history, MAX_HISTORY * 2));
         ctrl.close();
       }
     },

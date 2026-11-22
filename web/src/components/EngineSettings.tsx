@@ -199,6 +199,27 @@ export function EngineSettings({ bot }: { bot: Bot }) {
       </div>
       {engine.status === 'error' && engine.error && <div className="engine__error">{engine.error}</div>}
       <BudgetRow botId={bot.id} />
+      <ScriptsRow botId={bot.id} />
+    </div>
+  );
+}
+
+/** Local scripts: a program on this computer can message this Bot with a private token (shown once). Off by default. */
+function ScriptsRow({ botId }: { botId: string }) {
+  const [on, setOn] = useState<boolean | null>(null);
+  const [token, setToken] = useState('');
+  const [err, setErr] = useState('');
+  useEffect(() => { setToken(''); configApi.scripts(botId).then((r) => setOn(r.enabled)).catch(() => setOn(null)); }, [botId]);
+  if (on === null) return null;
+  const make = () => configApi.enableScripts(botId).then((r) => { setOn(true); setToken(r.token); setErr(''); }).catch((e) => setErr(e.message));
+  const off = () => configApi.disableScripts(botId).then(() => { setOn(false); setToken(''); }).catch((e) => setErr(e.message));
+  return (
+    <div className="engine__meta" style={{ flexWrap: 'wrap', gap: 6 }}>
+      <span>Local scripts: {on ? 'on' : 'off'}</span>
+      <button type="button" className="cfg-btn cfg-btn--secondary" onClick={make}>{on ? 'New token' : 'Turn on'}</button>
+      {on && <button type="button" className="cfg-btn cfg-btn--ghost-danger" onClick={off}>Turn off</button>}
+      {token && <code style={{ wordBreak: 'break-all' }}>curl -s -H "Authorization: Bearer {token}" -d '{'{"text":"hello","wait":120}'}' http://127.0.0.1:8787/script/messages</code>}
+      {err && <span className="voice-error" role="alert">{err}</span>}
     </div>
   );
 }

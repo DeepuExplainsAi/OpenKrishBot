@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { db, now } from './db.js';
 import './db-config.js';
+import { disableScripts, enableScripts, scriptsEnabled } from './scripts-api.js';
 import { newId } from './lib/ids.js';
 import { hub } from './lib/hub.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
@@ -132,6 +133,22 @@ configApi.patch('/bots/:id/engine', async (c) => {
   if (p.model !== undefined) db.prepare('UPDATE bots SET model=?, updated_at=? WHERE id=?').run(clean(p.model), now(), b.id);
   emitBot(b.id);
   return c.json({ engine: await engineInfo(b.id) });
+});
+
+/** Local scripts: GET state, POST creates a new token (shown once), DELETE turns it off. */
+configApi.get('/bots/:id/scripts', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  return b ? c.json({ enabled: scriptsEnabled(b.id) }) : c.json({ error: 'not found' }, 404);
+});
+configApi.post('/bots/:id/scripts', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  return b ? c.json({ enabled: true, token: enableScripts(b.id) }) : c.json({ error: 'not found' }, 404);
+});
+configApi.delete('/bots/:id/scripts', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  disableScripts(b.id);
+  return c.json({ enabled: false });
 });
 
 configApi.get('/bots/:id/budget', (c) => {

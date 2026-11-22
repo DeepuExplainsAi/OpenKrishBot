@@ -59,6 +59,8 @@ OpenKrishbot's engine reimplements (in TypeScript, not copied line by line) idea
 - **Rakazo** (Apache-2.0): the idea of a bot that manages other bots, with approval before changes (`update_bot` in `server/src/agent/tools.ts`).
 - **Playwright MCP** (Apache-2.0, Copyright (c) Microsoft Corporation): the browser tool set (tabs, hover, select, upload, wait) in `server/src/screen/tools.ts`.
 
+**nightly-labs/openbot** (PolyForm Noncommercial 1.0.0) is NOT used: none of its code, text or assets are in this project. Two product ideas were read from its public README and re-implemented independently: automatic summarising of long chats (`server/src/krish/compact.ts`) and a token-protected local scripts API (`server/src/scripts-api.ts`).
+
 Libraries used by the free page reader (`server/src/krish/scrape.ts`): **@mozilla/readability** (Apache-2.0, Mozilla), **linkedom** (ISC, Andrea Giammarchi), **turndown** (MIT, Dom Christie).
 
 MIT permission notice, applying to the MIT projects above: Permission is hereby granted, free of charge, to any person obtaining a copy of the software and associated documentation files, to deal in the software without restriction, including the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies, subject to the above copyright notices being included in all copies or substantial portions. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.

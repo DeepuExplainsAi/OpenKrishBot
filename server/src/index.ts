@@ -14,6 +14,7 @@ import { attachScreenRelay } from './screen/relay.js';
 import { initRoutines } from './routines.js';
 import { startFeedPolling } from './triggers.js';
 import { hooks } from './triggers.js';
+import { scriptApi } from './scripts-api.js';
 import { pairRoute, phoneApi } from './phone.js';
 import { initWhatsApp, whatsappApi } from './whatsapp.js';
 import { initTelegram, telegramApi } from './telegram.js';
@@ -47,6 +48,7 @@ app.get('/api/health', (c) => c.json({ ok: true, engine: 'openkrishbot' }));
 // The app's tools for the agent engines (MCP).
 app.route('/mcp', mcpApi);
 app.route('/hooks', hooks);
+app.route('/script', scriptApi);
 app.route('/pair', pairRoute);
 app.route('/api/phone', phoneApi);
 app.route('/api/whatsapp', whatsappApi);
