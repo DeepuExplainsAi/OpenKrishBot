@@ -229,7 +229,17 @@ async function runToolOnce(botId: string, name: string, rawArgs: string, home: s
         return out;
       } catch (e: any) { noteToolOutcome(botId, seq, { status: 'error', summary: String(e?.message ?? e).slice(0, 200) }); throw e; }
     }
-    if (name.startsWith('mcp_hq_')) return (await callHqTool(botId, name.slice(7), args)).content.map((c) => c.text).join('\n');
+    if (name.startsWith('mcp_hq_')) {
+      const userId = (db.prepare('SELECT user_id FROM bots WHERE id=?').get(botId) as any).user_id as string;
+      const pol = policyFor(userId, name.slice(7), args);
+      if (pol.decision !== 'allow') {
+        const seq = await claimToolRow(botId, name);
+        if (pol.decision === 'block') { noteToolOutcome(botId, seq, { status: 'denied', summary: 'Not allowed' }); return DECLINED; }
+        const a = await requestApproval({ userId, botId }, pol, args, seq);
+        if (a !== 'allow') return a === 'deny' ? DECLINED : SKIPPED;
+      }
+      return (await callHqTool(botId, name.slice(7), args)).content.map((c) => c.text).join('\n');
+    }
     // Connected apps: read-only tools run, everything else asks first (same cards and policies as the app's own tools).
     await extraTools(botId);
     const userId = (db.prepare('SELECT user_id FROM bots WHERE id=?').get(botId) as any).user_id as string;

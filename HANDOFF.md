@@ -49,6 +49,7 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P9c polish: breaker, audit viewer, launcher, README, Windows path fix
 - [x] P10 cross-check done (see P10 notes)
 - [x] P11 free page reader: `krish/scrape.ts` (Readability + Turndown, no keys, no browser) behind `web_extract`; test in server/test/scrape.test.mts
+- [x] P12 fleet management (from Rakazo): `update_bot` tool (instructions, label, model, provider of another bot) always asks via approval card; `mcp_hq_*` tools now honour policyFor; test in server/test/fleet.test.mts
 
 ## Status
 P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 notes.

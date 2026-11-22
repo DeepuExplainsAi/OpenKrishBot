@@ -425,6 +425,25 @@ export const TOOLS: ToolDef[] = [
     impl: async (_a, ctx) => ({ output: (db.prepare("SELECT name, label, is_primary FROM bots WHERE user_id=? AND COALESCE(kind,'agent')<>'room' AND COALESCE(hidden,0)=0 ORDER BY created_at").all(ctx.userId) as any[]).map((b) => `- ${b.name}${b.label ? ` (${b.label})` : ''}${b.is_primary ? ' [main]' : ''}`).join('\n') }),
   },
   {
+    name: 'update_bot',
+    description: "Change another Bot on the team (by name): its instructions, role label, model or provider. The user approves every change. Read first with list_bots; to add to instructions, include the old text. Pass only what changes.",
+    parameters: obj({ bot_name: { type: 'string' }, instructions: { type: 'string' }, label: { type: 'string' }, model: { type: 'string' }, provider: { type: 'string' } }, ['bot_name']),
+    activity: 'working',
+    label: 'Updating a Bot',
+    impl: async (a, ctx) => {
+      const t = botByName(ctx.userId, String(a.bot_name));
+      if (!t || t.kind === 'room') return { output: `No bot named "${a.bot_name}".` };
+      const cols = { instructions: 'instructions', label: 'label', model: 'model', provider: 'provider' } as const;
+      const changed: string[] = [];
+      for (const [k, col] of Object.entries(cols)) {
+        if (typeof a[k] === 'string') { db.prepare(`UPDATE bots SET ${col}=?, updated_at=? WHERE id=?`).run(a[k].trim().slice(0, 20000) || null, Date.now(), t.id); changed.push(k); }
+      }
+      if (!changed.length) return { output: 'Nothing to change.' };
+      hub.emit(ctx.userId, { type: 'roster' });
+      return { output: `Updated ${t.name}: ${changed.join(', ')}.`, summary: `Updated ${t.name}` };
+    },
+  },
+  {
     name: 'send_to_bot',
     description: "Send a message to another Bot on the user's team (by name) to delegate work or ask a question. Their reply will arrive later as a new message to you.",
     parameters: obj({ bot_name: { type: 'string' }, message: { type: 'string' } }, ['bot_name', 'message']),
@@ -500,9 +519,16 @@ export const toolMap = new Map(TOOLS.map((t) => [t.name, t]));
 
 // ---------- approvals policy ----------
 
+/** Built-in tools that change other bots: they ask first, like connected-app writes. */
+const ASK_FIRST = new Map([['update_bot', 'change another Bot']]);
+
 export type Decision = 'allow' | 'ask' | 'block';
 
 export function policyFor(userId: string, toolName: string, _args: any): { decision: Decision; key: string; toolkit?: string; title: string } {
+  if (ASK_FIRST.has(toolName)) {
+    const mode = (db.prepare('SELECT mode FROM policies WHERE user_id=? AND tool=?').get(userId, toolName) as any)?.mode ?? 'needs_approval';
+    return { decision: mode === 'blocked' ? 'block' : mode === 'always_allow' ? 'allow' : 'ask', key: toolName, title: `Team: ${ASK_FIRST.get(toolName)}` };
+  }
   if (toolMap.has(toolName)) return { decision: 'allow', key: toolName, title: toolName };
   const tool = cachedAppTool(toolName);
   const toolkit = tool?.slug ?? toolName.split('__')[0];
