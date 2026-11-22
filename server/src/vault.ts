@@ -79,6 +79,7 @@ export const secretNames = (userId: string) => listVault(userId).map((i) => `${i
 /** Remove every vault value (and its base64 / URL-encoded form) from text the model will read. */
 export function scrubVault(userId: string, text: string): string {
   let out = text;
+  try { out = out.split(vaultKey().toString('hex')).join('[vault key hidden]'); } catch { /* no key yet */ }
   for (const r of db.prepare('SELECT value FROM vault WHERE user_id=?').all(userId) as any[]) {
     let v = ''; try { v = open(r.value); } catch { continue; }
     if (v.length < 4) continue;

@@ -147,6 +147,23 @@ try {
     await until(async () => (await assistantTexts(botA)).some((t) => t.includes('krish-42')), 20000, 'tool result');
   });
 
+  await test('approval with edited args: the edited command runs, not the original', async () => {
+    await say(botA, 'RUN echo original-11');
+    const card = await until(async () => (await rows(botA)).filter((r) => r.body.card === 'approval' && r.body.status === 'pending').pop(), 20000, 'approval card');
+    ok((await api('POST', `/api/approvals/${card.body.approvalId}`, { decision: 'allow', edit: { command: 'echo edited-22', nope: 'x' } })).ok, 'approve with edit');
+    await until(async () => (await assistantTexts(botA)).some((t) => t.includes('edited-22')), 20000, 'edited output');
+    ok(!(await assistantTexts(botA)).some((t) => t.includes('RESULT') && t.includes('original-11') && !t.includes('ECHO')), 'original ran');
+  });
+
+  await test('reading vault.key asks even in follow mode', async () => {
+    ok((await api('PUT', '/api/audit/danger-mode', { mode: 'follow' })).status === 200, 'set follow');
+    try {
+      await say(botA, 'RUN cat ~/.openkrishbot/vault.key');
+      const card = await until(async () => (await rows(botA)).find((r) => r.body.card === 'approval' && r.body.status === 'pending' && /vault\.key/.test(JSON.stringify(r.body))), 20000, 'key card');
+      await api('POST', `/api/approvals/${card.body.approvalId}`, { decision: 'deny' });
+    } finally { await api('PUT', '/api/audit/danger-mode', { mode: 'ask' }); }
+  });
+
   await test('dangerous command asks; deny is audited as declined and nothing runs', async () => {
     const marker = path.join(home, 'danger-marker');
     await say(botA, `RUN rm -rf / --no-preserve-root; touch ${marker}`);

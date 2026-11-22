@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { Hono } from 'hono';
 import { getBotRow } from './store.js';
 import { autoSkips } from './danger.js';
+import { scrubVault } from './vault.js';
 import { appTools } from './apps.js';
 import { mcpToken, primaryBotId } from './engine.js';
 import { claimToolRow, enqueueBotMessage, markSilent, noteToolOutcome, requestApproval, turnDepth } from './agent/loop.js';
@@ -25,7 +26,7 @@ const SKIPPED = 'Skipped: the user did not approve this (they sent a new message
 const SUPPORTED = ['2025-06-18', '2025-03-26', '2024-11-05'];
 
 interface CallResult { content: { type: 'text'; text: string }[]; isError?: boolean }
-const text = (t: string, isError = false): CallResult => ({ content: [{ type: 'text', text: t }], ...(isError ? { isError: true } : {}) });
+const textOf = (t: string, isError = false): CallResult => ({ content: [{ type: 'text', text: t }], ...(isError ? { isError: true } : {}) });
 
 function sameToken(a: string, b: string) {
   const x = Buffer.from(a);
@@ -53,8 +54,9 @@ export async function listTools(botId: string | null) {
 
 export async function callTool(botId: string | null, rawName: string, args: any): Promise<CallResult> {
   const bot = botId ? getBotRow(botId) : null;
-  if (!botId || !bot) return text('The team app has no bot for this agent yet. Ask the user to open the app once, then try again.', true);
+  if (!botId || !bot) return textOf('The team app has no bot for this agent yet. Ask the user to open the app once, then try again.', true);
   const userId: string = bot.user_id;
+  const text = (t: string, isError = false) => textOf(scrubVault(userId, t), isError);
   const name = [...toolMap.keys()].find((k) => k.toLowerCase() === rawName.toLowerCase()) ?? rawName;
   const rowSeq = await claimToolRow(botId, name);
   const ctx: ToolCtx = { userId, botId, enqueueBotMessage, depth: turnDepth(botId) };

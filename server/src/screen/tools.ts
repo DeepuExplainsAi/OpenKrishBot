@@ -5,7 +5,7 @@ import type { LocalTool } from '../krish/tools.js';
 import { screenOf } from './manager.js';
 import { db } from '../db.js';
 import { secretValue } from '../vault.js';
-import { extractScript, stuckNote } from './extract.js';
+import { extractEmpty, extractScript, stuckNote } from './extract.js';
 import { htmlToMarkdown } from '../krish/scrape.js';
 
 /** Browser tools for a bot (the OpenManus browser_use set): look at the page as a numbered list, then act on a number. */
@@ -97,11 +97,20 @@ export const BROWSER_TOOLS: LocalTool[] = [
   },
   {
     name: 'browser_extract',
-    description: 'Pull structured data out of the current page with CSS selectors, e.g. each="div.product", fields={"title":"h2","price":".price","link":"a@href"} (name@attr reads an attribute). Returns JSON rows. Cheaper and more exact than reading the whole page.',
-    parameters: obj({ fields: { type: 'object', description: 'field name -> CSS selector' }, each: { type: 'string', description: 'CSS selector of the repeated row; omit for one record' } }, ['fields']),
+    description: 'Pull structured data out of the current page with CSS selectors, e.g. each="div.product", fields={"title":"h2","price":".price","link":"a@href"} (name@attr reads an attribute). Returns JSON rows. Cheaper and more exact than reading the whole page. Give it a `name` to remember the selectors for this site: next time call with just that name and no fields.',
+    parameters: obj({ fields: { type: 'object', description: 'field name -> CSS selector' }, each: { type: 'string', description: 'CSS selector of the repeated row; omit for one record' }, name: { type: 'string', description: 'save/reuse these selectors for this site under this name' } }),
     async run(a, c) {
-      const s = await screenOf(botOf(c.home));
-      const out = await s.eval<unknown>(extractScript({ each: a.each ? String(a.each) : undefined, fields: a.fields as Record<string, string> }));
+      const id = botOf(c.home); const s = await screenOf(id);
+      const key = a.name ? `extract:${id}:${await s.eval<string>('location.origin')}:${String(a.name)}` : '';
+      let spec = { each: a.each ? String(a.each) : undefined, fields: a.fields as Record<string, string> | undefined };
+      if (!spec.fields && key) {
+        const saved = (db.prepare('SELECT value FROM kv WHERE key=?').get(key) as any)?.value;
+        if (saved) spec = JSON.parse(saved);
+      }
+      if (!spec.fields || typeof spec.fields !== 'object') return JSON.stringify({ error: key ? `Nothing saved as "${a.name}" for this site yet. Pass fields once.` : 'Pass fields (field name -> CSS selector).' });
+      const out = await s.eval<unknown>(extractScript({ each: spec.each, fields: spec.fields }));
+      if (extractEmpty(out)) return `Nothing matched these selectors${key ? ' (the saved ones are not changed; pass new fields to replace them)' : ''}. Take a browser_snapshot and try other selectors.`;
+      if (key && a.fields) db.prepare('INSERT OR REPLACE INTO kv(key,value) VALUES (?,?)').run(key, JSON.stringify(spec));
       const text = JSON.stringify(out, null, 1);
       return text.length > 20000 ? `${text.slice(0, 20000)}\n...(cut)` : text;
     },
@@ -147,6 +156,7 @@ export const BROWSER_TOOLS: LocalTool[] = [
       { const here = await s.eval<string>('location.origin'); if (here !== v.item.origin) return JSON.stringify({ error: `"${v.item.name}" may only be typed on ${v.item.origin}, this page is ${here}.` }); }
       const { x, y } = await center(id, a.index);
       await click(id, x, y);
+      if (a.part !== 'username' && !(await s.eval<boolean>(`document.activeElement?.type === 'password'`))) return JSON.stringify({ error: `Field ${a.index} is not a password field, so the password would show on screen and in screenshots. Pick the password input.` });
       await s.eval(`(() => { const e = document.activeElement; if (e && 'select' in e) e.select?.(); })()`);
       await s.send('Input.insertText', { text });
       return `Typed the ${a.part === 'username' ? 'username' : 'password'} from "${v.item.name}" into field ${a.index}. Take a browser_snapshot to continue (the value is hidden).`;

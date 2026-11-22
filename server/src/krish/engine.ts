@@ -217,7 +217,7 @@ async function runToolOnce(botId: string, name: string, rawArgs: string, home: s
       const userId = (db.prepare('SELECT user_id FROM bots WHERE id=?').get(botId) as any).user_id as string;
       const seq = await claimToolRow(botId, name);
       const danger = riskyReason(name, args);
-      const forceAsk = !!danger && getDangerMode() !== 'follow';
+      const forceAsk = !!danger && (getDangerMode() !== 'follow' || /stored keys/.test(danger));
       if ((local.ask && !autoSkips(name, args)) || forceAsk) {
         const key = `local:${name}`;
         const mode = (db.prepare('SELECT mode FROM policies WHERE user_id=? AND tool=?').get(userId, key) as any)?.mode ?? 'needs_approval';

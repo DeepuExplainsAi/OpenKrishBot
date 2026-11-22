@@ -168,6 +168,13 @@ export type ApprovalDecision = 'allow' | 'deny' | 'expired';
 /** Longest a tool call waits for the user. Kept under the engines' 30 minute tool timeout. */
 const APPROVAL_WAIT_MS = 25 * 60_000;
 
+/** Values the user changed on the card before allowing; applied to the call's own arguments. */
+const edits = new Map<string, Record<string, unknown>>();
+const isPlain = (v: unknown) => ['string', 'number', 'boolean'].includes(typeof v);
+/** Only existing top-level plain values can be changed, and never to another type. */
+export function applyEdits(args: Record<string, unknown>, edit: Record<string, unknown>) {
+  for (const [k, v] of Object.entries(edit)) if (isPlain(args[k]) && typeof v === typeof args[k]) args[k] = v;
+}
 const waiters = new Map<string, { botId: string; resolve: (d: ApprovalDecision) => void }>();
 
 function setApprovalCard(botId: string, rowSeq: number, approvalId: string, status: string) {
@@ -189,6 +196,7 @@ export async function requestApproval(
   const { userId, botId } = who;
   const approvalId = newId('apr');
   const tk = pol.toolkit ? appInfo(pol.toolkit) : undefined;
+  const original = args;
   const hide = (v: any) => (v === undefined ? v : JSON.parse(scrubVault(userId, JSON.stringify(v))));
   args = hide(args);
   const card = appendRow(botId, 'card', {
@@ -209,6 +217,8 @@ export async function requestApproval(
   });
   clearTimeout(timer);
   waiters.delete(approvalId);
+  const edit = edits.get(approvalId); edits.delete(approvalId);
+  if (decision === 'allow' && edit && original && typeof original === 'object') applyEdits(original, edit);
 
   if (rowSeq !== null) {
     if (decision === 'allow') patchToolRow(botId, rowSeq, { status: 'running' });
@@ -241,7 +251,7 @@ export function expireStaleApprovals() {
 }
 
 /** Resolve an approval card from the UI. */
-export function resolveApproval(userId: string, approvalId: string, decision: 'allow' | 'always' | 'deny') {
+export function resolveApproval(userId: string, approvalId: string, decision: 'allow' | 'always' | 'deny', edit?: Record<string, unknown>) {
   const ap = db.prepare('SELECT a.*, b.user_id FROM approvals a JOIN bots b ON b.id=a.bot_id WHERE a.id=?').get(approvalId) as any;
   if (!ap || ap.user_id !== userId) throw new Error('not found');
   if (ap.status !== 'pending') return;
@@ -251,6 +261,7 @@ export function resolveApproval(userId: string, approvalId: string, decision: 'a
   db.prepare('UPDATE approvals SET status=?, resolved_at=? WHERE id=?').run(status, now(), approvalId);
   if (decision === 'always') db.prepare("INSERT OR REPLACE INTO policies(user_id,tool,mode) VALUES (?,?,'always_allow')").run(userId, ap.tool);
   setApprovalCard(ap.bot_id, ap.row_seq, approvalId, status);
+  if (edit && decision !== 'deny') edits.set(approvalId, edit);
   waiter.resolve(decision === 'deny' ? 'deny' : 'allow');
 }
 

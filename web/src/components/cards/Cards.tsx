@@ -29,7 +29,15 @@ const APPROVAL_OUTCOME: Record<string, string> = { allowed: 'Allowed once', alwa
 export function ApprovalCard({ body }: { body: Card<'approval'> }) {
   const { busy, error, run } = useBusy();
   const pending = body.status === 'pending';
-  const decide = (d: 'allow' | 'always' | 'deny') => run(d, () => api.approve(body.approvalId, d));
+  const plain = Object.entries((body.args && typeof body.args === 'object' ? body.args : {}) as Record<string, unknown>).filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v));
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const changed = () => Object.fromEntries(plain.flatMap(([k, v]) => {
+    const t = draft[k];
+    if (t === undefined || t === String(v)) return [];
+    return [[k, typeof v === 'number' ? Number(t) : typeof v === 'boolean' ? t === 'true' : t]];
+  }));
+  const decide = (d: 'allow' | 'always' | 'deny') => run(d, () => api.approve(body.approvalId, d, editing && d !== 'deny' ? changed() : undefined));
   const name = body.toolkit ? humanizeToolkit(body.toolkit) : prettyTool(body.tool);
   return (
     <div className={`card approval-card${pending ? '' : ' is-resolved'}`}>
@@ -40,11 +48,21 @@ export function ApprovalCard({ body }: { body: Card<'approval'> }) {
           <div className="card__sub">{name}</div>
         </div>
       </div>
-      {body.detail && <div className="card__body">{body.detail}</div>}
+      {editing && pending ? (
+        <div className="card__body">
+          {plain.map(([k, v]) => (
+            <label key={k} style={{ display: 'block', marginBottom: 6 }}>
+              <div className="card__sub">{k}</div>
+              <textarea rows={typeof v === 'string' && v.length > 60 ? 3 : 1} style={{ width: '100%' }} defaultValue={String(v)} onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))} />
+            </label>
+          ))}
+        </div>
+      ) : body.detail && <div className="card__body">{body.detail}</div>}
       {pending ? (
         <>
           <div className="card__actions">
             <button type="button" className="btn btn--secondary" disabled={!!busy} onClick={() => decide('deny')}>Don't allow</button>
+            {plain.length > 0 && <button type="button" className="btn btn--secondary" disabled={!!busy} onClick={() => setEditing((e) => !e)}>{editing ? 'Cancel edit' : 'Edit'}</button>}
             <button type="button" className="btn btn--secondary" disabled={!!busy} onClick={() => decide('always')}>Always allow</button>
             <button type="button" className="btn btn--primary" disabled={!!busy} onClick={() => decide('allow')}>Allow</button>
           </div>

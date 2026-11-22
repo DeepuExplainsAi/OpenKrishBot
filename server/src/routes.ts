@@ -297,9 +297,9 @@ api.post('/bots/:id/fresh', (c) => {
 });
 
 api.post('/approvals/:id', async (c) => {
-  const { decision } = await c.req.json<{ decision: unknown }>().catch(() => ({ decision: undefined }));
+  const { decision, edit } = await c.req.json<{ decision: unknown; edit?: Record<string, unknown> }>().catch(() => ({ decision: undefined, edit: undefined }));
   if (decision !== 'allow' && decision !== 'always' && decision !== 'deny') return c.json({ error: 'decision must be allow, always or deny' }, 400);
-  try { resolveApproval(c.get('user').id, c.req.param('id'), decision); } catch { return c.json({ error: 'not found' }, 404); }
+  try { resolveApproval(c.get('user').id, c.req.param('id'), decision, edit && typeof edit === 'object' && !Array.isArray(edit) ? edit : undefined); } catch { return c.json({ error: 'not found' }, 404); }
   return c.json({ ok: true });
 });
 

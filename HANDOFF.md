@@ -480,3 +480,8 @@ Done:
 - Risky = `dangerReason` rules (rm -rf of top folders, disks, downloaded scripts, force-push, keys) plus tool names that move money (`riskyReason` in `danger.ts`). Risky calls ask in `auto` as well.
 - Applied in `krish/engine.ts` (local tools, HQ tools, connected apps) and `mcp.ts`. UI: Settings > Permissions, three choices.
 - Tests: `danger-auto.test.mts`, e2e "autonomous mode".
+
+## P37 — vault gaps, edited approvals, extract cache
+- Vault: MCP/Hermes tool output is scrubbed (`mcp.ts`); the vault key itself is scrubbed from text; `browser_fill_secret` refuses a non-password field; any command touching `vault.key`/`.ssh` asks even in `follow`/`auto`.
+- Approval card has Edit: `POST /approvals/:id {decision, edit}`; `applyEdits` changes only existing plain values of the same type.
+- `browser_extract` takes `name`: selectors saved per bot+site in `kv` (only after a non-empty result); call with just the name later.

@@ -23,3 +23,8 @@ export function stuckNote(botId: string, key: string, limit = 3): string {
   seen.set(botId, { key, n });
   return n >= limit ? `\n\n[The page has not changed for ${n} looks in a row. Your last actions are not working: try something different (another element, another URL, scroll) or tell the user you are stuck.]` : '';
 }
+
+/** True when nothing matched: no rows, or a record whose fields are all empty (the page layout probably changed). */
+export function extractEmpty(out: unknown): boolean {
+  return Array.isArray(out) ? out.length === 0 : !!out && typeof out === 'object' && Object.values(out).every((v) => v === null);
+}
