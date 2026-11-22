@@ -21,7 +21,7 @@ export function loadLibrary(dir = DIR): LibrarySkill[] {
       const m = JSON.parse(fs.readFileSync(path.join(dir, id, 'manifest.json'), 'utf8'));
       const body = fs.readFileSync(path.join(dir, id, 'SKILL.md'), 'utf8').replace(/^---[\s\S]*?\n---\n/, '').trim();
       if (m.id !== id || !m.name || !body) { console.warn(`[skills] skipped ${id}: manifest id/name or SKILL.md missing`); continue; }
-      out.push({ id, name: String(m.name), description: String(m.description ?? ''), triggerTerms: (m.triggerTerms ?? []).map((t: unknown) => String(t).toLowerCase()), defaultEnabled: m.defaultEnabled !== false, body });
+      out.push({ id, name: String(m.name), description: String(m.description ?? ''), triggerTerms: (m.triggerTerms ?? []).map((t: unknown) => String(t).toLowerCase().trim()).filter(Boolean), defaultEnabled: m.defaultEnabled !== false, body });
     } catch (e: any) { console.warn(`[skills] skipped ${id}: ${e.message}`); }
   }
   return out;
@@ -33,7 +33,7 @@ export const setEnabled = (id: string, on: boolean) => { db.prepare('INSERT OR R
 
 export function matchSkills(message: string, skills: LibrarySkill[], enabled: (s: LibrarySkill) => boolean = isEnabled): LibrarySkill[] {
   const m = message.toLowerCase();
-  return skills.filter((s) => enabled(s) && s.triggerTerms.some((t) => m.includes(t))).slice(0, MAX_INJECT);
+  return skills.filter((s) => enabled(s) && s.triggerTerms.some((t) => t && m.includes(t))).slice(0, MAX_INJECT);
 }
 
 export const skillsPrompt = (message: string, skills = loadLibrary()): string =>

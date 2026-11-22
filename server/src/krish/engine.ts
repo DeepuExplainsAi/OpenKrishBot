@@ -147,6 +147,7 @@ krishApi.post('/v1/responses', async (c) => {
               // nothing shown yet: a replay is invisible, so try once more. Otherwise keep what arrived and say so.
               if (!emitted && !text && !Object.keys(calls).length && tryNo < 1) { send('krish.notice', { text: 'The model connection dropped, trying again…' }); continue; }
               if ((text || emitted) && !Object.keys(calls).length) { send('krish.notice', { text: 'The model connection dropped before it finished; this answer may be cut short.' }); break; }
+              recordUsage(botId, estimateTokens(JSON.stringify(history.slice(-MAX_HISTORY)).length + system.length), 0); // the provider still counted this prompt
               throw Object.assign(new Error('The model connection dropped mid-answer. Please send your message again.'), { name: 'ModelError' });
             }
           }

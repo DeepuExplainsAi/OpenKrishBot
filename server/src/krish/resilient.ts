@@ -80,8 +80,10 @@ export async function callModel(
   ];
   const tried: string[] = [];
   let last: Failure | null = null;
+  let dropTools = false; // set once a model says it can't take tools: it then answers in plain text
 
   for (const [ti, { preset, model }] of targets.entries()) {
+    dropTools = false;
     const { baseUrl, apiKey } = resolve(preset.id);
     // a provider that keeps failing is skipped for a minute, unless it is the only choice left
     if (ti < targets.length - 1 && isOpen(preset.id)) { last ??= { kind: 'overloaded', retryable: true, fallback: true, message: `${preset.name} was failing a moment ago.` }; continue; }
@@ -99,11 +101,13 @@ export async function callModel(
         const res = await doFetch(`${baseUrl}/chat/completions`, {
           method: 'POST', signal: AbortSignal.any([signal, conn.signal]),
           headers: { 'content-type': 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
-          body: JSON.stringify({ ...body, model }),
+          body: JSON.stringify(dropTools ? { ...body, model, tools: undefined, tool_choice: undefined } : { ...body, model }),
         }).finally(() => clearTimeout(connTimer));
         if (res.ok && res.body) { recordSuccess(preset.id); return { res, provider: preset.id, providerName: preset.name, model, ...(ti > 0 ? { switchedFrom: targets[0].preset.name } : {}) }; }
         wait = retryAfterMs(res.headers.get('retry-after'));
-        failure = classify(preset.name, res.status, await res.text().catch(() => ''));
+        const text = await res.text().catch(() => '');
+        if (res.status === 400 && body.tools?.length && !dropTools && /does not support tools|tools? (is|are)? ?not supported/i.test(text)) { dropTools = true; opts.onRetry?.(`${model} can't use tools, answering without them.`); attempt--; continue; }
+        failure = classify(preset.name, res.status, text);
       } catch (e: any) {
         if (signal.aborted) throw new Error('Stopped.');
         failure = classify(preset.name, null, '', e);

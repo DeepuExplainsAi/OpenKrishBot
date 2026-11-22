@@ -103,6 +103,7 @@ export const appInfo = (slug: string) => listApps().find((a) => a.slug === slug)
 interface Spec { url?: string; headers?: Record<string, string>; command?: string; args?: string[]; env?: Record<string, string> }
 interface Live { client: Client; tools: any[] }
 const live = new Map<string, Live>();
+const failedAt = new Map<string, number>();
 
 function specOf(r: Row): Spec | null {
   if (r.kind === 'mcp') return r.config.url ? { url: r.config.url, headers: r.config.headers } : { command: r.config.command, args: r.config.args ?? [], env: r.config.env ?? {} };
@@ -145,6 +146,7 @@ export async function connectCatalogApp(slug: string, values: Record<string, str
   await close(slug);
   const row: Row = { slug, name: cat.name, kind: 'catalog', config: { values } };
   try { await connect(slug, specOf(row)!); } catch (e: any) { await close(slug); throw new Error(`Couldn’t start ${cat.name}: ${e.message}. Is Node.js installed?`); }
+  failedAt.delete(slug);
   db.prepare('INSERT OR REPLACE INTO apps(slug,name,kind,config,created_at) VALUES (?,?,?,?,?)').run(slug, cat.name, 'catalog', JSON.stringify({ values }), now());
 }
 
@@ -161,6 +163,7 @@ export async function addCustomApp(a: Partial<CustomApp>) {
     await close(slug);
     try { await connect(slug, specOf(row)!); } catch (e: any) { await close(slug); throw new Error(`Couldn’t start it: ${e.message}`); }
   }
+  failedAt.delete(slug);
   db.prepare('INSERT OR REPLACE INTO apps(slug,name,kind,config,created_at) VALUES (?,?,?,?,?)').run(slug, name, kind, JSON.stringify(config), now());
 }
 
@@ -210,29 +213,39 @@ let cache: { at: number; tools: AppTool[] } | null = null;
 export const forgetAppTools = () => { cache = null; };
 
 /** Every tool of every connected app. Apps that fail to start are skipped (and logged once per refresh). */
+const CONNECT_MS = 15_000;
+
+/** All apps connect at once, each with its own deadline; one that failed is not retried for a minute, so a broken app can't slow every turn. */
+async function toolsOf(r: Row): Promise<AppTool[]> {
+  if (r.kind === 'http') return [httpTool(r)];
+  const spec = specOf(r);
+  if (!spec || Date.now() - (failedAt.get(r.slug) ?? 0) < 60_000) return [];
+  try {
+    const { client, tools } = await Promise.race([
+      connect(r.slug, spec),
+      new Promise<never>((_, no) => setTimeout(() => no(new Error(`no answer in ${CONNECT_MS / 1000}s`)), CONNECT_MS).unref()),
+    ]);
+    failedAt.delete(r.slug);
+    return tools.map((t): AppTool => ({
+      name: toolName(r.slug, t.name), slug: r.slug, appName: r.name, description: t.description || t.name, inputSchema: t.inputSchema ?? { type: 'object', properties: {} },
+      readOnly: !!t.annotations?.readOnlyHint,
+      run: async (args) => {
+        const res: any = await client.callTool({ name: t.name, arguments: args });
+        if (res.isError) throw new Error(clip((res.content ?? []).map((c: any) => c.text ?? `[${c.type}]`).join('\n') || 'The app reported an error.'));
+        return clip((res.content ?? []).map((c: any) => c.text ?? `[${c.type}]`).join('\n') || '(empty)');
+      },
+    }));
+  } catch (e: any) {
+    console.warn(`[apps] ${r.name} is not reachable: ${e?.message ?? e}`);
+    failedAt.set(r.slug, Date.now());
+    await close(r.slug);
+    return [];
+  }
+}
+
 export async function appTools(): Promise<AppTool[]> {
   if (cache && Date.now() - cache.at < 30_000) return cache.tools;
-  const out: AppTool[] = [];
-  for (const r of rows()) {
-    if (r.kind === 'http') { out.push(httpTool(r)); continue; }
-    const spec = specOf(r);
-    if (!spec) continue;
-    try {
-      const { client, tools } = await connect(r.slug, spec);
-      for (const t of tools) out.push({
-        name: toolName(r.slug, t.name), slug: r.slug, appName: r.name, description: t.description || t.name, inputSchema: t.inputSchema ?? { type: 'object', properties: {} },
-        readOnly: !!t.annotations?.readOnlyHint,
-        run: async (args) => {
-          const res: any = await client.callTool({ name: t.name, arguments: args });
-          if (res.isError) throw new Error(clip((res.content ?? []).map((c: any) => c.text ?? `[${c.type}]`).join('\n') || 'The app reported an error.'));
-          return clip((res.content ?? []).map((c: any) => c.text ?? `[${c.type}]`).join('\n') || '(empty)');
-        },
-      });
-    } catch (e: any) {
-      console.warn(`[apps] ${r.name} is not reachable: ${e?.message ?? e}`);
-      await close(r.slug);
-    }
-  }
+  const out = (await Promise.all(rows().map(toolsOf))).flat();
   cache = { at: Date.now(), tools: out };
   return out;
 }

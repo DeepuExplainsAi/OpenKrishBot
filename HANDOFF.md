@@ -234,3 +234,9 @@ Fine as is: WhatsApp reconnects with backoff and handles logout; phone pairing i
 Fixed: Telegram 429 (waits `retry_after`, 3 tries, no dropped reply), 409 (clear "another program is reading this bot" message), replies split at 3500 chars (was the WhatsApp limit, under Telegram's 4096), pairing code expires after 10 min; launcher: second double-click opens the running app, busy port gives a clear message with the PORT=… fix (health probe has a 2 s timeout, found by testing a port held by a silent process), non-zero server exit explains itself.
 NOT tested: the Telegram changes (no unit test; verified by reading only), WhatsApp with a real phone, phone pairing on a real LAN, Windows/Mac launch.
 Not changed on purpose: server listens on all interfaces when HOST is unset (needed for phone-on-Wi-Fi). Non-loopback requests need a paired-phone session, so this is OK, but a firewall prompt on Windows is expected on first start.
+
+## P12g: engine items (2026-11-22)
+Fixed: MCP apps connect in parallel with a 15 s deadline, a failed app is skipped for 60 s (a broken app no longer slows every turn); model that "does not support tools" (Ollama 400) is retried once without tools; blank skill trigger terms are dropped; a new `plan create` closes the old active plan instead of leaving it open; budget message says UTC midnight; prompt tokens of a stream that dropped mid-answer are now counted.
+Checked, not bugs: loopNudge history is already per bot; budget applies to every bot (all bots use the same in-process engine, "managed" is only a label).
+Tests: resilient (tools retry), skills (blank trigger). Plan replace and MCP parallel/skip have NO test (verified by typecheck/e2e only).
+Still open: Ollama `num_ctx` (not set, default context may truncate long chats), reasoning not replayed, mid-stream error payload not retried with backoff, plan list/update/delete, room `@` substring match, ALTER catches at routes-flows.ts:18 and agent/rooms.ts:18.

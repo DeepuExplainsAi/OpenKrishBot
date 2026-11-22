@@ -34,7 +34,7 @@ export function overBudget(botId: string, t = now()): string | null {
   const cap = getBudget(botId);
   if (!cap) return null;
   const u = usageToday(botId, t);
-  return u.tokensIn + u.tokensOut >= cap ? `This Bot reached its daily limit of ${cap.toLocaleString()} tokens. Raise or remove the limit in its Engine settings, or it resets tomorrow.` : null;
+  return u.tokensIn + u.tokensOut >= cap ? `This Bot reached its daily limit of ${cap.toLocaleString()} tokens. Raise or remove the limit in its Engine settings, or wait for the next UTC day (midnight UTC).` : null;
 }
 
 export const usageSummary = (userId: string, days = 7) =>

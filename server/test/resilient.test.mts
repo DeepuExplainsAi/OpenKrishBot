@@ -84,3 +84,13 @@ test('circuit breaker skips a provider that failed twice', async () => {
   assert.equal(isOpen('pollinations'), true);
   resetBreakers();
 });
+
+test('a model without tool support is retried once without tools', async () => {
+  const bodies: any[] = [];
+  const seq = [fail(400, '{"error":{"message":"registry.ollama.ai/library/gemma does not support tools"}}'), ok()];
+  const fetchImpl = (async (_u: string, init: any) => { bodies.push(JSON.parse(init.body)); return seq.shift()!; }) as any;
+  const a = await callModel('b', { model: 'm', messages: [], tools: [{ type: 'function' }], tool_choice: 'auto' }, 'pollinations', new AbortController().signal, { fetchImpl });
+  assert.equal(a.provider, 'pollinations');
+  assert.equal(bodies.length, 2);
+  assert.ok(bodies[0].tools && !bodies[1].tools && !bodies[1].tool_choice);
+});

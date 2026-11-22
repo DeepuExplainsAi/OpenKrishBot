@@ -171,9 +171,11 @@ export const TOOLS: ToolDef[] = [
       const tell = () => hub.emit(ctx.userId, { type: 'tasks', botId: ctx.botId });
       if (a.command === 'create') {
         if (!a.title || !Array.isArray(a.steps) || a.steps.length < 2) return { output: 'create needs a title and at least 2 steps.' };
+        const old = activePlan(ctx.botId);
         const p = createPlan(ctx.botId, String(a.title), a.steps);
+        if (old) db.prepare("UPDATE tasks SET state='done', note=?, updated_at=? WHERE id=?").run('Replaced by a new plan.', now(), old.id);
         tell();
-        return { output: render(String(a.title), p.steps) + '\nWork on the step marked [→], then call mark_step.' };
+        return { output: (old ? `The earlier plan "${old.title}" was closed.\n` : '') + render(String(a.title), p.steps) + '\nWork on the step marked [→], then call mark_step.' };
       }
       const plan = activePlan(ctx.botId);
       if (!plan) return { output: 'There is no active plan. Use create first.' };

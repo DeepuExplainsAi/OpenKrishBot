@@ -26,3 +26,9 @@ test('bad skills are skipped, not fatal', () => {
   assert.deepEqual(loadLibrary(d).map((s) => [s.id, s.body]), [['ok', 'Hello body']]);
   assert.deepEqual(loadLibrary('/nonexistent'), []);
 });
+
+test('a blank trigger term never matches every message', async () => {
+  const { matchSkills } = await import('../src/skill-library.js');
+  const s = { id: 'x', name: 'x', description: '', triggerTerms: [''], defaultEnabled: true, body: 'b' };
+  assert.equal(matchSkills('anything', [s], () => true).length, 0);
+});
