@@ -525,3 +525,11 @@ Done:
 
 ### v1.9.1 part 5 — nod Memory page
 - nod `pages/memory.tsx|css`, `components/{ui,icons,tooltip,action-menu,settings-drafts,password-input,keep-out-list}`, `hooks/use-page-data`, `lib/*` copied into `web/src/nod/`; web moved to React 19 (nod needs ref-as-prop). `nod/lib/api.ts` is a thin shim (nod's is tied to accounts/feedback). `styles/nod-tokens.css` maps nod's CSS vars. Settings → Memory renders `<Memory />` against `/api/memory`.
+
+### v1.9.1 part 6 — nod local speech (offline voice) + fixes
+- Language rule (`server/src/language.ts`): Hinglish in = Hinglish out in Latin letters only, never Devanagari.
+- Copied from nod unchanged except import paths: `server/src/local-speech/*` (Kokoro TTS + on-device speech input, worker process), `server/src/ports/{speech,failure-log,provider-usage}.ts`, `server/src/shared-nod/{speech,execution}.ts`. Deps as in nod: `@huggingface/transformers`, `@pedrobef/vozz`, `@spelling-creator/spellophone`, `@audio/decode-*`; root `overrides.onnxruntime-node = 1.24.2` (nod's own override; 1.21 tried to download a CUDA binary and broke Docker).
+- Only seam written: `local-speech/runtime.ts` (worker forks `.ts` via tsx from source, `.js` after build) and `routes-speech.ts` (`/api/speech` status, prepare, speak, transcribe; models download on first use into `~/.openkrishbot/speech`).
+- CI fixes: `scripts/copy-assets.mjs` copies shared-nod `.mjs` into dist; lockfile had lost the per-platform esbuild/rolldown/typescript binaries (Mac/Windows failed), restored. CI green on Windows, Mac, Linux, Docker.
+- NOT done yet: web UI for it (nod `voice-picker`, `voice-recorder`, `audio-player` + hooks), not run with real models (VM has 482 MB RAM / 1.1 GB disk).
+- Next: nod keep-out, learned-skills, ledger, proactivity, local-files, feedback-redaction; then Q3 Hindi UI; then release v1.9.1.
