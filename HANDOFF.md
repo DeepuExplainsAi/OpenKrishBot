@@ -514,3 +514,4 @@ Done:
 - Web: Maus `McpServersPanel`, `McpServerEditor`, `mcp-draft`, `mcp-paste`, `Select`, … in `web/src/maus/` (alias `@/` -> `src/maus`), Tailwind utilities only (no preflight) mapped to app tokens in `maus/tailwind.css`; Settings > "MCP servers".
 - Shims (the only written code): `maus/state/store.ts`, `maus/lib/live-events.ts`, `maus/components/bot-panel/panel-link.ts`, `server/src/maus/shim.ts`.
 - Not yet: nod copies (memory, schedules, ledger, vault, update/restart toast), Hindi extra strings, UI check of MCP screen in a browser.
+- nod update toast: web/src/components/desktop-update-toast.tsx (+css, lib/desktopUpdate.ts) copied from nod; desktop/main.cjs + preload.cjs bridge (status, dismiss, retry, download, restart) on electron-updater: background download, 'Restart to update', installs on quit.

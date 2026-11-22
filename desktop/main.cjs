@@ -117,6 +117,30 @@ async function checkForUpdate(ask) {
     return { status: 'error', error: String(e?.message ?? e) };
   } finally { checking = false; }
 }
+// nod's update status for the in-app toast: download in the background, offer "Restart to update", install on quit otherwise.
+const upd = { phase: 'idle', checking: false, readyVersion: undefined, dismissedVersion: undefined, failure: undefined, progress: undefined };
+let failureId = 0;
+const pushStatus = () => win?.webContents.send('update:status', { ...upd });
+const fail = (phase, e) => { upd.failure = { id: ++failureId, phase, message: String(e?.message ?? e) }; upd.checking = false; upd.phase = 'idle'; pushStatus(); };
+async function prepareUpdate() {
+  if (!app.isPackaged || upd.checking) return;
+  upd.checking = true; upd.phase = 'checking'; upd.failure = undefined; pushStatus();
+  try {
+    const r = await autoUpdater.checkForUpdates();
+    if (!r?.isUpdateAvailable) { upd.checking = false; upd.phase = 'idle'; return pushStatus(); }
+    const next = r.updateInfo.version;
+    if (!selfUpdates()) { upd.checking = false; upd.phase = 'idle'; upd.readyVersion = undefined; upd.failure = { id: ++failureId, phase: 'downloading', message: `OpenKrishBot ${next} is available. Download it from the release page.` }; return pushStatus(); }
+    upd.phase = 'downloading'; pushStatus();
+    autoUpdater.autoInstallOnAppQuit = true;
+    await autoUpdater.downloadUpdate();
+    upd.checking = false; upd.phase = 'ready'; upd.readyVersion = next; pushStatus();
+  } catch (e) { fail(upd.phase === 'downloading' ? 'downloading' : 'checking', e); }
+}
+ipcMain.handle('update:status', () => ({ ...upd }));
+ipcMain.handle('update:dismiss', (_e, v) => { if (typeof v === 'number') { if (upd.failure?.id === v) upd.failure.dismissed = true; } else upd.dismissedVersion = v; pushStatus(); });
+ipcMain.handle('update:retry', () => prepareUpdate());
+ipcMain.handle('update:download', () => shell.openExternal('https://github.com/DeepuExplainsAi/OpenKrishBot/releases/latest'));
+ipcMain.handle('update:restart', () => { try { app.isQuitting = true; server?.kill(); autoUpdater.quitAndInstall(); } catch (e) { fail('restart', e); throw e; } });
 ipcMain.handle('update:version', () => app.getVersion());
 ipcMain.handle('update:check', () => checkForUpdate(true));
 
@@ -125,7 +149,7 @@ else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } else open().catch(() => {}); });
   app.whenReady().then(() => {
     Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' }]) : null);
-    return open().then(() => { if (app.isPackaged) setTimeout(() => checkForUpdate(true), 15000); });
+    return open().then(() => { if (app.isPackaged) setTimeout(() => prepareUpdate(), 15000); });
   }).catch((e) => {
     dialog.showErrorBox('OpenKrishBot could not start', `${e?.message ?? e}\n\nDetails: ${logFile}`);
     app.quit();

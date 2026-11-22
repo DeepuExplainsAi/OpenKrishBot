@@ -13,6 +13,7 @@ import './styles/modals.css';
 import './styles/viewer.css';
 import './styles/mobile.css';
 import './styles/voice.css';
+import './styles/update-toast.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

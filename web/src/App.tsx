@@ -12,6 +12,7 @@ import { CreateBotModal } from './components/modals/CreateBotModal';
 import { CreateGroupModal } from './components/modals/CreateGroupModal';
 import { SearchModal } from './components/modals/SearchModal';
 import { ConfigLayer } from './components/config/ConfigLayer';
+import { DesktopUpdateToast } from './components/desktop-update-toast';
 import { TasksView } from './components/config/TasksView';
 import { useConfigUI } from './configStore';
 
@@ -63,6 +64,7 @@ function Shell() {
       {modal === 'apps' && <ConnectAppsModal />}
       {viewerOpen && <ComputerViewer />}
       <ConfigLayer />
+      <DesktopUpdateToast />
     </div>
   );
 }
