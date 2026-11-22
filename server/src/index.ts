@@ -1,8 +1,10 @@
+import { auditApi } from './audit.js';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Server } from 'node:http';
 import { compatEnv, env } from './env.js';
 import { api } from './routes.js';
@@ -38,6 +40,7 @@ app.route('/hooks', hooks);
 app.route('/pair', pairRoute);
 app.route('/api/phone', phoneApi);
 app.route('/api/whatsapp', whatsappApi);
+app.route('/api/audit', auditApi);
 app.route('/krish', krishApi);
 app.route('/api/krish', providersApi);
 app.route('/api/checkins', checkinsApi);
@@ -46,7 +49,7 @@ app.route('/api', api);
 app.route('/api', configApi);
 
 // Serve the built web app in production.
-const webDist = path.resolve(new URL('.', import.meta.url).pathname, '../../web/dist');
+const webDist = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../../web/dist');
 if (fs.existsSync(webDist)) {
   app.use('/*', serveStatic({ root: path.relative(process.cwd(), webDist) }));
   app.get('*', (c) => c.html(fs.readFileSync(path.join(webDist, 'index.html'), 'utf8')));

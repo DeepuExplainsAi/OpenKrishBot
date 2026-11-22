@@ -75,3 +75,12 @@ test('all providers down: one clear message naming who was tried', async () => {
   const r = run(seq);
   await assert.rejects(r.p, (e: any) => e instanceof ModelError && /trouble|Free cloud/.test(e.message));
 });
+
+test('circuit breaker skips a provider that failed twice', async () => {
+  const { resetBreakers, isOpen } = await import('../src/krish/breaker.js');
+  resetBreakers();
+  const r = run([fail(503), fail(503), fail(503), fail(503), fail(503), fail(503)]);
+  await r.p.catch(() => {});
+  assert.equal(isOpen('pollinations'), true);
+  resetBreakers();
+});

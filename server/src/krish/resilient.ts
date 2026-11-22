@@ -1,3 +1,4 @@
+import { isOpen, recordFailure, recordSuccess } from './breaker.js';
 import { PRESETS, hasKey, resolve, type Preset } from './providers.js';
 
 /**
@@ -82,6 +83,8 @@ export async function callModel(
 
   for (const [ti, { preset, model }] of targets.entries()) {
     const { baseUrl, apiKey } = resolve(preset.id);
+    // a provider that keeps failing is skipped for a minute, unless it is the only choice left
+    if (ti < targets.length - 1 && isOpen(preset.id)) { last ??= { kind: 'overloaded', retryable: true, fallback: true, message: `${preset.name} was failing a moment ago.` }; continue; }
     tried.push(preset.name);
     if (!baseUrl) { last ??= { kind: 'bad_request', retryable: false, fallback: true, message: `${preset.name} has no address yet. Set it in the bot's Engine panel.` }; continue; }
     if (!preset.keyless && !apiKey) { last ??= { kind: 'auth', retryable: false, fallback: true, message: `${preset.name} needs an API key. Add it in the bot's Engine panel, or pick a free provider.` }; continue; }
@@ -95,7 +98,7 @@ export async function callModel(
           headers: { 'content-type': 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
           body: JSON.stringify({ ...body, model }),
         });
-        if (res.ok && res.body) return { res, provider: preset.id, providerName: preset.name, model, ...(ti > 0 ? { switchedFrom: targets[0].preset.name } : {}) };
+        if (res.ok && res.body) { recordSuccess(preset.id); return { res, provider: preset.id, providerName: preset.name, model, ...(ti > 0 ? { switchedFrom: targets[0].preset.name } : {}) }; }
         wait = retryAfterMs(res.headers.get('retry-after'));
         failure = classify(preset.name, res.status, await res.text().catch(() => ''));
       } catch (e: any) {
@@ -103,6 +106,7 @@ export async function callModel(
         failure = classify(preset.name, null, '', e);
       }
       last = failure;
+      if (failure.fallback) recordFailure(preset.id);
       if (!failure.retryable || attempt === ATTEMPTS) break;
       const ms = wait ?? Math.min(BASE_MS * 2 ** (attempt - 1) * (0.75 + Math.random() / 2), MAX_WAIT_MS);
       opts.onRetry?.(`${preset.name} is busy, trying again in ${Math.ceil(ms / 1000)}s…`);

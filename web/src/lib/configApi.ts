@@ -42,7 +42,10 @@ export interface PhoneInfo {
 
 export interface WhatsAppInfo { status: 'off' | 'starting' | 'qr' | 'connected' | 'error'; qr: string | null; me: string | null; error: string | null; allow: string[] }
 
+export interface AuditEntry { t: string; bot: string; tool: string; status: string; danger?: string | null; args?: string }
+
 export const configApi = {
+  audit: () => req<{ entries: AuditEntry[] }>('GET', '/audit'),
   whatsapp: () => req<WhatsAppInfo>('GET', '/whatsapp'),
   whatsappStart: () => req<{ ok: true }>('POST', '/whatsapp/start', {}),
   whatsappStop: () => req<{ ok: true }>('POST', '/whatsapp/stop', {}),

@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function req(name: string): string {
   const v = process.env[name];
@@ -53,8 +54,8 @@ export function compatEnv(name: string): string | undefined {
 
 /** Default database file. One made before the rename (data/grokbot.db) keeps being used. */
 function defaultDbPath(): string {
-  const current = new URL('../../data/bothq.db', import.meta.url).pathname;
-  const legacy = new URL('../../data/grokbot.db', import.meta.url).pathname;
+  const current = fileURLToPath(new URL('../../data/bothq.db', import.meta.url));
+  const legacy = fileURLToPath(new URL('../../data/grokbot.db', import.meta.url));
   return !fs.existsSync(current) && fs.existsSync(legacy) ? legacy : current;
 }
 
@@ -87,7 +88,7 @@ export const env = {
   hermesUrl: (process.env.HERMES_URL ?? 'http://127.0.0.1:8642').replace(/\/+$/, ''),
   hermesKey: process.env.HERMES_KEY ?? '',
   /** Where each extra bot's own Hermes home lives. Must be outside ~/.hermes so it is a separate tenant. */
-  enginesDir: process.env.ENGINES_DIR ?? new URL('../../data/engines', import.meta.url).pathname,
+  enginesDir: process.env.ENGINES_DIR ?? fileURLToPath(new URL('../../data/engines', import.meta.url)),
   enginePortBase: Number(process.env.ENGINE_PORT_BASE ?? 8650),
   /** URL the Hermes gateways use to reach this server's MCP endpoint. */
   mcpBaseUrl: (process.env.MCP_BASE_URL ?? `http://127.0.0.1:${process.env.PORT ?? 8787}`).replace(/\/+$/, ''),

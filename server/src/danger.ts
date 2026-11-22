@@ -45,3 +45,10 @@ export function audit(entry: { bot: string; tool: string; status: string; danger
     fs.appendFileSync(auditFile, JSON.stringify({ t: new Date().toISOString(), ...entry, args }) + '\n');
   } catch { /* audit must never break a run */ }
 }
+
+/** Newest first. */
+export function readAudit(limit = 200): Record<string, unknown>[] {
+  try {
+    return fs.readFileSync(auditFile, 'utf8').trim().split('\n').slice(-limit).reverse().flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
+  } catch { return []; }
+}

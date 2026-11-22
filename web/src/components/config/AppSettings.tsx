@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
+import { configApi, type AuditEntry, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -19,6 +19,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'apps', label: 'Connected apps' },
   { id: 'phone', label: 'Phone' },
   { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'activity', label: 'Activity log' },
   { id: 'account', label: 'Account' },
 ];
 
@@ -53,6 +54,7 @@ export function AppSettings() {
           {section === 'apps' && <AppsSection />}
           {section === 'phone' && <PhoneSection />}
           {section === 'whatsapp' && <WhatsAppSection />}
+          {section === 'activity' && <ActivitySection />}
           {section === 'account' && <AccountSection />}
         </div>
       </div>
@@ -193,6 +195,30 @@ function humanizeTool(slug: string): { app: string; action: string } {
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
   if (parts.length < 2) return { app: cap(slug), action: '' };
   return { app: cap(parts[0]), action: cap(parts.slice(1).join(' ')) };
+}
+
+function ActivitySection() {
+  const [rows, setRows] = useState<AuditEntry[] | null>(null);
+  useEffect(() => { configApi.audit().then((r) => setRows(r.entries)).catch(() => setRows([])); }, []);
+  return (
+    <>
+      <PageHead title="Activity log" sub="Every action your Bots ran on this computer. Kept only here, with keys hidden." />
+      <section className="cfg-section">
+        <div className="cfg-card">
+          {rows === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : rows.length === 0 ? (
+            <div className="cfg-empty cfg-empty--flat">Nothing yet.</div>
+          ) : rows.map((r, i) => (
+            <div key={i} className="cfg-row">
+              <div className="cfg-row__text">
+                <div className="cfg-row__title">{r.tool}{r.danger ? ` · careful: ${r.danger}` : ''}</div>
+                <div className="cfg-row__sub">{new Date(r.t).toLocaleString()} · {r.status}{r.args && r.args !== '{}' ? ` · ${r.args.slice(0, 120)}` : ''}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
+  );
 }
 
 function PermissionsSection() {

@@ -7,7 +7,7 @@ import { lsGet, lsSet } from './lib/storage';
 
 export type Theme = 'system' | 'light' | 'dark';
 export type BotSettingsTab = 'general' | 'skills' | 'memories' | 'routines';
-export type AppSection = 'general' | 'computer' | 'permissions' | 'apps' | 'phone' | 'whatsapp' | 'account';
+export type AppSection = 'general' | 'computer' | 'permissions' | 'apps' | 'phone' | 'whatsapp' | 'activity' | 'account';
 
 interface ConfigUI {
   botSettings: { botId: string; tab: BotSettingsTab } | null;

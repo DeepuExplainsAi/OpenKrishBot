@@ -46,7 +46,8 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P8 (DONE, tested) OpenBot ideas: dangerous-action guard, audit log, secret redaction
 - [x] P9a free browser voice
 - [x] P9b MCP registry search (thousands of connectors, all local)
-- [ ] P9c polish: audit-log viewer, launcher script, README rewrite, About, final cross-check of P1-P9
+- [x] P9c polish: breaker, audit viewer, launcher, README, Windows path fix
+- [ ] P10 final cross-check of P1-P9 (re-test each part), docs cleanup, remaining gaps
 
 ## Status
 P0-P8 done. Server boots with zero keys (verified). Next: P9 polish/About/packaging/final audit.
@@ -121,3 +122,10 @@ P0-P8 done. Server boots with zero keys (verified). Next: P9 polish/About/packag
 - Combined with the 39 curated apps this covers the "1000+ connectors" goal without any hosted broker. Needs internet only to search; installs run locally.
 - Not verified: starting a registry server that needs `uvx` (uv not guaranteed on the user's PC); remote servers that need OAuth.
 - Chrome screenshot of the UI could not be taken on the 482 MB build VM (Chrome timed out); the web build + API were checked with curl instead. Owner should open it once on the laptop.
+
+## P9c notes
+- `krish/breaker.ts`: provider skipped 60s after 2 fallback-worthy failures (not when it is the last choice). Tests in `test/breaker.test.mts`.
+- Settings -> Activity log (`/api/audit`, reads `~/.krishbot/audit.log`).
+- Launcher: `Krishbot.bat` / `Krishbot.command` / `krishbot.sh` -> `scripts/launch.mjs` (install, build, start, open browser). Verified on Linux with curl; not run on Windows/Mac.
+- Fixed `import.meta.url.pathname` (broke on Windows paths) with `fileURLToPath`.
+- Deleted the Orgo/Hermes install scripts and docs. `docs/ARCHITECTURE.md` still describes the old design: rewrite in P10.
