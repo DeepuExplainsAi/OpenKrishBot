@@ -54,6 +54,7 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 
 - [x] P14 browser tools (from Playwright-MCP): `browser_read` (page as Markdown), `browser_tabs`, `browser_hover`, `browser_select`, `browser_upload` (asks), `browser_wait`. Test server/test/browser-tools.test.mts runs against real Chrome in CI (opt-in locally: OPENKRISHBOT_BROWSER_TEST=1); the cloud sandbox Chrome never answers Page.enable, so it was verified in CI (Windows + Linux pass), not there. macOS CI runner: headless Chrome never answers Page.navigate, so the test is skipped there; check browser tools by hand on a Mac.
 - [x] P15 no stray terminals (owner rule): the app never opens a terminal/console window by itself. All child processes use `windowsHide`; the old `terminal.ts` (opened Terminal/cmd for model sign-in) is deleted, sign-in now shows the command to run; `OpenKrishBot.bat` starts hidden through `scripts/hidden.vbs` (log: ~/.openkrishbot/launcher.log). Do not add anything that opens a terminal.
+- [x] P16 notices for new libraries, version 1.2.0 (release workflow builds Windows, Mac, Linux on tag v*)
 
 ## Status
 P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 notes.

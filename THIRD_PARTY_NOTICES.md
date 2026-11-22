@@ -56,6 +56,10 @@ OpenKrishbot's engine reimplements (in TypeScript, not copied line by line) idea
 - **Paperclip** (MIT, Copyright (c) 2025 Paperclip AI): bot-to-bot issues with checkout and wake caps, daily token budgets, the provider circuit breaker (`server/src/issues.ts`, `server/src/usage.ts`, `server/src/krish/breaker.ts`, `server/src/krish/resilient.ts`).
 - **OpenMausBot** (Apache-2.0): the skill file format and trigger matching (`server/src/skill-library.ts`). Nothing from its `enterprise/` folder is used.
 - **OpenBot** (MIT, Copyright (c) 2026 CopilotKit): chat UI patterns.
+- **Rakazo** (Apache-2.0): the idea of a bot that manages other bots, with approval before changes (`update_bot` in `server/src/agent/tools.ts`).
+- **Playwright MCP** (Apache-2.0, Copyright (c) Microsoft Corporation): the browser tool set (tabs, hover, select, upload, wait) in `server/src/screen/tools.ts`.
+
+Libraries used by the free page reader (`server/src/krish/scrape.ts`): **@mozilla/readability** (Apache-2.0, Mozilla), **linkedom** (ISC, Andrea Giammarchi), **turndown** (MIT, Dom Christie).
 
 MIT permission notice, applying to the MIT projects above: Permission is hereby granted, free of charge, to any person obtaining a copy of the software and associated documentation files, to deal in the software without restriction, including the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies, subject to the above copyright notices being included in all copies or substantial portions. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 
