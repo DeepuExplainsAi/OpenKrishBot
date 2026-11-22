@@ -1,3 +1,4 @@
+import { recall } from './recall.js';
 import { saveNote } from './memory.js';
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -176,6 +177,12 @@ const BASE_TOOLS: LocalTool[] = [
       fs.writeFileSync(saved, text);
       return `Language ${t.language}, ${stamp(t.duration)} long. Saved to ${saved}\n\n${cap(text, 30000)}`;
     },
+  },
+  {
+    name: 'recall',
+    description: 'Search your older conversations with the user by keywords, e.g. "invoice template" or "Pune address". Use when they refer to something said earlier that you do not see.',
+    parameters: obj({ query: { type: 'string' } }, ['query']),
+    async run(a, c) { return recall(path.basename(c.home), String(a.query)); },
   },
   {
     name: 'memory',
