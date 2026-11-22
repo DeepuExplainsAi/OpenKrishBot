@@ -410,9 +410,9 @@ Done:
 8. [x] (done, P24: `recall` tool = keyword search over old chats; per-user memory scope not done) mem0 leftovers: semantic recall (local embeddings or keyword index over past chats) injected into the prompt; per-user vs per-bot memory scopes.
 9. [x] (done, P25: goal+backstory fields, templates sop-software + startup-studio with CEO manager) crewAI / MetaGPT leftovers: role templates with goal + backstory, task context passing, hierarchical "manager" bot that plans and assigns, SOP-style company templates (Product Manager -> Architect -> Engineer -> QA).
 10. [x] (P29 egress guard, P30 fence + webhook rate limit, P31 routine catch-up done. Skipped on purpose: quiet hours (check-in times are user-chosen), routine undo, spend caps, needs-you digest, webhook HMAC) Other repos from the user's first list not mined yet: suparagent (marketplace), openfuse (connectors), munder-difflin (rooms), orgo-teammates. Read each, list ideas, build the useful ones.
-11. [ ] Find more popular MIT/Apache repos (e.g. n8n-style workflow nodes, AutoGen, LangGraph ideas, Open Interpreter, Stagehand, Firecrawl OSS parts): ideas or code with notices in `THIRD_PARTY_NOTICES.md`. Never copy PolyForm/AGPL/noncommercial code.
-12. [ ] Verify on real machines: Windows installer + hidden launcher, browser tools on macOS.
-13. [ ] Final: version bump, tag, release assets check, tell the user.
+11. [~] (stagehand, langgraph, autogen reviewed: P32, P33 built; open: approval with edited args, room termination conditions, human gate between flow steps, selector cache) Find more popular MIT/Apache repos (e.g. n8n-style workflow nodes, AutoGen, LangGraph ideas, Open Interpreter, Stagehand, Firecrawl OSS parts): ideas or code with notices in `THIRD_PARTY_NOTICES.md`. Never copy PolyForm/AGPL/noncommercial code.
+12. [ ] (needs a real PC; cannot be done on this VM) Verify on real machines: Windows installer + hidden launcher, browser tools on macOS.
+13. [x] v1.5.0 = P27-P33.
 
 ## P20 — Palette files
 - `web/src/themes/*.json` (`{name, base, vars}`; Midnight, Forest, Sand, Rose) loaded by `web/src/lib/palettes.ts` (`import.meta.glob`); only `--color-*` vars apply. `configStore`: `palette`, `setPalette`; picker under Settings → General → Colours. A palette sets its own light/dark base. Add a palette = add a JSON file.
