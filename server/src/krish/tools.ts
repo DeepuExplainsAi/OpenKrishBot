@@ -16,6 +16,7 @@ export interface LocalTool {
 }
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({ type: 'object', properties, required });
+import { fetchPage } from './scrape.js';
 const cap = (s: string, n = 12000) => (s.length > n ? `${s.slice(0, n / 2)}\n…[${s.length - n} chars cut]…\n${s.slice(-n / 2)}` : s);
 
 function sh(cmd: string, args: string[], cwd: string, timeoutSec: number, input?: string): Promise<string> {
@@ -144,12 +145,11 @@ const BASE_TOOLS: LocalTool[] = [
   },
   {
     name: 'web_extract',
-    description: 'Fetch a web page and return its readable text.',
-    parameters: obj({ url: { type: 'string' } }, ['url']),
+    description: 'Read a web page for free: returns the main content as Markdown, plus its links. Use browser_* tools for pages that need login or JavaScript.',
+    parameters: obj({ url: { type: 'string' }, links: { type: 'boolean', description: 'also list links found on the page' } }, ['url']),
     async run(a) {
-      const r = await fetch(String(a.url), { headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(25000) });
-      const t = await r.text();
-      return cap(/html/i.test(r.headers.get('content-type') ?? '') ? stripHtml(t) : t, 15000);
+      const p = await fetchPage(String(a.url));
+      return cap(`# ${p.title}\n\n${p.markdown}${a.links ? `\n\nLinks:\n${p.links.join('\n')}` : ''}`, 15000);
     },
   },
   {
