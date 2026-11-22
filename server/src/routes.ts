@@ -15,6 +15,7 @@ import { assignEngine, provisionEngine, removeEngine, syncPersona } from './engi
 import { deleteMemory, listMemories, memoryBot } from './engine-memory.js';
 import { screenIfRunning } from './screen/manager.js';
 import { SignInNeeded, addCustomApp, appInfo, connectCatalogApp, forgetAppTools, listApps, oauth, removeApp } from './apps.js';
+import { mcpApi } from './mcp-servers.ts';
 import { runRoutine, scheduleRoutine, unscheduleRoutine } from './routines.js';
 import { dispatchRoomMessage } from './agent/rooms.js';
 import { voiceApi } from './voice.js';
@@ -533,4 +534,5 @@ api.delete('/policies/:tool', (c) => {
   return c.json({ ok: true });
 });
 
+api.route('/mcp', mcpApi);
 api.route('/voice', voiceApi);

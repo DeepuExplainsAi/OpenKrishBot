@@ -1,10 +1,12 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { db, now } from './db.js';
 import { McpOAuthManager } from './maus/server/mcp-oauth.ts';
+import { isRemoteMcpServer, parseStoredMcpServer } from './maus/server/mcp-registry.ts';
 import { McpHttpError } from './maus/server/mcp-http.ts';
 import { launchCommand, launchEnv } from './lib/launch.js';
 import type { Toolkit } from './types.js';
@@ -82,7 +84,23 @@ export interface CustomApp {
 }
 
 interface Row { slug: string; name: string; kind: string; config: any }
-const rows = (): Row[] => (db.prepare('SELECT * FROM apps ORDER BY created_at').all() as any[]).map((r) => ({ ...r, config: JSON.parse(r.config) }));
+const rows = (): Row[] => [
+  ...(db.prepare('SELECT * FROM apps ORDER BY created_at').all() as any[]).map((r) => ({ ...r, config: JSON.parse(r.config) })),
+  ...mcpServerRows(),
+];
+export const MCP_SERVERS_FILE = path.join(os.homedir(), '.openkrishbot', 'mcp-servers.json');
+export function loadMcpServers(): Record<string, unknown> {
+  try { return JSON.parse(fs.readFileSync(MCP_SERVERS_FILE, 'utf8')); } catch { return {}; }
+}
+/** Servers added on the MCP servers screen (OpenMausBot's format): enabled ones join the apps. */
+function mcpServerRows(): Row[] {
+  return Object.entries(loadMcpServers()).flatMap(([name, raw]) => {
+    const p = parseStoredMcpServer(name, raw);
+    if (!p.ok || !p.server.enabled) return [];
+    const s = p.server;
+    return [{ slug: name, name, kind: 'mcp', config: isRemoteMcpServer(s) ? { url: s.url, headers: s.headers } : { command: s.command, args: s.args, env: s.env } }];
+  });
+}
 
 // ---------- listing ----------
 
