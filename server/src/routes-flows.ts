@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS flow_runs (
   id TEXT PRIMARY KEY, flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE, input TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL, results TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER
 );`);
-try { db.exec("ALTER TABLE flows ADD COLUMN schedule TEXT NOT NULL DEFAULT ''"); } catch { /* column exists */ }
+try { db.exec("ALTER TABLE flows ADD COLUMN schedule TEXT NOT NULL DEFAULT ''"); } catch (e: any) { if (!/duplicate column/i.test(e?.message)) throw e; }
 
 /** Multi-agent workflows: /api/flows. Each step is a message to one of the user's bots; independent steps run in parallel. */
 export const flowsApi = new Hono<AuthVars>();
@@ -124,12 +124,22 @@ flowsApi.post('/runs/:runId/stop', (c) => {
 });
 
 const crons = new Map<string, Cron>();
+const firedKey = (flowId: string) => `flowcron:${flowId}`;
+const markFired = (flowId: string, t = Date.now()) => { db.prepare('INSERT OR REPLACE INTO kv(key,value) VALUES (?,?)').run(firedKey(flowId), String(t)); };
+const CATCHUP_MS = 24 * 3600_000;
+
+/** A scheduled time that passed while the computer was off or asleep: true if one fell in the last 24 h after the last fire. */
+export function missedRun(schedule: string, lastFired: number | null, at = Date.now()): boolean {
+  const prev = new Cron(schedule, { paused: true }).previousRuns(1, new Date(at))[0];
+  return !!prev && at - prev.getTime() < CATCHUP_MS && prev.getTime() > (lastFired ?? 0);
+}
 /** Cron-triggered flows: an empty schedule removes the job. A run is skipped while the previous one of the same flow is still going. */
 export function scheduleFlow(flowId: string, userId: string, schedule: string) {
   crons.get(flowId)?.stop();
   crons.delete(flowId);
   if (!schedule) return;
   crons.set(flowId, new Cron(schedule, () => {
+    markFired(flowId);
     // croner's protect does not wait for our (instant-returning) handler, so check the run table ourselves
     if (db.prepare("SELECT 1 FROM flow_runs WHERE flow_id=? AND status='running'").get(flowId)) return;
     try { startFlowRun(userId, flowId, ''); } catch (e) { console.warn('[flows] scheduled run failed', flowId, (e as Error).message); }
@@ -145,7 +155,13 @@ export function reconcileRuns() {
 export function initFlowSchedules() {
   reconcileRuns();
   for (const f of db.prepare("SELECT id, user_id, schedule FROM flows WHERE schedule!=''").all() as any[]) {
-    try { scheduleFlow(f.id, f.user_id, f.schedule); } catch (e) { console.warn('[flows] bad schedule', f.id, (e as Error).message); }
+    try {
+      scheduleFlow(f.id, f.user_id, f.schedule);
+      const last = (db.prepare('SELECT value FROM kv WHERE key=?').get(firedKey(f.id)) as any)?.value;
+      // first time seen: start the clock now rather than firing an old slot
+      if (last === undefined) markFired(f.id);
+      else if (missedRun(f.schedule, Number(last))) { markFired(f.id); startFlowRun(f.user_id, f.id, ''); console.log('[flows] catching up a missed run of', f.id); }
+    } catch (e) { console.warn('[flows] bad schedule', f.id, (e as Error).message); }
   }
   console.log(`[flows] scheduled ${crons.size}`);
 }

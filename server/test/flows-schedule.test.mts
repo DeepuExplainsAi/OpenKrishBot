@@ -33,3 +33,12 @@ test('restart marks interrupted runs failed so nothing stays running forever', a
   reconcileRuns();
   assert.equal((db.prepare("SELECT status FROM flow_runs WHERE id='r_old'").get() as any).status, 'failed');
 });
+
+test('missedRun: a slot since the last fire counts, an old or already-fired one does not', async () => {
+  const { missedRun } = await import('../src/routes-flows.js');
+  const at = new Date('2026-06-10T12:00:00').getTime();
+  assert.equal(missedRun('0 9 * * *', new Date('2026-06-09T09:00:00').getTime(), at), true);
+  assert.equal(missedRun('0 9 * * *', new Date('2026-06-10T09:00:01').getTime(), at), false);
+  assert.equal(missedRun('0 9 * * *', null, at), true);
+  assert.equal(missedRun('0 9 * * 1', null, at), false); // last Monday slot is older than 24 h
+});

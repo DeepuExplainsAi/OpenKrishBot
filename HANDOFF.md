@@ -240,3 +240,9 @@ Fixed: MCP apps connect in parallel with a 15 s deadline, a failed app is skippe
 Checked, not bugs: loopNudge history is already per bot; budget applies to every bot (all bots use the same in-process engine, "managed" is only a label).
 Tests: resilient (tools retry), skills (blank trigger). Plan replace and MCP parallel/skip have NO test (verified by typecheck/e2e only).
 Still open: Ollama `num_ctx` (not set, default context may truncate long chats), reasoning not replayed, mid-stream error payload not retried with backoff, plan list/update/delete, room `@` substring match, ALTER catches at routes-flows.ts:18 and agent/rooms.ts:18.
+
+## P12h: small items (2026-11-22)
+Fixed: room `@name` matches whole names only (@Sam no longer wakes @Samantha); the two swallowed ALTER catches now ignore only "duplicate column"; flows catch up one missed cron slot (<24 h old) after the computer was off, tracked in kv `flowcron:<id>`; first boot of a schedule starts the clock instead of firing an old slot.
+Tests: rooms.test.mts (mentions), flows-schedule (missedRun). Catch-up at boot is NOT tested end to end.
+Not a bug: flow timezone. Cron uses the computer's own timezone, which is the user's on a local app.
+Not fixable here: Ollama `num_ctx`. Its OpenAI-compatible endpoint ignores it; the user sets OLLAMA_CONTEXT_LENGTH for the Ollama server. Mention in release notes.

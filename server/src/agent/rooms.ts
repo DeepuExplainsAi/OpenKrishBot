@@ -13,9 +13,12 @@ import { appendRow } from '../store.js';
 
 const MAX_RESPONDERS = 3;
 
+/** `@name` as a whole word, so @Sam does not also wake @Samantha. */
+export const mentions = (lowerText: string, name: string) => new RegExp(`@${name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}_])`, 'u').test(lowerText);
+
 export function initRooms() {
   for (const col of ["kind TEXT NOT NULL DEFAULT 'agent'", 'members TEXT']) {
-    try { db.exec(`ALTER TABLE bots ADD COLUMN ${col}`); } catch { /* exists */ }
+    try { db.exec(`ALTER TABLE bots ADD COLUMN ${col}`); } catch (e: any) { if (!/duplicate column/i.test(e?.message)) throw e; }
   }
 }
 
@@ -46,7 +49,7 @@ export function dispatchRoomMessage(roomId: string, text: string, enqueue: (botI
     return;
   }
   const lower = text.toLowerCase();
-  const mentioned = members.filter((m) => lower.includes(`@${m.name.toLowerCase()}`));
+  const mentioned = members.filter((m) => mentions(lower, m.name));
   const responders = (mentioned.length ? mentioned : members).slice(0, MAX_RESPONDERS);
   const recent = (db.prepare("SELECT body FROM rows WHERE bot_id=? AND generation=? AND kind='message' ORDER BY seq DESC LIMIT 12").all(roomId, room.generation) as any[])
     .reverse()
