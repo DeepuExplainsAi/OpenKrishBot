@@ -202,7 +202,7 @@ async function runTool(botId: string, name: string, rawArgs: string, home: strin
   const raw = await runToolOnce(botId, name, rawArgs, home);
   const out = redact(owner ? scrubVault(owner, raw) : raw);
   let a: any; try { a = JSON.parse(rawArgs || '{}'); } catch { a = rawArgs; }
-  audit({ bot: botId, tool: name, status: out === DECLINED || out === SKIPPED ? 'declined' : /^\s*\{"error"/.test(out) ? 'error' : 'done', danger: dangerReason(name, a), args: a });
+  audit({ bot: botId, tool: name, status: out === DECLINED || out === SKIPPED ? 'declined' : /^\s*\{"error"/.test(out) ? 'error' : 'done', danger: dangerReason(name, a), args: owner ? scrubVault(owner, JSON.stringify(a ?? {})) : a });
   const nudge = loopNudge(recentCalls.get(botId) ?? (recentCalls.set(botId, []), recentCalls.get(botId)!), `${name}:${rawArgs}`);
   return nudge ? `${out}\n\n${nudge}` : out;
 }

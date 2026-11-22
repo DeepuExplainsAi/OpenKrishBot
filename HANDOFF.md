@@ -383,7 +383,7 @@ NOT tested: a real model calling save_skill/publish_site; browser rendering of t
 - `projects.ts`: `exportCompany` / `importCompany` (`openkrishbot-company-v1`, no chats/memory/keys; text scrubbed of vault values). Routes `GET /api/projects/:id/export`, `POST /api/projects/import`. UI: Settings → Companies.
 - `vault.ts` (+`routes-vault.ts`, Settings → Vault): AES-256-GCM, key `~/.krishbot/vault.key`. Every item is bound to an https site. Tools: `list_secrets` (names), `secret_request` (GET/HEAD only, key sent only to the saved site, no redirects), `browser_fill_secret` (website login typed into a field on the saved site only). `scrubVault` runs on every Krish-engine tool result. `danger.ts` now asks approval for `vault.key`/`bothq.db` paths.
 - Idea credit: Rakazo (Apache-2.0) bot-secrets design; no code copied.
-- Known gaps (from review): tool args are not scrubbed in transcript/audit; Hermes/MCP path does not run `scrubVault`; screenshots can show a typed password; a bot with `terminal` can still read vault.key (same OS user); sidebar company names refresh only on roster change.
+- Known gaps (from review): Hermes/MCP path does not run `scrubVault`; screenshots can show a typed password; a bot with `terminal` can still read vault.key (same OS user); sidebar company names refresh only on roster change.
 
 ## P18 — Message queue with pause / cancel (v1.4.0)
 - `server/src/agent/loop.ts`: per-bot FIFO (`push`/`pump`) replaces the promise chain. `pauseQueue`, `resumeQueue`, `cancelQueued(id?)`, `queueView`. Cancelled background jobs reject with "cancelled".
@@ -409,7 +409,7 @@ Done:
 7. [x] (done, P23: sitemap, robots.txt, 10-min cache; content filter = Readability, CSS extraction = browser_extract) crawl4ai leftovers: `sitemap.xml` discovery in `web_crawl`, robots.txt respect, content-fit filter (drop nav/footers), CSS-selector extraction, cache for repeated URLs.
 8. [x] (done, P24: `recall` tool = keyword search over old chats; per-user memory scope not done) mem0 leftovers: semantic recall (local embeddings or keyword index over past chats) injected into the prompt; per-user vs per-bot memory scopes.
 9. [x] (done, P25: goal+backstory fields, templates sop-software + startup-studio with CEO manager) crewAI / MetaGPT leftovers: role templates with goal + backstory, task context passing, hierarchical "manager" bot that plans and assigns, SOP-style company templates (Product Manager -> Architect -> Engineer -> QA).
-10. [ ] Other repos from the user's first list not mined yet: suparagent (marketplace), openfuse (connectors), munder-difflin (rooms), orgo-teammates. Read each, list ideas, build the useful ones.
+10. [~] Other repos from the user's first list not mined yet: suparagent (marketplace), openfuse (connectors), munder-difflin (rooms), orgo-teammates. Read each, list ideas, build the useful ones.
 11. [ ] Find more popular MIT/Apache repos (e.g. n8n-style workflow nodes, AutoGen, LangGraph ideas, Open Interpreter, Stagehand, Firecrawl OSS parts): ideas or code with notices in `THIRD_PARTY_NOTICES.md`. Never copy PolyForm/AGPL/noncommercial code.
 12. [ ] Verify on real machines: Windows installer + hidden launcher, browser tools on macOS.
 13. [ ] Final: version bump, tag, release assets check, tell the user.
@@ -432,3 +432,7 @@ Done:
 - README "Run as a server (Docker)": compose, sign-in link, TLS proxy, `APP_URL`, `SCRIPT_REMOTE`.
 - `SCRIPT_REMOTE=1` lets `/script` be called from other machines (`scripts-api.ts`); the bot token is still required. Not unit-tested (flag is read at import).
 - Not done: Docker CI job (token lacks `workflow` scope), real Docker build.
+
+## P28 — audit args scrubbed
+- `krish/engine.ts` `runTool`: audit-log args now go through `scrubVault`, so a vault value typed into a tool call is not written to the audit file. Still open: transcript rows, Hermes/MCP path.
+- v1.4.0 released (8 assets, desktop workflow green).
