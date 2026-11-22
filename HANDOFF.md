@@ -485,3 +485,10 @@ Done:
 - Vault: MCP/Hermes tool output is scrubbed (`mcp.ts`); the vault key itself is scrubbed from text; `browser_fill_secret` refuses a non-password field; any command touching `vault.key`/`.ssh` asks even in `follow`/`auto`.
 - Approval card has Edit: `POST /approvals/:id {decision, edit}`; `applyEdits` changes only existing plain values of the same type.
 - `browser_extract` takes `name`: selectors saved per bot+site in `kv` (only after a non-empty result); call with just the name later.
+
+## P38 — in-app updates
+- `desktop/main.cjs` uses `electron-updater` (checks 15 s after start, and Settings > General > Updates > "Check for updates" via `desktop/preload.cjs` `window.krishDesktop`).
+- Windows Setup and Linux AppImage/deb update themselves in place and restart. Windows Portable and macOS (unsigned, so no silent update) download the matching file from the release and open it.
+- Release workflow now uploads `latest*.yml` and `.blockmap` files; they are what the updater reads. `build.publish` points at the GitHub repo.
+- Versions before 1.8.0 have no updater: install 1.8.0 by hand once.
+- Not testable on the VM: the real update flow needs two installed versions on a real PC.

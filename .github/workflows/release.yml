@@ -37,6 +37,8 @@ jobs:
             desktop/release/*.zip
             desktop/release/*.AppImage
             desktop/release/*.deb
+            desktop/release/*.blockmap
+            desktop/release/latest*.yml
             
   publish:
     if: startsWith(github.ref, 'refs/tags/v')

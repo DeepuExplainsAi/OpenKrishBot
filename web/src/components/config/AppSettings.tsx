@@ -130,7 +130,40 @@ function GeneralSection() {
           ))}
         </div>
       </section>
+      <UpdateSection />
     </>
+  );
+}
+
+type Desktop = { version: () => Promise<string>; checkForUpdate: () => Promise<{ status: string; version?: string; error?: string }> };
+const desktop = (): Desktop | undefined => (window as unknown as { krishDesktop?: Desktop }).krishDesktop;
+const UPDATE_TEXT: Record<string, string> = { current: 'You have the latest version.', later: 'Update postponed.', ready: 'Update downloaded. Restart to finish.', downloaded: 'New version downloaded and opened.', busy: 'Already checking…', dev: 'Updates only work in the installed app.' };
+
+/** Desktop app only: update in place, no trip to the release page. */
+function UpdateSection() {
+  const d = desktop();
+  const [ver, setVer] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { d?.version().then(setVer).catch(() => {}); }, [d]);
+  if (!d) return null;
+  const check = async () => {
+    setBusy(true); setMsg('');
+    try { const r = await d.checkForUpdate(); setMsg(r.status === 'error' ? `Could not check: ${r.error}` : UPDATE_TEXT[r.status] ?? r.status); } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <section className="cfg-section">
+      <div className="cfg-section__label">Updates</div>
+      <div className="cfg-card">
+        <div className="cfg-row">
+          <div className="cfg-row__text">
+            <div className="cfg-row__title">OpenKrishBot {ver}</div>
+            <div className="cfg-row__sub">{msg || 'Checked automatically when the app starts. Your bots and chats stay as they are.'}</div>
+          </div>
+          <button type="button" className="cfg-btn cfg-btn--secondary" disabled={busy} onClick={check}>{busy ? 'Checking…' : 'Check for updates'}</button>
+        </div>
+      </div>
+    </section>
   );
 }
 

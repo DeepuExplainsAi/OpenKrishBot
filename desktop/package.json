@@ -13,6 +13,7 @@
     "@whiskeysockets/baileys": "^7.0.0-rc14",
     "better-sqlite3": "^13.0.3",
     "croner": "^11.0.0",
+    "electron-updater": "^6.8.11",
     "hono": "^4.13.17",
     "openai": "^7.53.0",
     "qrcode": "^1.5.4",
@@ -39,6 +40,7 @@
     },
     "files": [
       "main.cjs",
+      "preload.cjs",
       "build/icon.png",
       "build/icon.ico",
       "server/package.json",
@@ -110,7 +112,14 @@
     },
     "portable": {
       "artifactName": "OpenKrishBot-Portable-${version}-win-x64.${ext}"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "DeepuExplainsAi",
+        "repo": "krishbot-ai"
+      }
+    ]
   },
   "license": "AGPL-3.0-only"
 }
