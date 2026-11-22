@@ -408,7 +408,7 @@ Done:
 6. [x] (done, P22; browser_save_screenshot skipped, screenshots already saved) Playwright-MCP leftovers: `browser_console` (read console messages), `browser_network` (list requests), `browser_pdf`/`browser_save_screenshot` to file, `browser_drag`, `browser_resize`, `browser_handle_dialog`.
 7. [x] (done, P23: sitemap, robots.txt, 10-min cache; content filter = Readability, CSS extraction = browser_extract) crawl4ai leftovers: `sitemap.xml` discovery in `web_crawl`, robots.txt respect, content-fit filter (drop nav/footers), CSS-selector extraction, cache for repeated URLs.
 8. [x] (done, P24: `recall` tool = keyword search over old chats; per-user memory scope not done) mem0 leftovers: semantic recall (local embeddings or keyword index over past chats) injected into the prompt; per-user vs per-bot memory scopes.
-9. [ ] crewAI / MetaGPT leftovers: role templates with goal + backstory, task context passing, hierarchical "manager" bot that plans and assigns, SOP-style company templates (Product Manager -> Architect -> Engineer -> QA).
+9. [x] (done, P25: goal+backstory fields, templates sop-software + startup-studio with CEO manager) crewAI / MetaGPT leftovers: role templates with goal + backstory, task context passing, hierarchical "manager" bot that plans and assigns, SOP-style company templates (Product Manager -> Architect -> Engineer -> QA).
 10. [ ] Other repos from the user's first list not mined yet: suparagent (marketplace), openfuse (connectors), munder-difflin (rooms), orgo-teammates. Read each, list ideas, build the useful ones.
 11. [ ] Find more popular MIT/Apache repos (e.g. n8n-style workflow nodes, AutoGen, LangGraph ideas, Open Interpreter, Stagehand, Firecrawl OSS parts): ideas or code with notices in `THIRD_PARTY_NOTICES.md`. Never copy PolyForm/AGPL/noncommercial code.
 12. [ ] Verify on real machines: Windows installer + hidden launcher, browser tools on macOS.
@@ -423,3 +423,7 @@ Done:
 
 ## P23 — polite crawling
 - `scrape.ts`: `robotsDisallow`, `sitemapUrls`, `fetchPageCached` (10 min, 100 entries), `crawlPolitely` (used by `web_crawl`); `crawlSite` takes `disallow` and `seeds`. Tests in `scrape.test.mts`.
+
+## P24–P25
+- P24 `krish/recall.ts`: `recall` tool, keyword ranking (rare words weigh more) over the bot's last 5000 chat messages. Test `recall.test.mts`.
+- P25 company templates accept per-bot `goal` + `backstory` (put before instructions in `projects.ts`); new templates `sop-software` (Manager -> PM -> Architect -> Engineer -> QA via run_pipeline) and `startup-studio` (CEO manager).

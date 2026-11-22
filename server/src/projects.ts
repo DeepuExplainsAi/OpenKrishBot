@@ -147,6 +147,9 @@ export function exportCompany(userId: string, id: string): CompanyExport | null 
   return { format: 'openkrishbot-company-v1', name: p.name, instructions: clean(p.instructions), files: files.map((f) => ({ name: f.name, content: clean(f.content) })), bots: bots.map((b) => ({ name: b.name, role: b.description || b.label, instructions: clean(b.instructions), avatarShape: b.avatar_shape, avatarColor: b.avatar_color })) };
 }
 
+/** crewAI-style role: optional goal and backstory are put in front of the instructions. */
+const roleInstructions = (b: any) => [b.goal && `Your goal: ${b.goal}`, b.backstory && `Background: ${b.backstory}`, b.instructions].filter(Boolean).map(String).join('\n\n');
+
 export function importCompany(userId: string, data: any, hire: (b: { name: string; label: string; description: string; instructions: string; avatarShape: string; avatarColor: string }) => string): Project | { error: string } {
   if (data?.format !== 'openkrishbot-company-v1' || !Array.isArray(data.bots)) return { error: 'Not an OpenKrishBot company file.' };
   if (data.bots.length > 20) return { error: 'A company file can hold at most 20 bots.' };
@@ -160,7 +163,7 @@ export function importCompany(userId: string, data: any, hire: (b: { name: strin
   for (const b of data.bots.slice(0, 20)) {
     let n = String(b.name || 'Bot').slice(0, 60);
     while (taken(n)) n += ' 2';
-    const id = hire({ name: n, label: `${name} · ${b.role ?? ''}`, description: String(b.role ?? ''), instructions: String(b.instructions ?? ''), avatarShape: b.avatarShape, avatarColor: b.avatarColor });
+    const id = hire({ name: n, label: `${name} · ${b.role ?? ''}`, description: String(b.role ?? ''), instructions: roleInstructions(b), avatarShape: b.avatarShape, avatarColor: b.avatarColor });
     assignBot(userId, id, proj.id);
   }
   return view(own(userId, proj.id));
