@@ -544,3 +544,8 @@ Done:
 ### v1.9.1 part 8 — Hindi UI strings
 - Maus packs (hi + 16 others, 3680 hi keys) and the DOM translator were already in; they only know Maus's sentences. This app's own screens had 91 untranslated visible strings (Settings, Bots, phone pairing, WhatsApp, workflows...). Filled `web/src/i18n/extra-hi.json` (text only). Other languages still fall back to English for those 91.
 - Reply language is separate (server `language.ts`): Hinglish in -> Hinglish out.
+
+### v1.9.1 part 9 — Computer app (cua-driver)
+- Copied from OpenMausBot's approach: trycua `cua-driver` (MIT) as a local MCP server (`cua-driver mcp`). New catalog app `computer` in `server/src/apps.ts`; `server/src/cua.ts` downloads the pinned v0.41.3 release archive for this OS (same version and SHA-256 as Maus's `scripts/cua-linux-release.mjs`; mac/win hashes from upstream `SHA256SUMS`), checks the hash, unpacks to `~/.openkrishbot/cua/0.41.3/`. Connect on the Apps screen installs and starts it. Test: `server/test/cua.test.mts`.
+- NOT verified on real hardware: the VM has no desktop, so `cua-driver mcp` was never started here. Mac needs Accessibility + Screen Recording permission on first use.
+- Tests: every test that starts the server DB must set its own `DB_PATH` (the default `server/data` DB is shared by parallel test processes -> `duplicate column name` races). Fixed in browser-tools. Chrome launch now kills the process on timeout (a Windows CI run hung 16 min).
