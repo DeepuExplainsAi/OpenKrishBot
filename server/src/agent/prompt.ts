@@ -2,6 +2,7 @@ import { db } from '../db.js';
 import { getBotRow, listRoutines } from '../store.js';
 import { appInfo, connectedSlugs } from '../apps.js';
 import { libraryRoot } from '../paths.js';
+import { projectPrompt } from '../projects.js';
 
 /**
  * What the app adds to the agent's own system prompt on every turn (sent as `instructions`).

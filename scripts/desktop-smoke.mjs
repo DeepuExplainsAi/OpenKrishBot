@@ -12,7 +12,7 @@ const pick = process.platform === 'darwin' ? (process.arch === 'arm64' ? 'mac-ar
 const unpacked = path.join(rel, dirs.includes(pick) ? pick : dirs[0]);
 const exe = process.platform === 'win32' ? path.join(unpacked, 'OpenKrishbot.exe')
   : process.platform === 'darwin' ? path.join(unpacked, 'OpenKrishbot.app/Contents/MacOS/OpenKrishbot')
-  : path.join(unpacked, 'krishbot-desktop');
+  : path.join(unpacked, 'openkrishbot-desktop');
 const resources = process.platform === 'darwin' ? path.join(unpacked, 'OpenKrishbot.app/Contents/Resources/app') : path.join(unpacked, 'resources/app');
 const app = fs.existsSync(resources) ? resources : path.resolve('.');
 const port = 18999;
