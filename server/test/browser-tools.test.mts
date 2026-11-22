@@ -15,7 +15,7 @@ setTimeout(() => { document.getElementById('late').textContent = 'late-ready'; }
 
 test('browser tools: navigate, select, upload, wait, tabs, read', { skip: (!findChrome() && 'no Chrome installed') || (process.platform === 'darwin' && !!process.env.CI && 'headless Chrome hangs on the macOS CI runner') || (process.env.OPENKRISHBOT_BROWSER_TEST !== '1' && !process.env.CI && 'runs in CI, or locally with OPENKRISHBOT_BROWSER_TEST=1') }, async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okb-'));
-  process.env.HOME = home;
+  process.env.HOME = process.env.USERPROFILE = home;
   const { BROWSER_TOOLS } = await import('../src/screen/tools.ts');
   const { closeAllScreens } = await import('../src/screen/manager.ts');
   const srv = http.createServer((_q, r) => { r.setHeader('content-type', 'text/html'); r.end(PAGE); }).listen(0);

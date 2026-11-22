@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+process.env.HOME = process.env.USERPROFILE = fs.mkdtempSync(path.join(os.tmpdir(), 'okb-cua-'));
 await import('../src/db-config.js');
 const { cuaPath, cuaSupported } = await import('../src/cua.js');
 const { CATALOG } = await import('../src/apps.js');
