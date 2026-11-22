@@ -522,3 +522,6 @@ Done:
 
 ### v1.9.1 part 4 — nod memory service + routes
 - `server/src/nod/memory.ts` (nod's createMemoryService, Postgres/analytics lines removed), `nod/object-storage.ts`, `shared-nod/memory-export.ts` copied. `nod-memory.ts` = file store (`~/.openkrishbot/nod-memory/memory/MEMORY.md`); `nod-memory-api.ts` = nod's `/api/memory*` routes on Hono, mounted at `/api/memory`. Tested add/view.
+
+### v1.9.1 part 5 — nod Memory page
+- nod `pages/memory.tsx|css`, `components/{ui,icons,tooltip,action-menu,settings-drafts,password-input,keep-out-list}`, `hooks/use-page-data`, `lib/*` copied into `web/src/nod/`; web moved to React 19 (nod needs ref-as-prop). `nod/lib/api.ts` is a thin shim (nod's is tied to accounts/feedback). `styles/nod-tokens.css` maps nod's CSS vars. Settings → Memory renders `<Memory />` against `/api/memory`.

@@ -1,0 +1,23 @@
+/* nod's design tokens mapped onto this app's; scoped so nod pages render with their own variables. */
+.nod-ui {
+  --foreground: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --muted-foreground: var(--color-text-tertiary);
+  --border: var(--color-border-secondary);
+  --surface: var(--color-bg-pane);
+  --canvas: var(--color-bg-pane);
+  --primary: var(--color-primary);
+  --accent: var(--color-bot-blue);
+  --accent-soft: var(--color-bg-tertiary);
+  --link: var(--color-bot-blue);
+  --ring: var(--color-bot-blue);
+  --nav-hover: var(--color-bg-active);
+  --control: var(--color-bg-tertiary);
+  --text-control: 13px;
+  --text-body: 14px;
+  --control-height-sm: 30px;
+  --radius-full: 999px;
+  --input-radius: 8px;
+  --dialog-radius: 14px;
+  color: var(--foreground);
+}

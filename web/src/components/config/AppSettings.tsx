@@ -15,6 +15,12 @@ import { ToolkitLogo } from '../ToolkitLogo';
 import { Glyph } from './glyphs';
 import { ConfirmButton, Switch } from './ui';
 import { ModelsSection } from './ModelsSection';
+import { Memory } from '../../nod/pages/memory';
+import '../../nod/pages/memory.css';
+import '../../nod/components/controls.css';
+import '../../nod/components/dialog.css';
+import '../../nod/components/action-menu.css';
+import '../../styles/nod-tokens.css';
 import { McpServersPanel } from '../../maus/components/McpServersPanel';
 
 const SECTIONS: { id: AppSection; label: string }[] = [
@@ -22,6 +28,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'models', label: 'Models' },
   { id: 'computer', label: 'Computer' },
   { id: 'permissions', label: 'Permissions' },
+  { id: 'memory', label: 'Memory' },
   { id: 'mcp', label: 'MCP servers' },
   { id: 'apps', label: 'Connected apps' },
   { id: 'phone', label: 'Phone' },
@@ -66,6 +73,7 @@ export function AppSettings() {
           {section === 'models' && <ModelsSection />}
           {section === 'computer' && <ComputerSection />}
           {section === 'permissions' && <PermissionsSection />}
+          {section === 'memory' && <div className="nod-ui"><Memory onDone={close} /></div>}
           {section === 'mcp' && <div className="maus-ui"><McpServersPanel embedded /></div>}
           {section === 'apps' && <AppsSection />}
           {section === 'phone' && <PhoneSection />}
