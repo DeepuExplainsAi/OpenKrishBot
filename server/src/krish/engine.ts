@@ -18,7 +18,7 @@ import { runCli, cliFound } from './cli.js';
 import { extraTools, callExtraTool } from './mcp-client.js';
 
 /**
- * The Krishbot engine: an agent loop that lives inside this server. It speaks the same event stream
+ * The OpenKrishbot engine: an agent loop that lives inside this server. It speaks the same event stream
  * as a Hermes gateway's /v1/responses, so the chat, approvals and activity UI work unchanged, with no
  * second process, no cloud and no account. Models come from any OpenAI-compatible endpoint.
  */

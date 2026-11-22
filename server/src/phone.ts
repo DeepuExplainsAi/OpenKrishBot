@@ -25,7 +25,7 @@ phoneApi.use('*', requireUser);
 
 /** Pairing and device management are for the laptop's own screen only. */
 phoneApi.use('*', async (c, next) => {
-  if (!isLocalHost(c.req.header('host')) || !isLoopbackAddress(getConnInfo(c).remote.address)) return c.json({ error: 'Open Krishbot on the laptop to manage phones.' }, 403);
+  if (!isLocalHost(c.req.header('host')) || !isLoopbackAddress(getConnInfo(c).remote.address)) return c.json({ error: 'Open OpenKrishbot on the laptop to manage phones.' }, 403);
   await next();
 });
 

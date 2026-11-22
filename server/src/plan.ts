@@ -3,7 +3,7 @@ import { newId } from './lib/ids.js';
 import type { PlanStep, StepStatus } from './types.js';
 
 /**
- * OpenManus's planning tool, on top of Krishbot's tasks: a plan is a task whose steps the Bot ticks off.
+ * OpenManus's planning tool, on top of OpenKrishbot's tasks: a plan is a task whose steps the Bot ticks off.
  * Pure functions over a steps list, so they can be tested; `tools.ts` wires them to the database.
  */
 

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { BROWSER_TOOLS } from '../screen/tools.js';
 
-/** Local tools every Krishbot agent has (from the OpenManus toolset: shell, python, file edit, web). They run on this computer. */
+/** Local tools every OpenKrishbot agent has (from the OpenManus toolset: shell, python, file edit, web). They run on this computer. */
 export interface LocalTool {
   name: string;
   description: string;

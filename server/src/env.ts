@@ -72,7 +72,7 @@ export const env = {
   /** The app is only reachable at a local address (development). Some conveniences are limited to this. */
   localOnly: isLoopbackUrl(appUrl),
   sessionSecret: sessionSecret(),
-  /** Krishbot runs on your own computer: requests from this machine sign in automatically as the owner. */
+  /** OpenKrishbot runs on your own computer: requests from this machine sign in automatically as the owner. */
   autoLocalLogin: process.env.AUTO_LOCAL_LOGIN !== '0',
   ownerEmail: process.env.OWNER_EMAIL ?? 'me@krishbot.local',
   ownerName: process.env.OWNER_NAME ?? 'Krish',

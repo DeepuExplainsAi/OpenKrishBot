@@ -9,7 +9,7 @@ import { chunk, createRelay, MARK } from './whatsapp-relay.js';
 
 /**
  * Telegram for the main Bot, on this computer only: you make a bot with @BotFather, paste its token in Settings, and
- * Krishbot long-polls Telegram (no webhook, no server). A chat can command the Bot only after it sends "/pair <code>"
+ * OpenKrishbot long-polls Telegram (no webhook, no server). A chat can command the Bot only after it sends "/pair <code>"
  * with the one-time code shown in Settings. Same relay as WhatsApp: replies, approval cards (reply 1/2/3) and errors.
  */
 
@@ -29,10 +29,10 @@ export function handleUpdate(u: Update, o: { pairCode: string | null; allow: str
   const text = m.text.trim();
   const pair = /^\/pair\s+(\S+)$/i.exec(text);
   if (pair) {
-    if (o.pairCode && pair[1] === o.pairCode) { o.pair(chat); return o.reply(chat, 'Paired. You can talk to Krishbot here now.'); }
+    if (o.pairCode && pair[1] === o.pairCode) { o.pair(chat); return o.reply(chat, 'Paired. You can talk to OpenKrishbot here now.'); }
     return o.reply(chat, 'Wrong or expired code.');
   }
-  if (!o.allow.includes(chat)) return /^\/start/i.test(text) ? o.reply(chat, 'This Krishbot is private. Send /pair <code> with the code from Settings → Telegram.') : Promise.resolve();
+  if (!o.allow.includes(chat)) return /^\/start/i.test(text) ? o.reply(chat, 'This OpenKrishbot is private. Send /pair <code> with the code from Settings → Telegram.') : Promise.resolve();
   return o.relay(chat, text);
 }
 

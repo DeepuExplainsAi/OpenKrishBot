@@ -373,7 +373,7 @@ function PhoneSection() {
   useEffect(() => { setPair(null); }, [count]);
   return (
     <>
-      <PageHead title="Phone" sub="Control Krishbot on this laptop from your phone. The laptop does the work; keep Krishbot open on it." />
+      <PageHead title="Phone" sub="Control OpenKrishbot on this laptop from your phone. The laptop does the work; keep OpenKrishbot open on it." />
       <section className="cfg-section">
         <div className="cfg-card">
           <div className="cfg-row">
@@ -807,7 +807,7 @@ function TelegramSection() {
   const label = info?.status === 'running' ? `Running as @${info.bot}` : info?.status === 'error' ? 'Problem' : 'Not connected';
   return (
     <>
-      <PageHead title="Telegram" sub="Talk to your main Bot from Telegram. It runs on this computer: Krishbot asks Telegram for your messages, nothing is hosted." />
+      <PageHead title="Telegram" sub="Talk to your main Bot from Telegram. It runs on this computer: OpenKrishbot asks Telegram for your messages, nothing is hosted." />
       <section className="cfg-section">
         <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
           <div className="cfg-row__title">{label}{info && info.paired > 0 ? ` · ${info.paired} chat${info.paired === 1 ? '' : 's'} paired` : ''}</div>

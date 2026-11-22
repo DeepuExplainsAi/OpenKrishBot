@@ -1,5 +1,5 @@
 // Composer dictation: hold the mic to talk (or tap to start, tap again to stop). Uses the browser's free speech
-// recognition, so nothing is uploaded to a Krishbot server and no key is needed.
+// recognition, so nothing is uploaded to a OpenKrishbot server and no key is needed.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SpeechRec, UNSUPPORTED, micErrorMessage, recLang } from './speech';
 

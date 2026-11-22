@@ -1,4 +1,4 @@
-// Krishbot desktop shell: starts the local server (same code as `npm start`) and shows it in a window.
+// OpenKrishbot desktop shell: starts the local server (same code as `npm start`) and shows it in a window.
 const { app, BrowserWindow, shell, Menu } = require('electron');
 const { spawn } = require('node:child_process');
 const net = require('node:net');
@@ -19,7 +19,7 @@ async function healthy(port) {
 }
 
 async function start() {
-  // a Krishbot already running on the preferred port (e.g. from the terminal) is reused
+  // a OpenKrishbot already running on the preferred port (e.g. from the terminal) is reused
   if (await healthy(PREFERRED_PORT)) return PREFERRED_PORT;
   const port = await freePort(PREFERRED_PORT);
   server = spawn(process.execPath, [path.join(__dirname, 'server', 'dist', 'index.js')], {
@@ -28,15 +28,15 @@ async function start() {
     stdio: 'inherit',
     windowsHide: true,
   });
-  server.on('exit', (code) => { server = null; if (code && !app.isQuitting) { console.error('Krishbot server stopped, code', code); app.quit(); } });
+  server.on('exit', (code) => { server = null; if (code && !app.isQuitting) { console.error('OpenKrishbot server stopped, code', code); app.quit(); } });
   for (let i = 0; i < 120; i++) { if (await healthy(port)) return port; await new Promise((r) => setTimeout(r, 500)); }
-  throw new Error('The Krishbot server did not start.');
+  throw new Error('The OpenKrishbot server did not start.');
 }
 
 async function open() {
   const port = await start();
   win = new BrowserWindow({
-    width: 1360, height: 860, minWidth: 420, minHeight: 600, title: 'Krishbot', backgroundColor: '#ffffff', show: false,
+    width: 1360, height: 860, minWidth: 420, minHeight: 600, title: 'OpenKrishbot', backgroundColor: '#ffffff', show: false,
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true },
   });

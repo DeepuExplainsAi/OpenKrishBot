@@ -1,11 +1,11 @@
-# Krishbot AI
+# OpenKrishbot
 
 Your own team of AI agents, running on your own computer. Free, local, no account, no cloud server.
 
 ## Start
 
 1. Install [Node.js 22+](https://nodejs.org) (and Chrome or Edge for the bot's browser and voice).
-2. Double-click `Krishbot.bat` (Windows) or `Krishbot.command` (Mac), or run `./krishbot.sh` (Linux).
+2. Double-click `OpenKrishbot.bat` (Windows) or `OpenKrishbot.command` (Mac), or run `./openkrishbot.sh` (Linux).
    First run installs and builds, then opens http://localhost:8787.
 
 It works with no keys: the default model is free (Pollinations). Add Ollama or LM Studio for fully offline models, or paste a free-tier key (Groq, OpenRouter, Cerebras, Gemini, Mistral…) in the bot's Engine panel.

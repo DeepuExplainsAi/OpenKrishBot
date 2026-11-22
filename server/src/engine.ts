@@ -7,7 +7,7 @@ import { botHome } from './krish/tools.js';
 import type { EngineInfo, EngineProvider } from './types.js';
 
 /**
- * Every bot runs on the Krishbot engine (server/src/krish): an agent loop inside this server that
+ * Every bot runs on the OpenKrishbot engine (server/src/krish): an agent loop inside this server that
  * talks to any OpenAI-compatible model. No separate process, no account, no cloud.
  */
 

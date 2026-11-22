@@ -1,6 +1,6 @@
 # Third-party notices
 
-Krishbot is licensed under the GNU AGPL-3.0 (see `LICENSE`). It started from Bot HQ by Nick Vasilescu, which is MIT-licensed; that notice is kept below as the MIT licence requires. It bundles or depends on the third-party work listed below. npm dependencies not listed here are covered by their own licenses, included in their packages.
+OpenKrishbot is licensed under the GNU AGPL-3.0 (see `LICENSE`). It started from Bot HQ by Nick Vasilescu, which is MIT-licensed; that notice is kept below as the MIT licence requires. It bundles or depends on the third-party work listed below. npm dependencies not listed here are covered by their own licenses, included in their packages.
 
 ## Lucide icons
 
@@ -50,7 +50,7 @@ SOFTWARE.
 
 ## Designs adapted from other open-source agents
 
-Krishbot's engine reimplements (in TypeScript, not copied line by line) ideas from these projects. Their licences require this notice.
+OpenKrishbot's engine reimplements (in TypeScript, not copied line by line) ideas from these projects. Their licences require this notice.
 
 - **OpenManus** (MIT, Copyright (c) 2025 manna_and_poem): the plan tool with step statuses, the stuck-loop check, and the step-by-step workflow idea (`server/src/plan.ts`, `server/src/flow.ts`).
 - **Paperclip** (MIT, Copyright (c) 2025 Paperclip AI): bot-to-bot issues with checkout and wake caps, daily token budgets, the provider circuit breaker (`server/src/issues.ts`, `server/src/usage.ts`, `server/src/krish/breaker.ts`, `server/src/krish/resilient.ts`).

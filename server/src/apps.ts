@@ -34,8 +34,6 @@ export const CATALOG: CatalogApp[] = [
   { slug: 'brave', name: 'Brave Search', description: 'Web search with a free API key.', categories: ['productivity'], ...npx('@modelcontextprotocol/server-brave-search'), fields: [secret('BRAVE_API_KEY', 'API key')] },
   { slug: 'maps', name: 'Google Maps', description: 'Places, directions and distances.', categories: ['productivity'], ...npx('@modelcontextprotocol/server-google-maps'), fields: [secret('GOOGLE_MAPS_API_KEY', 'API key')] },
   { slug: 'figma', name: 'Figma', description: 'Read designs from Figma files.', categories: ['images & design'], ...npx('figma-developer-mcp', '--stdio'), fields: [secret('FIGMA_API_KEY', 'Personal access token')] },
-  // --- Composio: 1000+ apps through one key. The key makes a session whose MCP address is kept locally. ---
-  { slug: 'composio', name: 'Composio (1000+ apps)', description: 'Gmail, Google Sheets, Instagram, YouTube, Notion and 1000+ more through one Composio key (free at composio.dev).', categories: ['productivity', 'communication', 'social'], command: '', args: [], fields: [secret('COMPOSIO_API_KEY', 'Composio API key')] },
   // --- no key needed ---
   { slug: 'memory', name: 'Knowledge graph memory', description: 'Long-term memory as a small knowledge graph.', categories: ['productivity'], ...npx('@modelcontextprotocol/server-memory'), fields: [] },
   { slug: 'thinking', name: 'Step-by-step thinking', description: 'Helps the Bot break hard problems into steps.', categories: ['productivity'], ...npx('@modelcontextprotocol/server-sequential-thinking'), fields: [] },
@@ -111,7 +109,6 @@ function specOf(r: Row): Spec | null {
   if (r.kind === 'mcp') return r.config.url ? { url: r.config.url, headers: r.config.headers } : { command: r.config.command, args: r.config.args ?? [], env: r.config.env ?? {} };
   const cat = CATALOG.find((c) => c.slug === r.slug);
   if (!cat) return null;
-  if (r.slug === 'composio') return r.config.mcpUrl ? { url: r.config.mcpUrl, headers: r.config.mcpHeaders ?? {} } : null;
   const values: Record<string, string> = r.config.values ?? {};
   const sub = (s: string) => s.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? '');
   const env: Record<string, string> = {};
@@ -140,19 +137,6 @@ async function close(slug: string) {
   try { await c?.client.close(); } catch { /* already gone */ }
 }
 
-/** Composio: create a tool-router session for this computer's one user; its MCP url + headers are what we connect to. */
-async function composioSession(apiKey: string): Promise<{ mcpUrl: string; mcpHeaders: Record<string, string> }> {
-  const r = await fetch('https://backend.composio.dev/api/v3.1/tool_router/session', {
-    method: 'POST', headers: { 'x-api-key': apiKey, 'content-type': 'application/json' },
-    body: JSON.stringify({ user_id: 'krishbot-local', mcp: true }), signal: AbortSignal.timeout(20_000),
-  }).catch((e) => { throw new Error(`Couldn’t reach Composio: ${e.message}`); });
-  const j: any = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'Composio refused that API key.' : `Composio answered ${r.status}: ${String(j?.error?.message ?? j?.message ?? '').slice(0, 200)}`);
-  const url = j.mcp?.url;
-  if (!url) throw new Error('Composio did not return an MCP address.');
-  return { mcpUrl: url, mcpHeaders: j.mcp?.headers ?? { 'x-api-key': apiKey } };
-}
-
 /** Save a catalog app with the user's values and check that it starts. */
 export async function connectCatalogApp(slug: string, values: Record<string, string>) {
   const cat = CATALOG.find((c) => c.slug === slug);
@@ -161,7 +145,6 @@ export async function connectCatalogApp(slug: string, values: Record<string, str
   if (missing.length) throw new Error(`Fill in: ${missing.map((f) => f.label).join(', ')}`);
   await close(slug);
   const config: any = { values };
-  if (slug === 'composio') Object.assign(config, await composioSession(values.COMPOSIO_API_KEY.trim()));
   const row: Row = { slug, name: cat.name, kind: 'catalog', config };
   try { await connect(slug, specOf(row)!); } catch (e: any) { await close(slug); throw new Error(`Couldn’t start ${cat.name}: ${e.message}. Is Node.js installed?`); }
   failedAt.delete(slug);

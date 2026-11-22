@@ -1,7 +1,7 @@
 {
-  "name": "krishbot",
+  "name": "openkrishbot",
   "private": true,
-  "description": "Krishbot: a team of AI agents on your own computer. Free, local, Mera AI.",
+  "description": "OpenKrishbot: a team of AI agents on your own computer. Free, local, Mera AI.",
   "workspaces": [
     "server",
     "web"
