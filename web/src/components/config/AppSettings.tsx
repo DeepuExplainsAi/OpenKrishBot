@@ -129,8 +129,26 @@ function GeneralSection() {
           ))}
         </div>
       </section>
+      <LanguageSection />
       <UpdateSection />
     </>
+  );
+}
+
+/** The language Bots reply in. Auto follows whatever the person writes. */
+function LanguageSection() {
+  const [data, setData] = useState<{ language: string; languages: string[] } | null>(null);
+  useEffect(() => { configApi.language().then(setData).catch(() => {}); }, []);
+  if (!data) return null;
+  return (
+    <section className="cfg-section">
+      <div className="cfg-section__label">Language</div>
+      <select className="text-input" value={data.language} onChange={(e) => configApi.setLanguage(e.target.value).then((r) => setData({ ...data, language: r.language }))} aria-label="Reply language">
+        <option value="auto">Auto: same as I write</option>
+        {data.languages.map((l) => <option key={l} value={l}>{l}</option>)}
+      </select>
+      <div className="cfg-field__hint">Bots reply in this language. Auto answers Hinglish in Hinglish and English in English.</div>
+    </section>
   );
 }
 

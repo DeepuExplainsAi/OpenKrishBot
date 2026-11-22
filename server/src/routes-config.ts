@@ -10,6 +10,7 @@ import { Readable } from 'node:stream';
 import { env } from './env.js';
 import { libraryRoot } from './paths.js';
 import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
+import { LANGUAGES, getLanguage, setLanguage } from './language.js';
 import { computerState, readyScreen, resetBotScreen } from './computer.js';
 import { box } from './box.js';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
@@ -312,6 +313,14 @@ configApi.get('/bots/:id/files/raw', (c) => {
 });
 
 // ---------- computer: screens, reset, hibernation ----------
+
+configApi.get('/language', (c) => c.json({ language: getLanguage(), languages: LANGUAGES }));
+configApi.put('/language', async (c) => {
+  const { language } = await c.req.json<{ language?: string }>().catch(() => ({ language: undefined }));
+  if (language !== 'auto' && !(LANGUAGES as readonly string[]).includes(language ?? '')) return c.json({ error: 'unknown language' }, 400);
+  setLanguage(language!);
+  return c.json({ language });
+});
 
 configApi.get('/computer/details', (c) => {
   const userId = c.get('user').id;

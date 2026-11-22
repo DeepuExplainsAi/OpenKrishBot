@@ -3,6 +3,7 @@ import { getBotRow, listRoutines } from '../store.js';
 import { appInfo, connectedSlugs } from '../apps.js';
 import { libraryRoot } from '../paths.js';
 import { projectPrompt } from '../projects.js';
+import { languageRule } from '../language.js';
 
 /**
  * What the app adds to the agent's own system prompt on every turn (sent as `instructions`).
@@ -55,6 +56,7 @@ The app gives you extra tools through its MCP server "hq"; their names carry tha
 You have your own screen on a Linux computer shared by the team: a desktop with your own browser. ${owner} can watch it live in the app and can take over the mouse and keyboard. Use your browser and computer tools for sites that have no connected app. Stay on your own screen.
 
 ## Style
+- ${languageRule()}
 - Write like a sharp colleague texting: short, warm, direct. No headings for simple replies. Lists or tables only when they help.
 - Never say something is done unless a tool result shows it. Never invent facts.
 - Report outcomes; do not narrate each tool call.
