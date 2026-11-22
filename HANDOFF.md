@@ -533,3 +533,10 @@ Done:
 - CI fixes: `scripts/copy-assets.mjs` copies shared-nod `.mjs` into dist; lockfile had lost the per-platform esbuild/rolldown/typescript binaries (Mac/Windows failed), restored. CI green on Windows, Mac, Linux, Docker.
 - NOT done yet: web UI for it (nod `voice-picker`, `voice-recorder`, `audio-player` + hooks), not run with real models (VM has 482 MB RAM / 1.1 GB disk).
 - Next: nod keep-out, learned-skills, ledger, proactivity, local-files, feedback-redaction; then Q3 Hindi UI; then release v1.9.1.
+
+### v1.9.1 part 7 — nod skills + memory pieces (CI green)
+- Copied from nod: `server/src/nod/learned-skills.ts` and `feedback-redaction.ts` (analytics calls removed; `tldts` dep), `ports/memory-curator.ts`.
+- nod's skill library: 24 `SKILL.md` skills (inbox, calendar, travel-less set, research, sales-and-crm, ... with `references/*.md`) copied into `server/skills/` as-is. Skipped: `nod`, `connected-apps`, `artifacts`, `visual-replies`, `schedules-and-watches`, `video-links`, `travel` (they need nod-only tools: nod, flights, artifacts); lines pointing to `visual-replies` removed.
+- Seam: `skill-library.ts` loads folders without manifest.json as catalog skills (CRLF-safe); `skillsPrompt` lists them as a "Skill library" (name + description); new bot tool `read_skill` (name, optional reference file, path-confined). Old trigger-term skills unchanged.
+- Flaky (not ours): `browser-tools` test once failed on Ubuntu with `duplicate column name: last_seen` (db.ts addColumn race between test processes); passes on rerun.
+- NOT copied (nod is Postgres + Fastify, would need a rewrite, not a copy): ledger, proactivity, local-files, keep-out SQL. Next: copy `proactivity` logic only if its pure parts separate; then Q3 Hindi UI, then release.
