@@ -28,16 +28,34 @@ export type Trigger =
 
 // ---------- per-bot serial queue ----------
 
-const queues = new Map<string, Promise<void>>();
+/** One FIFO per bot: a turn at a time. Waiting items can be listed and cancelled, and the whole queue paused. */
+interface QueueItem { id: number; label: string; run: () => Promise<void>; cancel: () => void }
+interface BotQueue { items: QueueItem[]; running: boolean; paused: boolean }
+const queues = new Map<string, BotQueue>();
 const aborts = new Map<string, AbortController>();
+let nextItemId = 1;
+
+const queueOf = (botId: string) => { let q = queues.get(botId); if (!q) queues.set(botId, (q = { items: [], running: false, paused: false })); return q; };
+
+function pump(botId: string) {
+  const q = queues.get(botId);
+  if (!q || q.running || q.paused) return;
+  const item = q.items.shift();
+  if (!item) { if (!q.paused) queues.delete(botId); return; }
+  q.running = true;
+  item.run().finally(() => { q.running = false; pump(botId); });
+}
+
+function push(botId: string, label: string, run: () => Promise<void>, cancel: () => void = () => {}) {
+  queueOf(botId).items.push({ id: nextItemId++, label, run, cancel });
+  hub.emit(getBotRow(botId)?.user_id, { type: 'queue', botId });
+  pump(botId);
+}
 
 export function enqueue(botId: string, trigger: Trigger) {
   // A new message from the user supersedes whatever is waiting for their approval.
   if (trigger.type === 'user') expireApprovals(botId);
-  const prev = queues.get(botId) ?? Promise.resolve();
-  const next = prev.then(() => runTurn(botId, trigger)).catch((e) => console.error('[agent] turn failed', botId, e));
-  queues.set(botId, next);
-  next.finally(() => { if (queues.get(botId) === next) queues.delete(botId); });
+  push(botId, triggerText(trigger).slice(0, 200), () => runTurn(botId, trigger).catch((e) => console.error('[agent] turn failed', botId, e)));
 }
 
 export function interrupt(botId: string) {
@@ -47,15 +65,28 @@ export function interrupt(botId: string) {
 
 /** Run a job in the bot's serial queue, after any running turn. */
 export function runInBotQueue<T>(botId: string, job: () => Promise<T>): Promise<T> {
-  const prev = queues.get(botId) ?? Promise.resolve();
-  const result = prev.then(job);
-  const next = result.then(() => {}, () => {});
-  queues.set(botId, next);
-  next.finally(() => { if (queues.get(botId) === next) queues.delete(botId); });
-  return result;
+  return new Promise<T>((resolve, reject) => push(botId, 'background job', () => job().then(resolve, reject).then(() => {}), () => reject(new Error('cancelled'))));
 }
 
-export const isBotBusy = (botId: string) => queues.has(botId);
+export const isBotBusy = (botId: string) => { const q = queues.get(botId); return !!q && (q.running || (!q.paused && q.items.length > 0)); };
+
+export interface QueueView { paused: boolean; running: boolean; pending: { id: number; label: string }[] }
+export function queueView(botId: string): QueueView {
+  const q = queues.get(botId);
+  return { paused: !!q?.paused, running: !!q?.running, pending: (q?.items ?? []).map((i) => ({ id: i.id, label: i.label })) };
+}
+export function pauseQueue(botId: string) { queueOf(botId).paused = true; }
+export function resumeQueue(botId: string) { const q = queues.get(botId); if (q) q.paused = false; pump(botId); }
+/** Drops waiting items (all, or one by id). The running turn is not touched; use interrupt for that. */
+export function cancelQueued(botId: string, id?: number): number {
+  const q = queues.get(botId);
+  if (!q) return 0;
+  const drop = q.items.filter((i) => id === undefined || i.id === id);
+  q.items = q.items.filter((i) => !drop.includes(i));
+  drop.forEach((i) => i.cancel());
+  if (!q.running && !q.items.length && !q.paused) queues.delete(botId);
+  return drop.length;
+}
 
 export function enqueueBotMessage(fromBotId: string, toBotId: string, text: string, depth: number) {
   const from = getBotRow(fromBotId);

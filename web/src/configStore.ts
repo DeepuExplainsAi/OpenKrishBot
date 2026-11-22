@@ -68,6 +68,7 @@ window.addEventListener('openkrishbot:event', (e) => {
   const { bump } = useConfigUI.getState();
   if (ev.type === 'tasks') { bump('tasks'); bump(`tasks:${ev.botId}`); }
   if (ev.type === 'memories') bump(`memories:${ev.botId}`);
+  if (ev.type === 'queue') bump(`queue:${ev.botId}`);
 });
 
 // Picking a bot anywhere (sidebar, search) goes back to its chat.

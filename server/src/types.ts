@@ -236,6 +236,7 @@ export type ServerEvent =
   | { type: 'tasks'; botId: string }
   | { type: 'issues' }
   | { type: 'goals' }
+  | { type: 'queue'; botId: string }
   | { type: 'projects' }
   | { type: 'vault' }
   | { type: 'memories'; botId: string }

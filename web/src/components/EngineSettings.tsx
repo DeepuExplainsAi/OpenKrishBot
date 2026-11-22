@@ -1,3 +1,4 @@
+import { useConfigUI } from '../configStore';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Bot, EngineInfo, EngineProvider } from '@shared/types';
 import { configApi, type BudgetInfo } from '../lib/configApi';
@@ -199,7 +200,25 @@ export function EngineSettings({ bot }: { bot: Bot }) {
       </div>
       {engine.status === 'error' && engine.error && <div className="engine__error">{engine.error}</div>}
       <BudgetRow botId={bot.id} />
+      <QueueRow botId={bot.id} />
       <ScriptsRow botId={bot.id} />
+    </div>
+  );
+}
+
+/** Messages waiting for this Bot, in order: pause the line or drop waiting ones. */
+function QueueRow({ botId }: { botId: string }) {
+  const version = useConfigUI((s) => s.versions[`queue:${botId}`] ?? 0);
+  const [q, setQ] = useState<Awaited<ReturnType<typeof configApi.queue>> | null>(null);
+  useEffect(() => { configApi.queue(botId).then(setQ).catch(() => setQ(null)); }, [botId, version]);
+  if (!q || (!q.paused && !q.pending.length)) return null;
+  const act = (a: 'pause' | 'resume' | 'cancel', id?: number) => configApi.queueAction(botId, a, id).then(setQ).catch(() => {});
+  return (
+    <div className="engine__meta" style={{ flexWrap: 'wrap', gap: 6 }}>
+      <span>Waiting: {q.pending.length}{q.paused ? ' (paused)' : ''}</span>
+      <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => act(q.paused ? 'resume' : 'pause')}>{q.paused ? 'Resume' : 'Pause'}</button>
+      {q.pending.length > 0 && <button type="button" className="cfg-btn cfg-btn--ghost-danger" onClick={() => act('cancel')}>Cancel all</button>}
+      {q.pending.map((p) => <button key={p.id} type="button" className="cfg-btn cfg-btn--ghost" title="Cancel this one" onClick={() => act('cancel', p.id)}>✕ {p.label.slice(0, 40)}</button>)}
     </div>
   );
 }

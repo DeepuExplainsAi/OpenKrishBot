@@ -384,3 +384,10 @@ NOT tested: a real model calling save_skill/publish_site; browser rendering of t
 - `vault.ts` (+`routes-vault.ts`, Settings → Vault): AES-256-GCM, key `~/.krishbot/vault.key`. Every item is bound to an https site. Tools: `list_secrets` (names), `secret_request` (GET/HEAD only, key sent only to the saved site, no redirects), `browser_fill_secret` (website login typed into a field on the saved site only). `scrubVault` runs on every Krish-engine tool result. `danger.ts` now asks approval for `vault.key`/`bothq.db` paths.
 - Idea credit: Rakazo (Apache-2.0) bot-secrets design; no code copied.
 - Known gaps (from review): tool args are not scrubbed in transcript/audit; Hermes/MCP path does not run `scrubVault`; screenshots can show a typed password; a bot with `terminal` can still read vault.key (same OS user); sidebar company names refresh only on roster change.
+
+## P18 — Message queue with pause / cancel (v1.4.0)
+- `server/src/agent/loop.ts`: per-bot FIFO (`push`/`pump`) replaces the promise chain. `pauseQueue`, `resumeQueue`, `cancelQueued(id?)`, `queueView`. Cancelled background jobs reject with "cancelled".
+- Routes: `GET /api/bots/:id/queue`, `POST /api/bots/:id/queue/{pause|resume|cancel}` (cancel body `{id?}`); SSE event `queue`.
+- UI: `QueueRow` in `EngineSettings.tsx` (shown only when something waits or paused).
+- Test: `server/test/queue.test.mts`. Idea from the openbot README only; code written independently.
+- Not done: theme palette files, Docker image, remote server mode.

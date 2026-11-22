@@ -9,7 +9,7 @@ import { hub } from './lib/hub.js';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { createSession, destroySession, isLocalHost, isLoopbackAddress, isOwnerKey, requireUser, userFromCookieHeader, type AuthVars } from './lib/auth.js';
 import { allLive, appendRow, clearConversation, emitBot, getBot, getBotRow, getRow, listBots, listRoutines, listRows, listTasks, toRoutine, toTask, updateRow } from './store.js';
-import { enqueue, interrupt, resolveApproval } from './agent/loop.js';
+import { cancelQueued, enqueue, interrupt, pauseQueue, queueView, resolveApproval, resumeQueue } from './agent/loop.js';
 import { computerState, ensureComputer, forgetBotFiles, refreshComputer, releaseScreen, suspendComputer } from './computer.js';
 import { assignEngine, provisionEngine, removeEngine, syncPersona } from './engine.js';
 import { deleteMemory, listMemories, memoryBot } from './engine-memory.js';
@@ -268,6 +268,23 @@ api.post('/bots/:id/interrupt', (c) => {
   if (!b) return c.json({ error: 'not found' }, 404);
   interrupt(b.id);
   return c.json({ ok: true });
+});
+
+api.get('/bots/:id/queue', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  return b ? c.json(queueView(b.id)) : c.json({ error: 'not found' }, 404);
+});
+
+api.post('/bots/:id/queue/:action', async (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  const action = c.req.param('action');
+  if (action === 'pause') pauseQueue(b.id);
+  else if (action === 'resume') resumeQueue(b.id);
+  else if (action === 'cancel') cancelQueued(b.id, (await c.req.json().catch(() => ({}))).id);
+  else return c.json({ error: 'unknown action' }, 400);
+  hub.emit(c.get('user').id, { type: 'queue', botId: b.id });
+  return c.json(queueView(b.id));
 });
 
 api.post('/bots/:id/fresh', (c) => {
