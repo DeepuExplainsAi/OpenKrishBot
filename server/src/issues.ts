@@ -1,13 +1,14 @@
 import { db, now } from './db.js';
 import { newId } from './lib/ids.js';
 import { hub } from './lib/hub.js';
+import './goals.js'; // the goals table (createIssue checks goal ids against it)
 
 /**
  * Paperclip-style issues for a team of local bots: assignee, parent/child delegation, and an atomic
  * checkout so two bots (or a bot and a heartbeat) never work the same issue. Single user, no companies.
  */
 export type IssueStatus = 'todo' | 'in_progress' | 'blocked' | 'done' | 'cancelled';
-export interface Issue { id: string; title: string; body: string; status: IssueStatus; assigneeBotId: string | null; createdByBotId: string | null; parentId: string | null; checkoutBotId: string | null; result: string; updatedAt: number }
+export interface Issue { id: string; title: string; body: string; status: IssueStatus; assigneeBotId: string | null; createdByBotId: string | null; parentId: string | null; checkoutBotId: string | null; result: string; goalId: string | null; updatedAt: number }
 
 db.exec(`CREATE TABLE IF NOT EXISTS issues (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '',
@@ -16,6 +17,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS issues (
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
 )`);
 
+try { db.exec('ALTER TABLE issues ADD COLUMN goal_id TEXT'); } catch (e: any) { if (!/duplicate column/i.test(String(e?.message))) throw e; }
 try { db.exec('ALTER TABLE issues ADD COLUMN wakes INTEGER NOT NULL DEFAULT 0'); } catch (e: any) { if (!/duplicate column/i.test(String(e?.message))) throw e; }
 
 db.exec(`CREATE TABLE IF NOT EXISTS issue_comments (
@@ -47,7 +49,7 @@ export function addComment(userId: string, issueId: string, authorBotId: string 
   return { ok: true, comment: toComment(db.prepare('SELECT * FROM issue_comments WHERE id=?').get(id)) };
 }
 
-const to = (r: any): Issue => ({ id: r.id, title: r.title, body: r.body, status: r.status, assigneeBotId: r.assignee_bot, createdByBotId: r.created_by_bot, parentId: r.parent_id, checkoutBotId: r.checkout_bot, result: r.result, updatedAt: r.updated_at });
+const to = (r: any): Issue => ({ id: r.id, title: r.title, body: r.body, status: r.status, assigneeBotId: r.assignee_bot, createdByBotId: r.created_by_bot, parentId: r.parent_id, checkoutBotId: r.checkout_bot, result: r.result, goalId: r.goal_id ?? null, updatedAt: r.updated_at });
 const touch = (userId: string) => hub.emit(userId, { type: 'issues' });
 const botName = (id: string | null) => (id ? (db.prepare('SELECT name FROM bots WHERE id=?').get(id) as any)?.name ?? id : 'nobody');
 
@@ -56,15 +58,17 @@ export const initIssues = (fn: typeof wake) => { wake = fn; };
 
 const wakeText = (i: Issue) => `Issue ${i.id} is assigned to you: "${i.title}".${i.body ? `\n${i.body}` : ''}\nCall checkout_issue first, do the work, then complete_issue with the result (or block_issue if you are stuck).`;
 
-export function createIssue(o: { userId: string; title: string; body?: string; assigneeBotId?: string | null; parentId?: string | null; createdByBotId?: string | null }): Issue {
+export function createIssue(o: { userId: string; title: string; body?: string; assigneeBotId?: string | null; parentId?: string | null; createdByBotId?: string | null; goalId?: string | null }): Issue {
   const title = o.title.trim();
   if (!title) throw new Error('An issue needs a title.');
   if (o.parentId && !(db.prepare('SELECT 1 FROM issues WHERE id=? AND user_id=?').get(o.parentId, o.userId))) throw new Error(`No issue ${o.parentId}.`);
   // bots handing work to bots can't snowball: at most 40 open issues at once
   if (o.createdByBotId && (db.prepare("SELECT COUNT(*) n FROM issues WHERE user_id=? AND status IN ('todo','in_progress','blocked')").get(o.userId) as any).n >= 40) throw new Error('There are already 40 open issues. Finish some first.');
+  const goalId = o.goalId ?? (o.parentId ? (db.prepare('SELECT goal_id g FROM issues WHERE id=?').get(o.parentId) as any)?.g ?? null : null); // sub-issues stay on their parent's goal
+  if (goalId && !db.prepare('SELECT 1 FROM goals WHERE id=? AND user_id=?').get(goalId, o.userId)) throw new Error(`No goal ${goalId}.`);
   const id = newId('iss');
-  db.prepare('INSERT INTO issues(id,user_id,title,body,assignee_bot,created_by_bot,parent_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)')
-    .run(id, o.userId, title, o.body ?? '', o.assigneeBotId ?? null, o.createdByBotId ?? null, o.parentId ?? null, now(), now());
+  db.prepare('INSERT INTO issues(id,user_id,title,body,assignee_bot,created_by_bot,parent_id,goal_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    .run(id, o.userId, title, o.body ?? '', o.assigneeBotId ?? null, o.createdByBotId ?? null, o.parentId ?? null, goalId, now(), now());
   const issue = to(db.prepare('SELECT * FROM issues WHERE id=?').get(id));
   touch(o.userId);
   if (issue.assigneeBotId) wakeAssignee(issue);

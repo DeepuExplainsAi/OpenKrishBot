@@ -50,7 +50,10 @@ export interface StepResult { status: 'pending' | 'running' | 'done' | 'failed' 
 export interface FlowRun { id: string; flowId: string; input: string; status: 'running' | 'done' | 'failed' | 'stopped'; results: Record<string, StepResult> }
 
 export type IssueStatus = 'todo' | 'in_progress' | 'blocked' | 'done' | 'cancelled';
-export interface Issue { id: string; title: string; body: string; status: IssueStatus; assigneeBotId: string | null; parentId: string | null; checkoutBotId: string | null; result: string; updatedAt: number }
+export type GoalLevel = 'mission' | 'project' | 'task';
+export type GoalStatus = 'planned' | 'active' | 'achieved' | 'cancelled';
+export interface Goal { id: string; title: string; description: string; level: GoalLevel; status: GoalStatus; parentId: string | null; ownerBotId: string | null; done: number; total: number }
+export interface Issue { id: string; title: string; body: string; status: IssueStatus; assigneeBotId: string | null; parentId: string | null; checkoutBotId: string | null; result: string; goalId: string | null; updatedAt: number }
 
 export interface BudgetInfo { dailyTokens: number | null; today: { tokensIn: number; tokensOut: number; calls: number } }
 
@@ -70,7 +73,12 @@ export const configApi = {
   budget: (botId: string) => req<BudgetInfo>('GET', `/bots/${botId}/budget`),
   setBudget: (botId: string, dailyTokens: number | null) => req<BudgetInfo>('PUT', `/bots/${botId}/budget`, { dailyTokens }),
   issues: () => req<{ issues: Issue[] }>('GET', '/issues'),
-  addIssue: (i: { title: string; body?: string; assigneeBotId?: string | null }) => req<{ issue: Issue }>('POST', '/issues', i),
+  goals: () => req<{ goals: Goal[] }>('GET', '/goals'),
+  addGoal: (g: { title: string; description?: string; level?: GoalLevel; parentId?: string | null; ownerBotId?: string | null }) => req<{ goal: Goal }>('POST', '/goals', g),
+  patchGoal: (id: string, p: Partial<Pick<Goal, 'title' | 'description' | 'level' | 'status' | 'parentId' | 'ownerBotId'>>) => req<{ goal: Goal }>('PATCH', `/goals/${id}`, p),
+  deleteGoal: (id: string) => req<{ ok: true }>('DELETE', `/goals/${id}`),
+  linkIssue: (issueId: string, goalId: string | null) => req<{ ok: true }>('PUT', '/goals/link', { issueId, goalId }),
+  addIssue: (i: { title: string; body?: string; assigneeBotId?: string | null; goalId?: string | null }) => req<{ issue: Issue }>('POST', '/issues', i),
   patchIssue: (id: string, p: { status?: IssueStatus; assigneeBotId?: string | null }) => req<{ issue: Issue }>('PATCH', `/issues/${id}`, p),
   issueComments: (id: string) => req<{ comments: { id: string; author: string; text: string; createdAt: number }[] }>('GET', `/issues/${id}/comments`),
   addIssueComment: (id: string, text: string) => req<{ comment: { id: string } }>('POST', `/issues/${id}/comments`, { text }),

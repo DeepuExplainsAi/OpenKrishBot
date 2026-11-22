@@ -1,3 +1,4 @@
+import { goalsFor } from '../goals.js';
 import { addComment, checkout, createIssue, finish, issuesFor, listComments } from '../issues.js';
 import { db, now } from '../db.js';
 import { activePlan, createPlan, markStep, render, saveSteps } from '../plan.js';
@@ -222,7 +223,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: 'create_issue',
     description: "Create an issue (a unit of work) and optionally assign it to another Bot by name; they are woken up to do it and you are told when it is done. Pass parent_id to split a bigger issue you hold into sub-issues.",
-    parameters: obj({ title: { type: 'string' }, details: { type: 'string' }, assignee: { type: 'string', description: 'Bot name; omit to leave unassigned' }, parent_id: { type: 'string' } }, ['title']),
+    parameters: obj({ title: { type: 'string' }, details: { type: 'string' }, assignee: { type: 'string', description: 'Bot name; omit to leave unassigned' }, parent_id: { type: 'string' }, goal_id: { type: 'string', description: 'The goal this work serves (see list_my_goals)' } }, ['title']),
     activity: 'messaging_named',
     label: 'Creating an issue',
     impl: async (a, ctx) => {
@@ -233,10 +234,18 @@ export const TOOLS: ToolDef[] = [
         assigneeBotId = t.id;
       }
       try {
-        const i = createIssue({ userId: ctx.userId, title: String(a.title), body: a.details, assigneeBotId, parentId: a.parent_id, createdByBotId: ctx.botId });
+        const i = createIssue({ userId: ctx.userId, title: String(a.title), body: a.details, assigneeBotId, parentId: a.parent_id, goalId: a.goal_id, createdByBotId: ctx.botId });
         return { output: JSON.stringify({ issue_id: i.id, assigned_to: a.assignee ?? null }), summary: `Issue: ${i.title}` };
       } catch (e: any) { return { output: e.message }; }
     },
+  },
+  {
+    name: 'list_my_goals',
+    description: 'The goals you own. Tie issues you create to them with goal_id so progress shows on the goal.',
+    parameters: obj({}, []),
+    activity: 'working',
+    label: 'Checking my goals',
+    impl: async (_a, ctx) => ({ output: JSON.stringify(goalsFor(ctx.botId)) }),
   },
   {
     name: 'list_my_issues',

@@ -44,6 +44,7 @@ The app gives you extra tools through its MCP server "hq"; their names carry tha
 - send_to_bot hands work to another agent on the team or asks them something. Their reply comes back to you as a message. post_to_group posts into a group chat you belong to.
 - comment_issue adds a note to an issue (or lists notes when you give no text); use it for questions and progress instead of messaging.
 - Workflows are saved multi-agent flows. list_workflows shows them; run_workflow starts one (optional input) and runs in the background.
+- Goals are the bigger picture (list_my_goals). Pass goal_id to create_issue so finished issues move the goal's progress.
 - Issues are shared work items. create_issue (optionally assigned to another agent, optionally with parent_id to split work) wakes the assignee; they checkout_issue, do it, then complete_issue or block_issue and you are told. If you are woken for an issue, always checkout_issue first. list_my_issues shows yours.
 - stay_silent ends a turn without telling ${owner} anything. Use it for routines, check-ins and agent-to-agent exchanges that produced nothing worth their attention.
 

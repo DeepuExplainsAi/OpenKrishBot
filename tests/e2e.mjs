@@ -226,6 +226,24 @@ try {
     ok(g.flow?.schedule === '0 9 * * 1-5', 'schedule not saved');
   });
 
+  await test('goals: tree, owner, issue link, progress, cycle refused, delete lifts children', async () => {
+    const m = (await api('POST', '/api/goals', { title: 'Mission', ownerBotId: botA })).goal;
+    ok(m?.id && m.level === 'mission', 'mission not created');
+    const p = (await api('POST', '/api/goals', { title: 'Part', parentId: m.id })).goal;
+    ok(p?.parentId === m.id, 'child not under parent');
+    ok((await api('PATCH', `/api/goals/${m.id}`, { parentId: p.id })).status === 400, 'cycle accepted');
+    ok((await api('POST', '/api/goals', { title: 'x', ownerBotId: 'nobody' })).status === 400, 'unknown owner accepted');
+    const i = await api('POST', '/api/issues', { title: 'Goal work', goalId: p.id });
+    ok(i.issue?.goalId === p.id, 'issue not linked at create');
+    ok((await api('POST', '/api/issues', { title: 'bad', goalId: 'goal_nope' })).status === 400, 'unknown goal accepted on issue');
+    const before = (await api('GET', '/api/goals')).goals.find((g) => g.id === m.id);
+    ok(before.total === 1 && before.done === 0, `rollup before: ${JSON.stringify(before)}`);
+    await api('PATCH', `/api/issues/${i.issue.id}`, { status: 'cancelled' });
+    ok((await api('GET', '/api/goals')).goals.find((g) => g.id === m.id).total === 0, 'cancelled issue still counted');
+    ok((await api('DELETE', `/api/goals/${m.id}`)).ok, 'delete failed');
+    ok((await api('GET', '/api/goals')).goals.find((g) => g.id === p.id).parentId === null, 'child not lifted');
+  });
+
   await test('issues: assign wakes bot, comment reaches it, state visible', async () => {
     const i = await api('POST', '/api/issues', { title: 'Write report', assigneeBotId: botB });
     ok(i.issue?.id, JSON.stringify(i));

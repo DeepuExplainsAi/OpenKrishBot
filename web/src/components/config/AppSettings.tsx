@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
+import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type Goal, type GoalLevel, type GoalStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -20,6 +20,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'phone', label: 'Phone' },
   { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'telegram', label: 'Telegram' },
+  { id: 'goals', label: 'Goals' },
   { id: 'issues', label: 'Issues' },
   { id: 'workflows', label: 'Workflows' },
   { id: 'skills', label: 'Skills' },
@@ -59,6 +60,7 @@ export function AppSettings() {
           {section === 'phone' && <PhoneSection />}
           {section === 'whatsapp' && <WhatsAppSection />}
           {section === 'telegram' && <TelegramSection />}
+          {section === 'goals' && <GoalsSection />}
           {section === 'issues' && <IssuesSection />}
           {section === 'skills' && <SkillsSection />}
           {section === 'workflows' && <WorkflowsSection />}
@@ -583,18 +585,91 @@ function WorkflowsSection() {
 
 const ISSUE_LABEL: Record<IssueStatus, string> = { todo: 'To do', in_progress: 'In progress', blocked: 'Blocked', done: 'Done', cancelled: 'Cancelled' };
 
+const GOAL_STATUS_LABEL: Record<GoalStatus, string> = { planned: 'Planned', active: 'Active', achieved: 'Achieved', cancelled: 'Cancelled' };
+const GOAL_LEVEL_LABEL: Record<GoalLevel, string> = { mission: 'Mission', project: 'Project', task: 'Task' };
+
+function GoalsSection() {
+  const bots = useStore((s) => s.bots).filter((b) => b.kind !== 'room');
+  const [goals, setGoals] = useState<Goal[] | null>(null);
+  const [title, setTitle] = useState('');
+  const [parent, setParent] = useState('');
+  const [owner, setOwner] = useState('');
+  const [err, setErr] = useState('');
+  const load = useCallback(() => configApi.goals().then((r) => setGoals(r.goals)).catch(() => setGoals([])), []);
+  useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
+  const act = (p: Promise<unknown>) => p.then(() => { setErr(''); load(); }).catch((e) => setErr(e.message));
+  const nameOf = (id: string | null) => bots.find((b) => b.id === id)?.name ?? '';
+  const add = () => act(configApi.addGoal({ title, parentId: parent || null, ownerBotId: owner || null }).then(() => setTitle('')));
+
+  // depth-first order, so a goal sits right under its parent
+  const rows: { g: Goal; depth: number }[] = [];
+  const walk = (parentId: string | null, depth: number, seen: Set<string>) => {
+    for (const g of goals ?? []) if (g.parentId === parentId && !seen.has(g.id)) { seen.add(g.id); rows.push({ g, depth }); walk(g.id, depth + 1, seen); }
+  };
+  walk(null, 0, new Set());
+
+  return (
+    <>
+      <PageHead title="Goals" sub="What your team is working towards. Give a goal to a Bot, tie issues to it, and watch the progress fill as issues are done." />
+      <section className="cfg-section">
+        <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
+          <input className="text-input" placeholder="A goal, e.g. Launch the website" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select className="text-input" value={parent} onChange={(e) => setParent(e.target.value)} aria-label="Under goal">
+              <option value="">Top level</option>
+              {(goals ?? []).map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
+            </select>
+            <select className="text-input" value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Owner">
+              <option value="">No owner</option>
+              {bots.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <button type="button" className="cfg-btn cfg-btn--primary" disabled={!title.trim()} onClick={add}>Add</button>
+          </div>
+          {err && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{err}</div>}
+        </div>
+      </section>
+      <section className="cfg-section">
+        <div className="cfg-card">
+          {goals === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : rows.length === 0 ? <div className="cfg-empty cfg-empty--flat">No goals yet.</div> : rows.map(({ g, depth }) => (
+            <div key={g.id} className="cfg-row" style={{ alignItems: 'flex-start', paddingLeft: 12 + depth * 20 }}>
+              <div className="cfg-row__text">
+                <div className="cfg-row__title">{g.title}</div>
+                <div className="cfg-row__sub">
+                  {GOAL_LEVEL_LABEL[g.level]}{nameOf(g.ownerBotId) ? ` · ${nameOf(g.ownerBotId)}` : ''} · {g.total ? `${g.done}/${g.total} issues done` : 'no issues yet'}
+                </div>
+                {g.total > 0 && <div style={{ height: 4, borderRadius: 2, background: 'var(--border)', marginTop: 6, maxWidth: 220 }}><div style={{ width: `${Math.round((g.done / g.total) * 100)}%`, height: '100%', borderRadius: 2, background: 'var(--primary)', transition: 'width .3s' }} /></div>}
+              </div>
+              <select className="text-input" style={{ width: 110 }} value={g.ownerBotId ?? ''} onChange={(e) => act(configApi.patchGoal(g.id, { ownerBotId: e.target.value || null }))} aria-label="Owner">
+                <option value="">No owner</option>
+                {bots.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+              <select className="text-input" style={{ width: 110 }} value={g.status} onChange={(e) => act(configApi.patchGoal(g.id, { status: e.target.value as GoalStatus }))} aria-label="Status">
+                {(Object.keys(GOAL_STATUS_LABEL) as GoalStatus[]).map((s) => <option key={s} value={s}>{GOAL_STATUS_LABEL[s]}</option>)}
+              </select>
+              <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Delete" onConfirm={() => act(configApi.deleteGoal(g.id))}>Delete</ConfirmButton>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
 function IssuesSection() {
+  const [goals, setGoals] = useState<Goal[]>([]);
+  useEffect(() => { configApi.goals().then((r) => setGoals(r.goals)).catch(() => {}); }, []);
   const bots = useStore((s) => s.bots).filter((b) => b.kind !== 'room');
   const [issues, setIssues] = useState<Issue[] | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [assignee, setAssignee] = useState('');
+  const [goalId, setGoalId] = useState('');
   const [err, setErr] = useState('');
   const load = useCallback(() => configApi.issues().then((r) => setIssues(r.issues)).catch(() => setIssues([])), []);
   useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, [load]);
   const nameOf = (id: string | null) => bots.find((b) => b.id === id)?.name ?? (id ? 'Unknown bot' : 'Nobody');
   const act = (p: Promise<unknown>) => p.then(() => { setErr(''); load(); }).catch((e) => setErr(e.message));
-  const add = () => act(configApi.addIssue({ title, body, assigneeBotId: assignee || null }).then(() => { setTitle(''); setBody(''); }));
+  const add = () => act(configApi.addIssue({ title, body, assigneeBotId: assignee || null, goalId: goalId || null }).then(() => { setTitle(''); setBody(''); }));
 
   return (
     <>
@@ -608,6 +683,12 @@ function IssuesSection() {
               <option value="">Unassigned</option>
               {bots.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
+            {goals.length > 0 && (
+              <select className="text-input" value={goalId} onChange={(e) => setGoalId(e.target.value)} aria-label="Goal">
+                <option value="">No goal</option>
+                {goals.filter((g) => g.status === 'active' || g.status === 'planned').map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
+              </select>
+            )}
             <button type="button" className="cfg-btn cfg-btn--primary" disabled={!title.trim()} onClick={add}>Create</button>
           </div>
           {err && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{err}</div>}
@@ -630,6 +711,12 @@ function IssuesSection() {
               <select className="text-input" style={{ width: 120 }} value={i.status} onChange={(e) => act(configApi.patchIssue(i.id, { status: e.target.value as IssueStatus }))} aria-label="Status">
                 {(Object.keys(ISSUE_LABEL) as IssueStatus[]).map((s) => <option key={s} value={s}>{ISSUE_LABEL[s]}</option>)}
               </select>
+              {goals.length > 0 && (
+                <select className="text-input" style={{ width: 120 }} value={i.goalId ?? ''} onChange={(e) => act(configApi.linkIssue(i.id, e.target.value || null))} aria-label="Goal">
+                  <option value="">No goal</option>
+                  {goals.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
+                </select>
+              )}
               <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Delete" onConfirm={() => act(configApi.deleteIssue(i.id))}>Delete</ConfirmButton>
               <IssueNotes issueId={i.id} nameOf={nameOf} />
             </div>

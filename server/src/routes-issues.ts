@@ -17,7 +17,7 @@ issuesApi.post('/', async (c) => {
   const userId = c.get('user').id;
   const assignee = ownBotId(userId, b.assigneeBotId);
   if (assignee === false) return c.json({ error: 'Unknown bot.' }, 400);
-  try { return c.json({ issue: createIssue({ userId, title: String(b.title ?? ''), body: b.body, assigneeBotId: assignee, parentId: b.parentId }) }); }
+  try { return c.json({ issue: createIssue({ userId, title: String(b.title ?? ''), body: b.body, assigneeBotId: assignee, parentId: b.parentId, goalId: b.goalId || null }) }); }
   catch (e: any) { return c.json({ error: e.message }, 400); }
 });
 

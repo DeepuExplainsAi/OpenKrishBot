@@ -251,3 +251,9 @@ Not fixable here: Ollama `num_ctx`. Its OpenAI-compatible endpoint ignores it; t
 Added: `plan close` command (a Bot can drop an unfinished plan); the invisible stream retry now waits 1.5 s; THIRD_PARTY_NOTICES.md credits OpenManus, Paperclip, OpenMausBot (no enterprise code), OpenBot. Credits live only in that file, not in the UI.
 `plan close` has no test.
 Left as is on purpose: reasoning is not replayed to the model (providers differ; replay can break some); mid-stream error payloads get one invisible retry (only when nothing was shown yet).
+
+## P12j: goals tree (2026-11-22)
+Paperclip's goals, adapted to SQLite for one user. `server/src/goals.ts` (table, tree, rollup progress, cycle/ownership checks, delete lifts children), `routes-goals.ts` (/api/goals, PUT /api/goals/link), `issues.goal_id` (sub-issues inherit the parent's goal), Bot tool `list_my_goals` + `goal_id` on `create_issue`, UI: Settings → Goals (tree, owner, status, progress bar) and a goal chooser on Issues.
+Tests: goals.test.mts (4), e2e "goals" (HTTP, 20 total). Unit 79, e2e 20, typecheck/build clean.
+NOT verified: the Goals screen in a real browser (no Chrome here; only typechecked).
+Still not built: per-step PlanningFlow executor, Slack/Discord, handoff cards, money cost tracking, offline Whisper, skills marketplace.
