@@ -434,7 +434,7 @@ Done:
 - Not done: Docker CI job (token lacks `workflow` scope), real Docker build.
 
 ## P28 — audit args scrubbed
-- `krish/engine.ts` `runTool`: audit-log args now go through `scrubVault`, so a vault value typed into a tool call is not written to the audit file. Still open: transcript rows, Hermes/MCP path.
+- `krish/engine.ts` `runTool`: audit-log args now go through `scrubVault`, so a vault value typed into a tool call is not written to the audit file. (see P34 for transcript and cards).
 - v1.4.0 released (8 assets, desktop workflow green).
 
 ## P29 — egress guard (from suparagent idea, written from scratch)
@@ -459,3 +459,11 @@ Done:
 - `flow.ts` `RunOptions.resume`: steps that are `done` in an earlier run keep their output; the rest run again and see the old outputs via `{{id}}`. `POST /api/flows/runs/:runId/resume` (only failed/stopped runs, one run per flow at a time) -> new run. UI: "Continue (keeps finished steps)" next to a failed/stopped run (Settings -> Workflows). Test in `flow.test.mts`.
 - Works after a crash too: the restart marks the run failed but keeps saved step results. A step that was mid-run when the crash hit runs again, so its side effects can happen twice.
 - NOT checked in a browser (UI button only typechecked).
+
+## P34 — send and switch model while a job runs; vault scrub in transcript
+- Owner request: while a bot works, the user must still be able to send messages and change the provider/model, and the running job must finish first. Checked, not rebuilt: the server already queues (`enqueue` / per-bot FIFO from P18), and `PATCH /bots/:id/engine` works any time. The composer never blocked sending, but now says so in the placeholder ("is working. Type anyway: it goes next in line"). Each turn reads the bot's model when it starts, so a running job keeps its model and the queued message uses the new one.
+- New e2e test (`tests/e2e.mjs`): slow job running -> switch model -> send 2 messages -> queue shows 2 waiting -> first job finishes on the old model, then both queued ones answer on the new model, in order.
+- Vault: assistant text, tool-call args and approval cards (detail + args) now go through `scrubVault` before they are written to the transcript. e2e checks the transcript and audit. The user's own messages are left as typed.
+- "Bolt" in OpenMausBot is only a test bot's name, not a system (checked by search), so nothing was ported for it.
+- Still open: vault in the Hermes/MCP path; screenshots can show a typed password; a bot with `terminal` can read vault.key.
+- Memory note: the VM has ~480 MB, so build/typecheck need `NODE_OPTIONS=--max-old-space-size=700` and not two at once.

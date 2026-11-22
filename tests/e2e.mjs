@@ -58,6 +58,8 @@ const fake = http.createServer((req, res) => {
       return res.end();
     }
     if (/Break this goal into workflow steps/.test(text)) return sseChunks(res, [{ content: '[{"id":"a","bot":"Alpha","prompt":"research {{input}}"},{"id":"b","bot":"Beta","prompt":"write {{a}}","needs":["a"]}]' }]);
+    if (/SLOW/.test(text)) { const model = JSON.parse(raw).model; return setTimeout(() => sseChunks(res, [{ content: `SLOW-DONE[${model}]` }]), 1500); }
+    if (/QUICK/.test(text)) return sseChunks(res, [{ content: `QUICK-DONE[${JSON.parse(raw).model}]` }]);
     const cmd = text.match(/RUN (.+)$/)?.[1];
     if (cmd) return sseChunks(res, [{ tool_calls: [{ index: 0, id: 'call_1', function: { name: 'terminal', arguments: JSON.stringify({ command: cmd }) } }] }]);
     sseChunks(res, [{ content: `ECHO[${text.replace(/^[\s\S]*?(?=\S)/, '').slice(0, 200)}]` }]);
@@ -120,6 +122,22 @@ try {
   await test('chat: bot answers', async () => {
     await say(botA, 'hello there');
     await until(async () => (await assistantTexts(botA)).some((t) => t.includes('ECHO[hello there')), 20000, 'reply');
+  });
+
+  await test('messages and model changes during a running job: the job finishes, later messages follow in order on the new model', async () => {
+    await say(botB, 'SLOW first job');
+    await until(async () => (await api('GET', `/api/bots/${botB}/queue`)).running, 5000, 'job running');
+    ok((await api('PATCH', `/api/bots/${botB}/engine`, { provider: 'custom', model: 'fake2' })).status === 200, 'switch model while running');
+    await say(botB, 'QUICK second');
+    await say(botB, 'QUICK third');
+    const q = await api('GET', `/api/bots/${botB}/queue`);
+    ok(q.running && q.pending.length === 2, `queue should show 2 waiting, got ${JSON.stringify(q)}`);
+    await until(async () => (await assistantTexts(botB)).some((t) => t.includes('QUICK-DONE') && t.includes('fake2')), 20000, 'queued message answered');
+    const t = await assistantTexts(botB);
+    const at = (needle) => t.findIndex((x) => x.includes(needle));
+    ok(at('SLOW-DONE[fake]') >= 0, `first job should finish on the old model: ${JSON.stringify(t)}`);
+    ok(at('SLOW-DONE') < at('QUICK-DONE'), 'order');
+    await api('PATCH', `/api/bots/${botB}/engine`, { provider: 'custom', model: 'fake' });
   });
 
   await test('tool use asks for approval; allow runs it and returns the output', async () => {
@@ -270,6 +288,18 @@ try {
     const imp = (await api('POST', '/api/projects/import', data)).project;
     ok(imp?.name === 'Shop Co (imported)' && imp.botIds.length === 1, 'import failed');
     ok((await api('POST', '/api/projects/import', { x: 1 })).status === 400, 'bad file accepted');
+    // the model echoes a secret it was told, and runs a tool with it: neither may reach the transcript or audit log
+    await say(botB, 'my key is SUPER-SECRET-VALUE-1');
+    await until(async () => (await assistantTexts(botB)).some((t) => t.includes('my key is')), 20000, 'echo');
+    ok(!(await assistantTexts(botB)).some((t) => t.includes('SUPER-SECRET')), 'secret in assistant text');
+    ok((await assistantTexts(botB)).some((t) => t.includes('[vault secret hidden]')), 'secret not replaced');
+    await say(botB, 'RUN echo SUPER-SECRET-VALUE-1');
+    const ap = await until(async () => (await rows(botB)).find((r) => r.body.card === 'approval' && r.body.status !== 'resolved'), 20000, 'approval');
+    await api('POST', `/api/approvals/${ap.body.approvalId}`, { decision: 'allow' });
+    await until(async () => (await assistantTexts(botB)).some((t) => t.includes('RESULT')), 20000, 'tool result');
+    const leaks = (await rows(botB)).filter((r) => !(r.body.role === 'user') && JSON.stringify(r.body).includes('SUPER-SECRET')).map((r) => `${r.kind}/${r.body.role ?? r.body.name ?? r.body.type}`);
+    ok(!leaks.length, `secret in transcript rows: ${leaks.join(', ')}`);
+    ok(!JSON.stringify(await api('GET', '/api/audit')).includes('SUPER-SECRET'), 'secret in audit');
     ok((await api('DELETE', '/api/vault/shop')).ok, 'vault delete failed');
     for (const id of [p.id, imp.id]) await api('DELETE', `/api/projects/${id}`);
   });

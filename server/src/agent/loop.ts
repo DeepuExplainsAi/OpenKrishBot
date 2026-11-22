@@ -4,6 +4,7 @@ import { hub } from '../lib/hub.js';
 import { appendRow, emitBot, getBotRow, getLive, getRow, setLive, updateRow } from '../store.js';
 import type { ActivityKind, MessageBody, ToolCallBody } from '../types.js';
 import { appInfo } from '../apps.js';
+import { scrubVault } from '../vault.js';
 import { screenForWork } from '../computer.js';
 import { engineFor } from '../engine.js';
 import { instructionsFor } from './prompt.js';
@@ -188,6 +189,8 @@ export async function requestApproval(
   const { userId, botId } = who;
   const approvalId = newId('apr');
   const tk = pol.toolkit ? appInfo(pol.toolkit) : undefined;
+  const hide = (v: any) => (v === undefined ? v : JSON.parse(scrubVault(userId, JSON.stringify(v))));
+  args = hide(args);
   const card = appendRow(botId, 'card', {
     type: 'card', card: 'approval', approvalId, title: `Allow ${getBotRow(botId).name} to ${pol.title.split(': ')[1] ?? pol.title}?`,
     detail: describeArgs(args), tool: pol.key, toolkit: pol.toolkit, toolkitName: tk?.name, logo: tk?.logo, args, status: 'pending',
@@ -346,7 +349,7 @@ async function runTurn(botId: string, trigger: Trigger) {
   let lastFlush = 0;
   let wroteText = false;
   const flush = (streaming: boolean) => {
-    const b: MessageBody = { type: 'message', role: 'assistant', text, streaming };
+    const b: MessageBody = { type: 'message', role: 'assistant', text: scrubVault(userId, text), streaming };
     if (msgSeq === null) msgSeq = appendRow(botId, 'message', b).seq;
     else updateRow(botId, msgSeq, b);
     lastFlush = Date.now();
@@ -363,7 +366,7 @@ async function runTurn(botId: string, trigger: Trigger) {
   const say = (t: string) => {
     if (turn.silent || !t.trim()) return;
     closeMessage();
-    appendRow(botId, 'message', { type: 'message', role: 'assistant', text: t.trim(), streaming: false });
+    appendRow(botId, 'message', { type: 'message', role: 'assistant', text: scrubVault(userId, t.trim()), streaming: false });
     db.prepare('UPDATE bots SET unread = unread + 1 WHERE id=?').run(botId);
     wroteText = true;
   };
@@ -458,6 +461,7 @@ async function runTurn(botId: string, trigger: Trigger) {
             const act = activityFor(String(item.name ?? ''));
             let args: any;
             try { args = typeof item.arguments === 'string' ? JSON.parse(item.arguments) : item.arguments; } catch { args = undefined; }
+            if (args && typeof args === 'object') args = JSON.parse(scrubVault(userId, JSON.stringify(args)));
             const row = appendRow(botId, 'tool-call', { type: 'tool-call', callId: String(item.call_id ?? item.id ?? ''), name, label: act.label, status: 'running', args } satisfies ToolCallBody);
             turn.tools.push({ seq: row.seq, callId: String(item.call_id ?? item.id ?? ''), name, claimed: false, done: false });
             steps++;

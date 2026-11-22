@@ -102,7 +102,7 @@ export function Composer({ bot, running }: { bot: Bot; running: boolean }) {
             className="composer__input"
             rows={1}
             value={text}
-            placeholder={`Message ${displayName(bot)}`}
+            placeholder={running ? `${displayName(bot)} is working. Type anyway: it goes next in line` : `Message ${displayName(bot)}`}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
