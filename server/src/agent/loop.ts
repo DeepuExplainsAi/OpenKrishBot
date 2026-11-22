@@ -378,6 +378,7 @@ async function runTurn(botId: string, trigger: Trigger) {
       }),
     });
     if (!res.ok || !res.body) throw new Error(await failureText(res));
+    let lastNotice = '';
 
     for await (const ev of sseEvents(res.body)) {
       const d = ev.data;
@@ -450,9 +451,14 @@ async function runTurn(botId: string, trigger: Trigger) {
           break;
         }
 
+        case 'krish.notice':
+          // Retries and provider switches: shown once each, as quiet info lines.
+          if (typeof d.text === 'string' && d.text !== lastNotice) { lastNotice = d.text; appendRow(botId, 'notice', { type: 'notice', text: d.text, tone: 'info' }); }
+          break;
+
         case 'response.failed':
         case 'error':
-          throw new Error(d?.response?.error?.message ?? d?.error?.message ?? d?.message ?? 'the agent run failed');
+          throw Object.assign(new Error(d?.response?.error?.message ?? d?.error?.message ?? d?.message ?? 'the agent run failed'), d?.response?.error?.friendly ? { name: 'ModelError' } : {});
       }
 
       // A tool result arrives as an item of its own (announced twice: added and done).
@@ -473,7 +479,7 @@ async function runTurn(botId: string, trigger: Trigger) {
     failed = true;
     const stopped = ctrl.signal.aborted;
     closeMessage();
-    appendRow(botId, 'notice', { type: 'notice', text: stopped ? 'Stopped.' : `Something went wrong: ${e?.message ?? e}`, tone: stopped ? 'info' : 'error' });
+    appendRow(botId, 'notice', { type: 'notice', text: stopped ? 'Stopped.' : e?.name === 'ModelError' ? String(e.message) : `Something went wrong: ${e?.message ?? e}`, tone: stopped ? 'info' : 'error' });
     if (!stopped) console.error('[agent]', botId, e);
   } finally {
     closeMessage();

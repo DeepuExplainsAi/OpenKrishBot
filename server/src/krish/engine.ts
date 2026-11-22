@@ -4,6 +4,7 @@ import { db } from '../db.js';
 import { env } from '../env.js';
 import { requireUser, type AuthVars } from '../lib/auth.js';
 import { engineKey } from '../engine.js';
+import { callModel } from './resilient.js';
 import { DEFAULT_PROVIDER, PRESETS, hasKey, liveModels, resolve, saveProvider } from './providers.js';
 import { botHome, localToolMap, LOCAL_TOOLS } from './tools.js';
 import { TOOLS, policyFor, toolMap } from '../agent/tools.js';
@@ -40,18 +41,6 @@ async function toolsFor(botId: string) {
   for (const t of await listHqTools(botId)) if (!own.has(t.name)) list.push({ type: 'function', function: { name: `mcp_hq_${t.name}`, description: t.description, parameters: t.inputSchema } });
   for (const t of await extraTools(botId)) list.push({ type: 'function', function: { name: t.name, description: t.description, parameters: t.inputSchema } });
   return list;
-}
-
-async function chat(botId: string, body: any, signal: AbortSignal) {
-  const bot = db.prepare('SELECT * FROM bots WHERE id=?').get(botId) as any;
-  const { preset, baseUrl, apiKey } = resolve(body.provider ?? bot?.provider);
-  if (!baseUrl) throw new Error('This provider has no address yet. Set it in the bot\'s Engine panel.');
-  if (!preset.keyless && !apiKey) throw new Error(`${preset.name} needs an API key. Add it in the bot's Engine panel, or pick a free provider.`);
-  return fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST', signal,
-    headers: { 'content-type': 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
-    body: JSON.stringify(body),
-  });
 }
 
 async function* deltas(res: Response) {
@@ -94,8 +83,9 @@ krishApi.post('/v1/responses', async (c) => {
       try {
         const tools = await toolsFor(botId);
         for (let step = 0; step < MAX_STEPS; step++) {
-          const res = await chat(botId, { model, stream: true, messages: [{ role: 'system', content: system }, ...history.slice(-MAX_HISTORY)], ...(tools.length ? { tools, tool_choice: 'auto' } : {}), ...(effort && /gpt-5|o\d|gpt-oss/.test(model) ? { reasoning_effort: effort } : {}) }, c.req.raw.signal);
-          if (!res.ok || !res.body) throw new Error(`${preset.name}: ${res.status} ${(await res.text()).slice(0, 300)}`);
+          const att = await callModel(botId, { model, stream: true, messages: [{ role: 'system', content: system }, ...history.slice(-MAX_HISTORY)], ...(tools.length ? { tools, tool_choice: 'auto' } : {}), ...(effort && /gpt-5|o\d|gpt-oss/.test(model) ? { reasoning_effort: effort } : {}) }, bot?.provider, c.req.raw.signal, { onRetry: (note) => send('krish.notice', { text: note }) });
+          if (att.switchedFrom) { send('krish.notice', { text: `${att.switchedFrom} failed, so ${att.providerName} answered.` }); }
+          const res = att.res;
           let text = '';
           const calls: Record<number, { id: string; name: string; args: string }> = {};
           for await (const j of deltas(res)) {
@@ -124,7 +114,7 @@ krishApi.post('/v1/responses', async (c) => {
         }
         send('response.completed', { response: { status: 'completed' } });
       } catch (e: any) {
-        if (!c.req.raw.signal.aborted) send('response.failed', { response: { error: { message: String(e?.message ?? e) } } });
+        if (!c.req.raw.signal.aborted) send('response.failed', { response: { error: { message: String(e?.message ?? e), friendly: e?.name === 'ModelError' } } });
       } finally {
         threads.set(convo, history.slice(-MAX_HISTORY * 2));
         ctrl.close();
