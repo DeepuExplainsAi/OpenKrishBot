@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Bot, EngineInfo, EngineProvider } from '@shared/types';
-import { configApi } from '../lib/configApi';
+import { configApi, type BudgetInfo } from '../lib/configApi';
 import { useStore } from '../store';
 import { Icon } from './Icon';
 
@@ -198,6 +198,35 @@ export function EngineSettings({ bot }: { bot: Bot }) {
         )}
       </div>
       {engine.status === 'error' && engine.error && <div className="engine__error">{engine.error}</div>}
+      <BudgetRow botId={bot.id} />
+    </div>
+  );
+}
+
+/** Today's token use and an optional daily cap; at the cap the Bot says so instead of calling the model. */
+function BudgetRow({ botId }: { botId: string }) {
+  const [info, setInfo] = useState<BudgetInfo | null>(null);
+  const [text, setText] = useState('');
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    let alive = true;
+    const load = () => configApi.budget(botId).then((r) => { if (alive) { setInfo(r); setText((t) => (t === '' && r.dailyTokens ? String(r.dailyTokens) : t)); } }).catch(() => {});
+    load();
+    const t = setInterval(load, 10_000);
+    return () => { alive = false; clearInterval(t); };
+  }, [botId]);
+  if (!info) return null;
+  const used = info.today.tokensIn + info.today.tokensOut;
+  const save = () => {
+    const n = text.trim() === '' ? null : Number(text.replace(/[, ]/g, ''));
+    if (n !== null && !(n >= 0)) { setErr('Enter a number, or leave empty for no limit.'); return; }
+    configApi.setBudget(botId, n).then((r) => { setInfo(r); setErr(''); }).catch((e) => setErr(e.message));
+  };
+  return (
+    <div className="engine__meta" style={{ flexWrap: 'wrap', gap: 6 }}>
+      <span>Today: {used.toLocaleString()} tokens · {info.today.calls} calls{info.dailyTokens ? ` · limit ${info.dailyTokens.toLocaleString()}` : ''}</span>
+      <input className="text-input" style={{ width: 130 }} inputMode="numeric" placeholder="Daily limit" aria-label="Daily token limit" value={text} onChange={(e) => setText(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === 'Enter' && save()} />
+      {err && <span className="voice-error" role="alert">{err}</span>}
     </div>
   );
 }

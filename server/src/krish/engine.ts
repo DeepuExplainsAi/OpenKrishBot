@@ -5,6 +5,7 @@ import { env } from '../env.js';
 import { requireUser, type AuthVars } from '../lib/auth.js';
 import { engineKey } from '../engine.js';
 import { callModel } from './resilient.js';
+import { estimateTokens, overBudget, recordUsage } from '../usage.js';
 import { loopNudge } from '../plan.js';
 import { DEFAULT_PROVIDER, PRESETS, hasKey, liveModels, resolve, saveProvider } from './providers.js';
 import { botHome, localToolMap, LOCAL_TOOLS } from './tools.js';
@@ -85,12 +86,16 @@ krishApi.post('/v1/responses', async (c) => {
       try {
         const tools = await toolsFor(botId);
         for (let step = 0; step < MAX_STEPS; step++) {
+          const stop = overBudget(botId);
+          if (stop) throw Object.assign(new Error(stop), { name: 'ModelError' });
           const att = await callModel(botId, { model, stream: true, messages: [{ role: 'system', content: system }, ...history.slice(-MAX_HISTORY)], ...(tools.length ? { tools, tool_choice: 'auto' } : {}), ...(effort && /gpt-5|o\d|gpt-oss/.test(model) ? { reasoning_effort: effort } : {}) }, bot?.provider, c.req.raw.signal, { onRetry: (note) => send('krish.notice', { text: note }) });
           if (att.switchedFrom) { send('krish.notice', { text: `${att.switchedFrom} failed, so ${att.providerName} answered.` }); }
           const res = att.res;
           let text = '';
+          let reported: { prompt_tokens?: number; completion_tokens?: number } | null = null;
           const calls: Record<number, { id: string; name: string; args: string }> = {};
           for await (const j of deltas(res)) {
+            if (j.usage) reported = j.usage;
             const d = j.choices?.[0]?.delta;
             if (!d) continue;
             const r = d.reasoning ?? d.reasoning_content;
@@ -104,6 +109,7 @@ krishApi.post('/v1/responses', async (c) => {
             }
           }
           const list = Object.values(calls).filter((k) => k.name);
+          recordUsage(botId, reported?.prompt_tokens ?? estimateTokens(JSON.stringify(history.slice(-MAX_HISTORY)).length + system.length), reported?.completion_tokens ?? estimateTokens(text.length + list.reduce((n, k) => n + k.args.length, 0)));
           history.push({ role: 'assistant', content: text || null, ...(list.length ? { tool_calls: list.map((k) => ({ id: k.id, type: 'function', function: { name: k.name, arguments: k.args || '{}' } })) } : {}) });
           if (text) send('response.output_item.done', { item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] } });
           if (!list.length) break;

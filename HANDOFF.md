@@ -156,3 +156,8 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 - Bot tools: create_issue, list_my_issues, checkout_issue, complete_issue, block_issue (+ prompt lines).
 - 8 unit tests (`test/issues.test.mts`). Live: Boss bot -> create_issue(Worker) -> Worker woken, checkout, complete -> Boss received the result. (Test-only gotcha: ids contain `-`.)
 - NOT DONE: budgets/cost tracking, goals tree, issue comments.
+
+## P11d: usage + daily token budget per bot (Paperclip budgets)
+- `server/src/usage.ts`: table `usage_daily`; tokens from the provider's `usage` or ~4 chars/token estimate; `kv budget:<botId>` cap. Engine checks the cap before every model call and shows a friendly notice instead. API: `GET/PUT /api/bots/:id/budget`, `GET /api/usage` (7-day per-bot summary). UI: Engine panel row (today + limit).
+- Tests: `test/usage.test.mts` (3). Live: usage recorded, cap 10 blocked the next message with the notice, removing the cap restored replies, negative cap rejected.
+- Money cost is not tracked (providers here are free/BYO key); tokens only.

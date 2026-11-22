@@ -52,7 +52,11 @@ export interface FlowRun { id: string; flowId: string; input: string; status: 'r
 export type IssueStatus = 'todo' | 'in_progress' | 'blocked' | 'done' | 'cancelled';
 export interface Issue { id: string; title: string; body: string; status: IssueStatus; assigneeBotId: string | null; parentId: string | null; checkoutBotId: string | null; result: string; updatedAt: number }
 
+export interface BudgetInfo { dailyTokens: number | null; today: { tokensIn: number; tokensOut: number; calls: number } }
+
 export const configApi = {
+  budget: (botId: string) => req<BudgetInfo>('GET', `/bots/${botId}/budget`),
+  setBudget: (botId: string, dailyTokens: number | null) => req<BudgetInfo>('PUT', `/bots/${botId}/budget`, { dailyTokens }),
   issues: () => req<{ issues: Issue[] }>('GET', '/issues'),
   addIssue: (i: { title: string; body?: string; assigneeBotId?: string | null }) => req<{ issue: Issue }>('POST', '/issues', i),
   patchIssue: (id: string, p: { status?: IssueStatus; assigneeBotId?: string | null }) => req<{ issue: Issue }>('PATCH', `/issues/${id}`, p),

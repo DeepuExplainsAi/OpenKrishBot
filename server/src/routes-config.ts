@@ -13,6 +13,7 @@ import { computerState, readyScreen, resetBotScreen } from './computer.js';
 import { box } from './box.js';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
 import { listMemories } from './engine-memory.js';
+import { getBudget, setBudget, usageSummary, usageToday } from './usage.js';
 import type { LibraryFile, Skill } from './types.js';
 
 /**
@@ -131,6 +132,24 @@ configApi.patch('/bots/:id/engine', async (c) => {
   emitBot(b.id);
   return c.json({ engine: await engineInfo(b.id) });
 });
+
+configApi.get('/bots/:id/budget', (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  return c.json({ dailyTokens: getBudget(b.id), today: usageToday(b.id) });
+});
+
+/** { dailyTokens: number | null }: a daily token cap for this bot; null or 0 removes it. */
+configApi.put('/bots/:id/budget', async (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  const { dailyTokens } = await c.req.json<{ dailyTokens?: number | null }>().catch(() => ({} as { dailyTokens?: number | null }));
+  if (dailyTokens !== null && dailyTokens !== undefined && !(Number.isFinite(dailyTokens) && dailyTokens >= 0)) return c.json({ error: 'dailyTokens must be a number.' }, 400);
+  setBudget(b.id, dailyTokens ?? null);
+  return c.json({ dailyTokens: getBudget(b.id), today: usageToday(b.id) });
+});
+
+configApi.get('/usage', (c) => c.json({ usage: usageSummary(c.get('user').id, 7) }));
 
 configApi.post('/bots/:id/engine/restart', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
