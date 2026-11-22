@@ -8,7 +8,7 @@ import { db } from './db.js';
  * Shipped skills (OpenMausBot's manifest format): server/skills/<id>/{manifest.json, SKILL.md}. A skill is added to a turn's
  * instructions when it is enabled and one of its trigger terms appears in the user's message. Users can switch skills off.
  */
-export interface LibrarySkill { id: string; name: string; description: string; triggerTerms: string[]; defaultEnabled: boolean; body: string; custom?: boolean }
+export interface LibrarySkill { id: string; name: string; description: string; triggerTerms: string[]; defaultEnabled: boolean; body: string; custom?: boolean; catalog?: boolean; dir?: string }
 
 const DIR = process.env.KRISH_SKILLS_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'skills');
 const USER_DIR = process.env.KRISH_USER_SKILLS_DIR ?? path.join(os.homedir(), '.openkrishbot', 'skills');
@@ -27,6 +27,11 @@ export function loadLibrary(dir = DIR): LibrarySkill[] {
   const out: LibrarySkill[] = [];
   for (const id of ids) {
     try {
+      if (!fs.existsSync(path.join(dir, id, 'manifest.json'))) {
+        const p = parseSkillMd(fs.readFileSync(path.join(dir, id, 'SKILL.md'), 'utf8'));
+        out.push({ id, name: id, description: p.description, triggerTerms: [], defaultEnabled: true, body: p.body, catalog: true, dir: path.join(dir, id) });
+        continue;
+      }
       const m = JSON.parse(fs.readFileSync(path.join(dir, id, 'manifest.json'), 'utf8'));
       const body = fs.readFileSync(path.join(dir, id, 'SKILL.md'), 'utf8').replace(/^---[\s\S]*?\n---\n/, '').trim();
       if (m.id !== id || !m.name || !body) { console.warn(`[skills] skipped ${id}: manifest id/name or SKILL.md missing`); continue; }
@@ -45,8 +50,14 @@ export function matchSkills(message: string, skills: LibrarySkill[], enabled: (s
   return skills.filter((s) => enabled(s) && s.triggerTerms.some((t) => t && m.includes(t))).slice(0, MAX_INJECT);
 }
 
-export const skillsPrompt = (message: string, skills = loadAll()): string =>
-  matchSkills(message, skills).map((s) => `\n## Skill: ${s.name}\n${s.body}\n`).join('');
+/** nod style: catalog skills (SKILL.md only) are listed by name + description, the bot opens one with read_skill. */
+export const skillCatalog = (skills = loadAll()) => skills.filter((s) => s.catalog && isEnabled(s));
+
+export const skillsPrompt = (message: string, skills = loadAll()): string => {
+  const catalog = skillCatalog(skills);
+  return matchSkills(message, skills).map((s) => `\n## Skill: ${s.name}\n${s.body}\n`).join('')
+    + (catalog.length ? `\n## Skill library\nBefore starting work that matches one of these, call read_skill with its name and follow it.\n${catalog.map((s) => `- ${s.name}: ${s.description}`).join('\n')}\n` : '');
+};
 
 /** SKILL.md front matter: `name:` and `description:` (optional `triggers: a, b`). Without triggers the skill answers to its own name. */
 export function parseSkillMd(md: string): { id: string; name: string; description: string; triggerTerms: string[]; body: string } {
@@ -90,4 +101,12 @@ export async function importFromGithub(url: string, fetchImpl: typeof fetch = fe
   if (res.status === 404) throw new Error('No SKILL.md found there. Link the folder that contains it.');
   if (!res.ok) throw new Error(`GitHub answered ${res.status}.`);
   return installSkill(await res.text(), dir);
+}
+
+/** A reference file inside a skill folder (nod's `read` with a file). Only .md files, never outside the folder. */
+export function readSkillFile(skill: LibrarySkill, file: string): string {
+  const base = skill.dir && path.resolve(skill.dir);
+  const target = base && path.resolve(base, file);
+  if (!base || !target || !target.startsWith(base + path.sep) || !target.endsWith('.md')) throw new Error('Not a reference file of this skill.');
+  return fs.readFileSync(target, 'utf8').trim();
 }

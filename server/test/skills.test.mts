@@ -72,3 +72,15 @@ test('generator skills ship and match their requests', () => {
   assert.match(deck, /<section class="slide">/);
   assert.ok((deck.match(/<script>/g) ?? []).length === 1 && deck.includes('</html>'));
 });
+
+test('nod-format skills (SKILL.md only) are listed in a catalog and reference files stay inside the folder', async () => {
+  const { loadLibrary, skillCatalog, readSkillFile } = await import('../src/skill-library.js');
+  const all = loadLibrary();
+  const inbox = all.find((s) => s.id === 'inbox');
+  assert.ok(inbox?.catalog && inbox.description && inbox.body);
+  assert.ok(skillCatalog(all).length >= 20);
+  const cal = all.find((s) => s.id === 'calendar')!;
+  assert.ok(readSkillFile(cal, 'references/recurrence.md').length > 10);
+  assert.throws(() => readSkillFile(cal, '../inbox/SKILL.md'));
+  assert.throws(() => readSkillFile(cal, 'references/../../../package.json'));
+});

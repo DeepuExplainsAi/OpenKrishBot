@@ -8,7 +8,7 @@ import { hub } from '../lib/hub.js';
 import { box } from '../box.js';
 import { env } from '../env.js';
 import { libraryRoot } from '../paths.js';
-import { installSkill } from '../skill-library.js';
+import { installSkill, loadAll, readSkillFile } from '../skill-library.js';
 import { siteFile } from '../sites.js';
 import { appendRow, getBotRow, listRoutines, toRoutine, describeCron } from '../store.js';
 import { appInfo, cachedAppTool, findAppTool, humanizeTool } from '../apps.js';
@@ -71,6 +71,19 @@ export const TOOLS: ToolDef[] = [
       const file = `${libraryRoot()}/${ctx.botId}/${name}`;
       await box.writeFile(file, String(a.content ?? ''));
       return { output: JSON.stringify({ ok: true, path: file }), summary: `Saved ${name}` };
+    },
+  },
+  {
+    name: 'read_skill',
+    description: 'Open a skill from the Skill library listed in your instructions and get its full steps. Optional `file` reads a reference file inside that skill.',
+    parameters: obj({ name: { type: 'string' }, file: { type: 'string', description: 'e.g. references/x.md' } }, ['name']),
+    activity: 'working',
+    label: 'Reading a skill',
+    impl: async (a) => {
+      const sk = loadAll().find((x) => x.id === String(a.name));
+      if (!sk) return { output: JSON.stringify({ error: 'No such skill. Pick a name from the Skill library.' }), summary: 'Skill not found' };
+      try { return { output: a.file ? readSkillFile(sk, String(a.file)) : sk.body, summary: `Read skill ${sk.name}` }; }
+      catch (e: any) { return { output: JSON.stringify({ error: e.message }), summary: 'Skill file not found' }; }
     },
   },
   {
