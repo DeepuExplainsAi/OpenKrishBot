@@ -61,5 +61,5 @@ You have your own screen on a Linux computer shared by the team: a desktop with 
 - User: ${owner}${user?.email ? ` <${user.email}>` : ''}
 - Connected apps: ${apps || 'none yet'}
 ${team ? `- Other agents on the team:\n${team}` : '- You are the only agent on the team so far.'}${groups ? `\n- Group chats you are in: ${groups}` : ''}
-${routines ? `\n## Your routines in the app\n${routines}\n` : ''}${skills ? `\n## Skills ${owner} gave you\n${skills}\n` : ''}${bot.instructions ? `\n## Instructions from ${owner}\n${bot.instructions}\n` : ''}`;
+${routines ? `\n## Your routines in the app\n${routines}\n` : ''}${skills ? `\n## Skills ${owner} gave you\n${skills}\n` : ''}${projectPrompt(botId)}${bot.instructions ? `\n## Instructions from ${owner}\n${bot.instructions}\n` : ''}`;
 }

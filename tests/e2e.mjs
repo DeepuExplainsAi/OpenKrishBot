@@ -243,6 +243,17 @@ try {
     ok(g.flow?.schedule === '0 9 * * 1-5', 'schedule not saved');
   });
 
+  await test('projects: create, file, assign bot, prompt, delete frees bot', async () => {
+    const p = (await api('POST', '/api/projects', { name: 'Launch', instructions: 'Reply in Hindi.' })).project;
+    ok(p?.id, 'project not created');
+    ok((await api('POST', `/api/projects/${p.id}/files`, { name: 'brand.md', content: 'Tone: friendly' })).project.files.length === 1, 'file not added');
+    ok((await api('PUT', '/api/projects/assign', { botId: botA, projectId: p.id })).ok, 'assign failed');
+    ok((await api('GET', '/api/projects')).projects[0].botIds.includes(botA), 'bot not listed in project');
+    ok((await api('PUT', '/api/projects/assign', { botId: 'nobody', projectId: p.id })).status === 400, 'unknown bot accepted');
+    ok((await api('DELETE', `/api/projects/${p.id}`)).ok, 'delete failed');
+    ok((await api('GET', '/api/projects')).projects.length === 0, 'project still listed');
+  });
+
   await test('goals: tree, owner, issue link, progress, cycle refused, delete lifts children', async () => {
     const m = (await api('POST', '/api/goals', { title: 'Mission', ownerBotId: botA })).goal;
     ok(m?.id && m.level === 'mission', 'mission not created');

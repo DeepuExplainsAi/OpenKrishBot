@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type Goal, type GoalLevel, type GoalStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
+import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type Goal, type ProjectInfo, type GoalLevel, type GoalStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -20,6 +20,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'phone', label: 'Phone' },
   { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'telegram', label: 'Telegram' },
+  { id: 'projects', label: 'Projects' },
   { id: 'goals', label: 'Goals' },
   { id: 'issues', label: 'Issues' },
   { id: 'workflows', label: 'Workflows' },
@@ -60,6 +61,7 @@ export function AppSettings() {
           {section === 'phone' && <PhoneSection />}
           {section === 'whatsapp' && <WhatsAppSection />}
           {section === 'telegram' && <TelegramSection />}
+          {section === 'projects' && <ProjectsSection />}
           {section === 'goals' && <GoalsSection />}
           {section === 'issues' && <IssuesSection />}
           {section === 'skills' && <SkillsSection />}
@@ -678,6 +680,68 @@ function GoalsSection() {
           ))}
         </div>
       </section>
+    </>
+  );
+}
+
+function ProjectsSection() {
+  const bots = useStore((s) => s.bots).filter((b) => b.kind !== 'room');
+  const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
+  const [name, setName] = useState('');
+  const [err, setErr] = useState('');
+  const load = useCallback(() => configApi.projects().then((r) => setProjects(r.projects)).catch(() => setProjects([])), []);
+  useEffect(() => { load(); }, [load]);
+  const act = (p: Promise<unknown>) => p.then(() => { setErr(''); load(); }).catch((e) => setErr(e.message));
+  const inProject = (id: string) => bots.filter((b) => projects?.find((p) => p.id === id)?.botIds.includes(b.id));
+  const projectOf = (botId: string) => projects?.find((p) => p.botIds.includes(botId))?.id ?? '';
+  const addFile = (id: string, f: File | undefined) => { if (f) void f.text().then((content) => act(configApi.addProjectFile(id, { name: f.name, content }))); };
+
+  return (
+    <>
+      <PageHead title="Projects" sub="Shared instructions and reference files for a group of Bots. Every Bot in a project reads them on each turn." />
+      <section className="cfg-section">
+        <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="text-input" placeholder="A project, e.g. Product launch" value={name} onChange={(e) => setName(e.target.value)} />
+            <button type="button" className="cfg-btn cfg-btn--primary" disabled={!name.trim()} onClick={() => act(configApi.addProject({ name }).then(() => setName('')))}>Add</button>
+          </div>
+          {err && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{err}</div>}
+        </div>
+      </section>
+      {projects === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : projects.length === 0 ? <div className="cfg-empty cfg-empty--flat">No projects yet.</div> : projects.map((p) => (
+        <section className="cfg-section" key={p.id}>
+          <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <b style={{ flex: 1 }}>{p.name}</b>
+              <span className="cfg-row__sub">{inProject(p.id).map((b) => b.name).join(', ') || 'No Bots yet'}</span>
+              <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Delete" onConfirm={() => act(configApi.deleteProject(p.id))}>Delete</ConfirmButton>
+            </div>
+            <textarea className="text-input" rows={4} placeholder="Instructions every Bot in this project follows" defaultValue={p.instructions} onBlur={(e) => { if (e.target.value !== p.instructions) act(configApi.patchProject(p.id, { instructions: e.target.value })); }} />
+            {p.files.map((f) => (
+              <div key={f.id} className="cfg-row__sub" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>{f.name} · {f.size.toLocaleString()} characters</span>
+                <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => act(configApi.deleteProjectFile(p.id, f.id))}>Remove</button>
+              </div>
+            ))}
+            <input type="file" accept=".txt,.md,.csv,.json,.html,.xml,.yaml,.yml,.js,.ts,.py,text/*" onChange={(e) => { addFile(p.id, e.target.files?.[0]); e.target.value = ''; }} />
+          </div>
+        </section>
+      ))}
+      {projects && projects.length > 0 && (
+        <section className="cfg-section">
+          <div className="cfg-card">
+            {bots.map((b) => (
+              <div key={b.id} className="cfg-row">
+                <div className="cfg-row__text"><div className="cfg-row__title">{b.name}</div></div>
+                <select className="text-input" style={{ width: 170 }} value={projectOf(b.id)} onChange={(e) => act(configApi.assignProject(b.id, e.target.value || null))} aria-label={`Project for ${b.name}`}>
+                  <option value="">No project</option>
+                  {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </>
   );
 }

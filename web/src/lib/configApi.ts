@@ -62,6 +62,8 @@ export interface LibrarySkill { id: string; name: string; description: string; t
 
 export interface TelegramInfo { status: 'off' | 'running' | 'error'; bot: string | null; error: string | null; hasToken: boolean; paired: number; pairCode: string | null }
 
+export interface ProjectInfo { id: string; name: string; instructions: string; files: { id: string; name: string; size: number }[]; botIds: string[]; updatedAt: number }
+
 export const configApi = {
   telegram: () => req<TelegramInfo>('GET', '/telegram'),
   telegramToken: (token: string) => req<{ status: string; error: string | null }>('PUT', '/telegram/token', { token }),
@@ -77,6 +79,13 @@ export const configApi = {
   setPrice: (botId: string, p: Price | null) => req<BudgetInfo>('PUT', `/bots/${botId}/price`, p),
   setBudget: (botId: string, dailyTokens: number | null) => req<BudgetInfo>('PUT', `/bots/${botId}/budget`, { dailyTokens }),
   issues: () => req<{ issues: Issue[] }>('GET', '/issues'),
+  projects: () => req<{ projects: ProjectInfo[] }>('GET', '/projects'),
+  addProject: (p: { name: string; instructions?: string }) => req<{ project: ProjectInfo }>('POST', '/projects', p),
+  patchProject: (id: string, p: { name?: string; instructions?: string }) => req<{ project: ProjectInfo }>('PATCH', `/projects/${id}`, p),
+  deleteProject: (id: string) => req<{ ok: true }>('DELETE', `/projects/${id}`),
+  addProjectFile: (id: string, f: { name: string; content: string }) => req<{ project: ProjectInfo }>('POST', `/projects/${id}/files`, f),
+  deleteProjectFile: (id: string, fileId: string) => req<{ ok: true }>('DELETE', `/projects/${id}/files/${fileId}`),
+  assignProject: (botId: string, projectId: string | null) => req<{ ok: true }>('PUT', '/projects/assign', { botId, projectId }),
   goals: () => req<{ goals: Goal[] }>('GET', '/goals'),
   addGoal: (g: { title: string; description?: string; level?: GoalLevel; parentId?: string | null; ownerBotId?: string | null }) => req<{ goal: Goal }>('POST', '/goals', g),
   patchGoal: (id: string, p: Partial<Pick<Goal, 'title' | 'description' | 'level' | 'status' | 'parentId' | 'ownerBotId'>>) => req<{ goal: Goal }>('PATCH', `/goals/${id}`, p),

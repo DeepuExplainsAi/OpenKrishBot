@@ -10,6 +10,7 @@ import { libraryRoot } from '../paths.js';
 import { appendRow, getBotRow, listRoutines, toRoutine, describeCron } from '../store.js';
 import { appInfo, cachedAppTool, findAppTool, humanizeTool } from '../apps.js';
 import { scheduleRoutine, unscheduleRoutine } from '../routines.js';
+import { readProjectFileByName } from '../projects.js';
 import { createFeedRoutine, createWebhookRoutine, describeEvent } from '../triggers.js';
 import { setCheckins } from '../proactive.js';
 import { createRoom, postToRoom } from './rooms.js';
@@ -96,6 +97,17 @@ export const TOOLS: ToolDef[] = [
       appendRow(ctx.botId, 'event', { type: 'event', event: 'routine-created', text: `Routine created: ${a.name} · ${describeEvent(r.schedule)}`, ref: r.id });
       hub.emit(ctx.userId, { type: 'routines', botId: ctx.botId });
       return { output: JSON.stringify({ ok: true, routine_id: r.id, webhook: r.url }), summary: `Created event routine ${a.name}` };
+    },
+  },
+  {
+    name: 'read_project_file',
+    description: "Open one of your project's reference files by name (use it when the project section says a file is too long to include).",
+    parameters: obj({ name: { type: 'string' } }, ['name']),
+    activity: 'working',
+    label: 'Reading a project file',
+    impl: async (a, ctx) => {
+      const f = readProjectFileByName(ctx.botId, String(a.name ?? ''));
+      return f ? { output: f.content, summary: `Read ${f.name}` } : { output: JSON.stringify({ error: 'No such file in this bot\'s project.' }), summary: 'No such file' };
     },
   },
   {

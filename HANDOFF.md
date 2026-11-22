@@ -316,3 +316,11 @@ Open: Railway downloads page (static page that lists the GitHub Release files; t
 - Tests: triggers.test.mts (4). Unit 89.
 - NOT verified: against a real feed / real webhook over HTTP; no UI to add conditions by hand (bots create them). Feed fetch does not block private addresses (local app, user's own feeds).
 - Next: P13c projects (4), then generators (5), meeting notes (6), websites (7), share (8), skill-from-task (9).
+
+## P13c: projects (2026-11-22), OpenMan item 4
+- `server/src/projects.ts` + `routes-projects.ts` (/api/projects): name, shared instructions (max 20k chars), reference text files (max 20 files, 100k chars each, same name overwrites), bots.project_id. Bot prompt gets the instructions and files (files up to 6k chars inlined within 24k total; longer ones are named and opened with the new `read_project_file` tool).
+- UI: Settings -> Projects (create, edit instructions, upload text files, assign each Bot to a project).
+- Tests: projects.test (3), e2e "projects" (24 total). Unit 92, e2e 24.
+- NOT verified: UI in a real browser (no Chrome on this VM). Text files only (no PDF/images). Agent-proposed project updates (OpenMan's approval-card flow) not built.
+- Release fix: Linux smoke test used the old binary name after the rename (desktop job failed on v1.1.0 Linux only); fixed, tag v1.1.0 re-pushed.
+- Next: P13d generators (5), meeting notes (6), websites (7), share (8), skill-from-task (9). Re-check P13b/c first.

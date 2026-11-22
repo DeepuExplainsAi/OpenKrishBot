@@ -115,3 +115,9 @@ export function projectPrompt(botId: string): string {
   });
   return `\n## Project: ${p.name}\nYou work inside this project, shared with its other bots. Follow its instructions.${p.instructions.trim() ? `\n\n${p.instructions.trim()}` : ''}${parts.length ? `\n\n### Reference files\n${parts.join('\n\n')}` : ''}\n`;
 }
+
+export function readProjectFileByName(botId: string, name: string): { name: string; content: string } | null {
+  const b = db.prepare('SELECT project_id FROM bots WHERE id=?').get(botId) as any;
+  if (!b?.project_id) return null;
+  return (db.prepare('SELECT name,content FROM project_files WHERE project_id=? AND lower(name)=lower(?)').get(b.project_id, name.trim()) as any) ?? null;
+}
