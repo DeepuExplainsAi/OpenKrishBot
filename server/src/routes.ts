@@ -14,7 +14,7 @@ import { computerState, ensureComputer, forgetBotFiles, refreshComputer, release
 import { assignEngine, provisionEngine, removeEngine, syncPersona } from './engine.js';
 import { deleteMemory, listMemories, memoryBot } from './engine-memory.js';
 import { screenIfRunning } from './screen/manager.js';
-import { addCustomApp, appInfo, connectCatalogApp, forgetAppTools, listApps, removeApp } from './apps.js';
+import { SignInNeeded, addCustomApp, appInfo, connectCatalogApp, forgetAppTools, listApps, oauth, removeApp } from './apps.js';
 import { runRoutine, scheduleRoutine, unscheduleRoutine } from './routines.js';
 import { dispatchRoomMessage } from './agent/rooms.js';
 import { voiceApi } from './voice.js';
@@ -489,15 +489,33 @@ api.get('/apps/registry', async (c) => {
 
 api.post('/apps/custom', async (c) => {
   const a = await c.req.json<any>().catch(() => ({}));
-  try { await addCustomApp(a); } catch (e: any) { return c.json({ error: e.message }, 400); }
+  try { await addCustomApp(a); } catch (e: any) {
+    if (e instanceof SignInNeeded) return signIn(c, e.slug, e.url);
+    return c.json({ error: e.message }, 400);
+  }
   afterConnect(c.get('user').id, '');
   return c.json({ ok: true });
+});
+
+/** The hosted server wants a sign-in: start OpenMausBot's OAuth flow; the page opens `authorizationUrl` and polls /apps/:slug/signin/:flowId. */
+async function signIn(c: any, slug: string, url: string) {
+  try {
+    const st = await oauth.start(slug, url, null, 'loopback', { remote: false });
+    return c.json({ signIn: st });
+  } catch (e: any) { return c.json({ error: String(e?.message ?? e) }, 400); }
+}
+api.get('/apps/:slug/signin/:flowId', (c) => {
+  const st = oauth.status(c.req.param('slug'), c.req.param('flowId'));
+  return st ? c.json({ signIn: st }) : c.json({ error: 'No such sign-in.' }, 404);
 });
 
 api.post('/apps/:slug/connect', async (c) => {
   const slug = c.req.param('slug');
   const { values, botId, seq } = await c.req.json<{ values?: Record<string, string>; botId?: string; seq?: number }>().catch(() => ({} as any));
-  try { await connectCatalogApp(slug, values ?? {}); } catch (e: any) { return c.json({ error: e.message }, 400); }
+  try { await connectCatalogApp(slug, values ?? {}); } catch (e: any) {
+    if (e instanceof SignInNeeded) return signIn(c, slug, e.url);
+    return c.json({ error: e.message }, 400);
+  }
   afterConnect(c.get('user').id, slug, botId, seq);
   return c.json({ ok: true });
 });

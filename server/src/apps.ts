@@ -1,7 +1,11 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import path from 'node:path';
+import os from 'node:os';
 import { db, now } from './db.js';
+import { McpOAuthManager } from './maus/server/mcp-oauth.ts';
+import { McpHttpError } from './maus/server/mcp-http.ts';
 import { launchCommand, launchEnv } from './lib/launch.js';
 import type { Toolkit } from './types.js';
 
@@ -20,7 +24,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS apps (
 )`);
 
 interface Field { key: string; label: string; secret: boolean; kind: 'env' | 'arg' }
-interface CatalogApp { slug: string; name: string; description: string; categories: string[]; command: string; args: string[]; fields: Field[] }
+interface CatalogApp { slug: string; name: string; description: string; categories: string[]; command: string; args: string[]; fields: Field[]; url?: string }
 
 const secret = (key: string, label: string): Field => ({ key, label, secret: true, kind: 'env' });
 const npx = (pkg: string, ...rest: string[]) => ({ command: 'npx', args: ['-y', pkg, ...rest] });
@@ -64,12 +68,12 @@ export const CATALOG: CatalogApp[] = [
   { slug: 'stripe', name: 'Stripe', description: 'Customers, payments and invoices.', categories: ['payments'], ...npx('@stripe/mcp', '--tools=all', '--api-key={key}'), fields: [{ key: 'key', label: 'Secret or restricted key', secret: true, kind: 'arg' }] },
   { slug: 'discord', name: 'Discord', description: 'Read and send messages in your servers.', categories: ['communication'], ...npx('mcp-discord'), fields: [secret('DISCORD_TOKEN', 'Bot token')] },
   // --- hosted servers, you sign in once in a browser window on this computer (via mcp-remote) ---
-  { slug: 'linear', name: 'Linear', description: 'Issues and projects. Sign-in opens in your browser.', categories: ['developer tools', 'productivity'], ...npx('mcp-remote', 'https://mcp.linear.app/mcp'), fields: [] },
-  { slug: 'atlassian', name: 'Jira & Confluence', description: 'Tickets and docs. Sign-in opens in your browser.', categories: ['developer tools', 'productivity'], ...npx('mcp-remote', 'https://mcp.atlassian.com/v1/sse'), fields: [] },
-  { slug: 'asana', name: 'Asana', description: 'Tasks and projects. Sign-in opens in your browser.', categories: ['productivity'], ...npx('mcp-remote', 'https://mcp.asana.com/sse'), fields: [] },
-  { slug: 'paypal', name: 'PayPal', description: 'Invoices and orders. Sign-in opens in your browser.', categories: ['payments'], ...npx('mcp-remote', 'https://mcp.paypal.com/sse'), fields: [] },
-  { slug: 'webflow', name: 'Webflow', description: 'Sites and CMS. Sign-in opens in your browser.', categories: ['developer tools'], ...npx('mcp-remote', 'https://mcp.webflow.com/sse'), fields: [] },
-  { slug: 'cloudflare', name: 'Cloudflare', description: 'Workers, DNS and storage. Sign-in opens in your browser.', categories: ['developer tools'], ...npx('mcp-remote', 'https://bindings.mcp.cloudflare.com/sse'), fields: [] },
+  { slug: 'linear', name: 'Linear', description: 'Issues and projects. You sign in once in your browser.', categories: ['developer tools', 'productivity'], command: '', args: [], url: 'https://mcp.linear.app/mcp', fields: [] },
+  { slug: 'atlassian', name: 'Jira & Confluence', description: 'Tickets and docs. You sign in once in your browser.', categories: ['developer tools', 'productivity'], command: '', args: [], url: 'https://mcp.atlassian.com/v1/sse', fields: [] },
+  { slug: 'asana', name: 'Asana', description: 'Tasks and projects. You sign in once in your browser.', categories: ['productivity'], command: '', args: [], url: 'https://mcp.asana.com/sse', fields: [] },
+  { slug: 'paypal', name: 'PayPal', description: 'Invoices and orders. You sign in once in your browser.', categories: ['payments'], command: '', args: [], url: 'https://mcp.paypal.com/sse', fields: [] },
+  { slug: 'webflow', name: 'Webflow', description: 'Sites and CMS. You sign in once in your browser.', categories: ['developer tools'], command: '', args: [], url: 'https://mcp.webflow.com/sse', fields: [] },
+  { slug: 'cloudflare', name: 'Cloudflare', description: 'Workers, DNS and storage. You sign in once in your browser.', categories: ['developer tools'], command: '', args: [], url: 'https://bindings.mcp.cloudflare.com/sse', fields: [] },
 ];
 
 export interface CustomApp {
@@ -105,6 +109,10 @@ export const appInfo = (slug: string) => listApps().find((a) => a.slug === slug)
 
 // ---------- MCP clients ----------
 
+/** OpenMausBot's OAuth for hosted MCP servers: discovery, dynamic registration, PKCE in the browser, token refresh. */
+export const oauth = new McpOAuthManager({ file: path.join(os.homedir(), '.openkrishbot', 'mcp-oauth.json') });
+export class SignInNeeded extends Error { constructor(public slug: string, public url: string) { super('Sign-in needed'); } }
+
 interface Spec { url?: string; headers?: Record<string, string>; command?: string; args?: string[]; env?: Record<string, string> }
 interface Live { client: Client; tools: any[] }
 const live = new Map<string, Live>();
@@ -114,6 +122,7 @@ function specOf(r: Row): Spec | null {
   if (r.kind === 'mcp') return r.config.url ? { url: r.config.url, headers: r.config.headers } : { command: r.config.command, args: r.config.args ?? [], env: r.config.env ?? {} };
   const cat = CATALOG.find((c) => c.slug === r.slug);
   if (!cat) return null;
+  if (cat.url) return { url: cat.url };
   const values: Record<string, string> = r.config.values ?? {};
   const sub = (s: string) => s.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? '');
   const env: Record<string, string> = {};
@@ -125,10 +134,14 @@ async function connect(slug: string, spec: Spec): Promise<Live> {
   const have = live.get(slug);
   if (have) return have;
   const client = new Client({ name: 'openkrishbot', version: '1.0.0' });
+  const token = spec.url ? await oauth.accessToken(slug, spec.url) : null;
   const transport = spec.url
-    ? new StreamableHTTPClientTransport(new URL(spec.url), { requestInit: { headers: spec.headers ?? {} } })
+    ? new StreamableHTTPClientTransport(new URL(spec.url), { requestInit: { headers: { ...(spec.headers ?? {}), ...(token ? { authorization: `Bearer ${token}` } : {}) } } })
     : new StdioClientTransport({ command: launchCommand(spec.command!), args: spec.args ?? [], env: launchEnv(spec.env), stderr: 'ignore' });
-  await client.connect(transport);
+  try { await client.connect(transport); } catch (e: any) {
+    if (spec.url && (e?.code === 401 || /\b401\b|unauthori[sz]ed/i.test(String(e?.message)))) throw new SignInNeeded(slug, spec.url);
+    throw e;
+  }
   const entry = { client, tools: (await client.listTools()).tools };
   // a child that dies later must not stay cached: drop it so the next call starts a fresh one
   client.onclose = () => { if (live.get(slug) === entry) { live.delete(slug); cache = null; } };
@@ -146,12 +159,13 @@ async function close(slug: string) {
 export async function connectCatalogApp(slug: string, values: Record<string, string>) {
   const cat = CATALOG.find((c) => c.slug === slug);
   if (!cat) throw new Error('Unknown app');
+  if (false) void McpHttpError;
   const missing = cat.fields.filter((f) => !String(values[f.key] ?? '').trim());
   if (missing.length) throw new Error(`Fill in: ${missing.map((f) => f.label).join(', ')}`);
   await close(slug);
   const config: any = { values };
   const row: Row = { slug, name: cat.name, kind: 'catalog', config };
-  try { await connect(slug, specOf(row)!); } catch (e: any) { await close(slug); throw new Error(`Couldn’t start ${cat.name}: ${e.message}. Is Node.js installed?`); }
+  try { await connect(slug, specOf(row)!); } catch (e: any) { await close(slug); if (e instanceof SignInNeeded) throw e; throw new Error(`Couldn’t start ${cat.name}: ${e.message}${cat.url ? '' : '. Is Node.js installed?'}`); }
   failedAt.delete(slug);
   db.prepare('INSERT OR REPLACE INTO apps(slug,name,kind,config,created_at) VALUES (?,?,?,?,?)').run(slug, cat.name, 'catalog', JSON.stringify(config), now());
 }
@@ -167,7 +181,7 @@ export async function addCustomApp(a: Partial<CustomApp>) {
   const row: Row = { slug, name, kind, config };
   if (kind === 'mcp') {
     await close(slug);
-    try { await connect(slug, specOf(row)!); } catch (e: any) { await close(slug); throw new Error(`Couldn’t start it: ${e.message}`); }
+    try { await connect(slug, specOf(row)!); } catch (e: any) { await close(slug); if (e instanceof SignInNeeded) throw e; throw new Error(`Couldn’t start it: ${e.message}`); }
   }
   failedAt.delete(slug);
   db.prepare('INSERT OR REPLACE INTO apps(slug,name,kind,config,created_at) VALUES (?,?,?,?,?)').run(slug, name, kind, JSON.stringify(config), now());
