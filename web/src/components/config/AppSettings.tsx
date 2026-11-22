@@ -1,3 +1,5 @@
+import { localeChoices } from '../../i18n';
+import { setUiLanguage, uiLanguage } from '../../i18n/dom';
 import { PALETTES } from '../../lib/palettes';
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -159,12 +161,17 @@ function MemorySection() {
 
 /** The language Bots reply in. Auto follows whatever the person writes. */
 function LanguageSection() {
+  const [ui, setUi] = useState(uiLanguage());
   const [data, setData] = useState<{ language: string; languages: string[] } | null>(null);
   useEffect(() => { configApi.language().then(setData).catch(() => {}); }, []);
   if (!data) return null;
   return (
     <section className="cfg-section">
       <div className="cfg-section__label">Language</div>
+      <select className="text-input" value={ui} onChange={(e) => { setUi(e.target.value); void setUiLanguage(e.target.value); }} aria-label="App language">
+        {localeChoices.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+      </select>
+      <div className="cfg-field__hint">App language: menus, buttons and settings.</div>
       <select className="text-input" value={data.language} onChange={(e) => configApi.setLanguage(e.target.value).then((r) => setData({ ...data, language: r.language }))} aria-label="Reply language">
         <option value="auto">Auto: same as I write</option>
         {data.languages.map((l) => <option key={l} value={l}>{l}</option>)}

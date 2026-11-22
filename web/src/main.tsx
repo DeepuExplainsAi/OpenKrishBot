@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { startTranslation, uiLanguage } from './i18n/dom';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/shell.css';
@@ -17,3 +18,5 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+startTranslation(uiLanguage());

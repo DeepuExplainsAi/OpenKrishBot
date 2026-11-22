@@ -1,0 +1,3 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
+export const DATA_DIR = join(homedir(), ".openkrishbot");
