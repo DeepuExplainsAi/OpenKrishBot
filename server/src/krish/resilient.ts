@@ -27,7 +27,7 @@ export function classify(name: string, status: number | null, body: string, err?
     if (code === 'ECONNREFUSED') return F('network', false, true, `${name} is not running at its address.`);
     return F('network', true, true, `Could not reach ${name}. Check the internet connection.`);
   }
-  if (status === 429) return F('rate_limit', true, true, `${name} says you are going too fast or are out of free quota.${detail ? ` (${detail})` : ''}`);
+  if (status === 429) return F('rate_limit', true, true, `${name} is busy or out of free quota.`);
   if (status === 401 || status === 403) return F('auth', false, true, `${name} refused the API key. Check it in the Engine panel.`);
   if (status === 402) return F('auth', false, true, `${name} needs credit on that account.`);
   if (status === 404) return F('not_found', false, true, `${name} does not know that model.${detail ? ` (${detail})` : ''}`);

@@ -34,25 +34,34 @@ async function start() {
     stdio: ['ignore', logFd, logFd],
     windowsHide: true,
   });
-  server.on('exit', (code) => { server = null; if (code && !app.isQuitting) { console.error('OpenKrishBot server stopped, code', code); app.quit(); } });
+  server.on('exit', (code) => {
+    server = null;
+    if (code && !app.isQuitting) {
+      let tail = ''; try { tail = fs.readFileSync(logFile, 'utf8').trim().split('\n').slice(-8).join('\n'); } catch {}
+      dialog.showErrorBox('OpenKrishBot stopped', `The engine exited (code ${code}).\n\n${tail}\n\nFull log: ${logFile}`);
+      app.quit();
+    }
+  });
   for (let i = 0; i < 120; i++) { if (await healthy(port)) return port; await new Promise((r) => setTimeout(r, 500)); }
   throw new Error('The OpenKrishBot server did not start.');
 }
 
+const LOADING = 'data:text/html,' + encodeURIComponent('<body style="margin:0;display:grid;place-items:center;height:100vh;font:16px system-ui;color:#555">Starting OpenKrishBot…</body>');
+
 async function open() {
-  const port = await start();
   win = new BrowserWindow({
-    width: 1360, height: 860, minWidth: 420, minHeight: 600, title: 'OpenKrishBot', backgroundColor: '#ffffff', show: false,
+    width: 1360, height: 860, minWidth: 420, minHeight: 600, title: 'OpenKrishBot', backgroundColor: '#ffffff', show: true,
     icon: path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true },
   });
-  win.once('ready-to-show', () => win.show());
   // links to other sites open in the normal browser, never inside the app
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(`http://127.0.0.1:${port}`)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });
+  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('http://127.0.0.1:') && !url.startsWith('data:')) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });
   win.webContents.session.setPermissionRequestHandler((_wc, permission, cb) => cb(['media', 'clipboard-sanitized-write', 'notifications', 'fullscreen'].includes(permission)));
-  await win.loadURL(`http://127.0.0.1:${port}`);
   win.on('closed', () => { win = null; });
+  win.loadURL(LOADING);
+  const port = await start();
+  await win?.loadURL(`http://127.0.0.1:${port}`);
 }
 
 // ---- updates: the same kind of install updates itself (Windows Setup, Linux AppImage/deb); Mac and Windows Portable download the new file and open it ----
@@ -111,9 +120,9 @@ async function checkForUpdate(ask) {
 ipcMain.handle('update:version', () => app.getVersion());
 ipcMain.handle('update:check', () => checkForUpdate(true));
 
-if (!app.requestSingleInstanceLock()) app.quit();
+if (!app.requestSingleInstanceLock()) app.quit(); // the running copy is brought to the front below
 else {
-  app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+  app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } else open().catch(() => {}); });
   app.whenReady().then(() => {
     Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' }]) : null);
     return open().then(() => { if (app.isPackaged) setTimeout(() => checkForUpdate(true), 15000); });

@@ -492,3 +492,4 @@ Done:
 - Release workflow now uploads `latest*.yml` and `.blockmap` files; they are what the updater reads. `build.publish` points at the GitHub repo.
 - Versions before 1.8.0 have no updater: install 1.8.0 by hand once.
 - Not testable on the VM: the real update flow needs two installed versions on a real PC.
+- [x] P19 one-line dismissible notices (no red box, short provider-switch text); desktop window opens at once with a loading page and shows a dialog with the log tail if the engine crashes; version 1.8.1

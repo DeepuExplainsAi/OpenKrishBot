@@ -178,10 +178,22 @@ function Steps({ item, active, open: unfinished, extra }: {
   );
 }
 
+function Notice({ text }: { text: string }) {
+  const [gone, setGone] = useState(false);
+  if (gone) return null;
+  const line = text.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  return (
+    <div className="notice" title={text}>
+      <span className="notice__text">{line}</span>
+      <button type="button" className="notice__close" aria-label="Dismiss" onClick={() => setGone(true)}>×</button>
+    </div>
+  );
+}
+
 function SystemRow({ row }: { row: Row }) {
   const b = row.body;
   if (b.type === 'event') return <div className="system-event">{b.text}</div>;
-  if (b.type === 'notice') return <div className={`notice is-${b.tone ?? 'info'}`}>{b.text}</div>;
+  if (b.type === 'notice') return <Notice text={b.text} />;
   if (b.type === 'card') return <CardRow row={row} />;
   return null;
 }

@@ -136,7 +136,7 @@ krishApi.post('/v1/responses', async (c) => {
             text = ''; calls = {}; emitted = false;
             const byId = new Map<string, number>();
             const att = await callModel(botId, { model, stream: true, messages: [{ role: 'system', content: system }, ...recentWindow(history, MAX_HISTORY)], ...(tools.length ? { tools, tool_choice: 'auto' } : {}), ...(effort && /gpt-5|o\d|gpt-oss/.test(model) ? { reasoning_effort: effort } : {}) }, bot?.provider, c.req.raw.signal, { onRetry: (note) => send('krish.notice', { text: note }) });
-            if (att.switchedFrom) { send('krish.notice', { text: `${att.switchedFrom} failed, so ${att.providerName} answered.` }); }
+            if (att.switchedFrom) { send('krish.notice', { text: `Switched to ${att.providerName}; ${att.switchedFrom} was not working.` }); }
             const res = att.res;
             try {
               const fin: { finish?: string } = {};
