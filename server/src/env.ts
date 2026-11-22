@@ -47,16 +47,14 @@ export function isLoopbackUrl(u: string): boolean {
   }
 }
 
-/** BOTHQ_<name>, or GROKBOT_<name> as set up before the project was renamed. */
+/** BOTHQ_<name> environment variable. */
 export function compatEnv(name: string): string | undefined {
-  return process.env[`BOTHQ_${name}`] ?? process.env[`GROKBOT_${name}`];
+  return process.env[`BOTHQ_${name}`];
 }
 
-/** Default database file. One made before the rename (data/grokbot.db) keeps being used. */
+/** Default database file. */
 function defaultDbPath(): string {
-  const current = fileURLToPath(new URL('../../data/bothq.db', import.meta.url));
-  const legacy = fileURLToPath(new URL('../../data/grokbot.db', import.meta.url));
-  return !fs.existsSync(current) && fs.existsSync(legacy) ? legacy : current;
+  return fileURLToPath(new URL('../../data/bothq.db', import.meta.url));
 }
 
 const hermesHome = process.env.HERMES_HOME_PRIMARY ?? path.join(os.homedir(), '.hermes');
@@ -106,7 +104,7 @@ export const env = {
    */
   primaryCdpUrl: process.env.PRIMARY_CDP_URL ?? '',
   /** Bots that can each have a screen (Orgo allows four screens on one Linux computer). */
-  maxBots: Number(process.env.MAX_BOTS ?? 4),
+  maxBots: Number(process.env.MAX_BOTS ?? 12),
   /**
    * Comma-separated emails allowed to sign in. Empty = anyone, but only while APP_URL is a local
    * address; on a public URL an empty list lets no new account in (see routes.ts).

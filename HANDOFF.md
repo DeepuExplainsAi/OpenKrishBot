@@ -361,3 +361,9 @@ NOT tested: a real model calling save_skill/publish_site; browser rendering of t
 - Desktop 1.1.2: real `.ico` for the Windows exe/installer/shortcuts (installed-apps list and Start menu show the icon), desktop + Start-menu shortcuts, server log in `~/.krishbot/desktop.log`, error dialog if the server does not start. SmartScreen note in README (unsigned installers).
 - Launcher/SKILL.md names now say OpenKrishbot. `~/.krishbot` data folder name is kept on purpose (existing data).
 - Still open: OS-level screen control (cua-driver licence not checked; browser only), code signing, real-PC Windows install test, UI check in a real browser.
+
+## P19: bots hire bots, Grokbot legacy removed (2026-11-22)
+- New tools `create_bot` (name, role, company, instructions) and `list_bots`: the Chief (or any bot) builds companies of specialist bots, each with its own browser/memory, then delegates with `send_to_bot`. Company + role go in the bot's label. Prompt (agent/prompt.ts) tells bots to do this for multi-site jobs. MAX_BOTS default 4 -> 12, delegation depth 3 -> 4. Test: create-bot.test.mts.
+- Removed old Grokbot compat (grokbot cookie, GROKBOT_ env, grokbot.db, localStorage `grokbot.*`).
+- Checked orgo-teammates / OpenMausBot / OpenBot: Chief-of-Staff + create_bot + team templates (OpenMausBot) are the relevant ones. Not ported: team import/export templates, @everyone routing, a "company" grouping UI, per-bot idle sleep.
+- NOT verified: a real model hiring bots and running Amazon/Flipkart/Pinterest jobs; 12 Chrome profiles on a small RAM machine (each bot starts its own Chrome on first browser use).

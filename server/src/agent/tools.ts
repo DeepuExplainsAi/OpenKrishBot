@@ -367,13 +367,42 @@ export const TOOLS: ToolDef[] = [
     activity: 'messaging_named',
     label: 'Starting a workflow',
     impl: async (a, ctx) => {
-      if (ctx.depth >= 3) return { output: 'Too many hops between bots; answer the user directly instead.' };
+      if (ctx.depth >= 4) return { output: 'Too many hops between bots; answer the user directly instead.' };
       const { findFlow, startFlowRun } = await import('../routes-flows.js');
       const f = findFlow(ctx.userId, String(a.workflow));
       if (!f) return { output: `No workflow "${a.workflow}". Use list_workflows.` };
       try { return { output: JSON.stringify({ run_id: startFlowRun(ctx.userId, f.id, String(a.input ?? '')) }), summary: `Started workflow ${f.name}` }; }
       catch (e: any) { return { output: e.message }; }
     },
+  },
+  {
+    name: 'create_bot',
+    description: "Hire a new Bot (teammate) with its own role, instructions, browser and memory. Use it when work needs a specialist or should run in parallel, e.g. a 'Listing Bot' for Amazon, a 'Pinterest Bot', a 'Research Bot'. Group Bots into a company with the company field. Then give it work with send_to_bot. Check list_bots first so you do not create duplicates.",
+    parameters: obj({
+      name: { type: 'string', description: 'Short unique name, e.g. "Amazon Lister"' },
+      role: { type: 'string', description: 'Job title, e.g. "Amazon product listing"' },
+      company: { type: 'string', description: 'Company / department this Bot belongs to, e.g. "Dropship Co"' },
+      instructions: { type: 'string', description: 'What this Bot does, step by step, and what to report back. Tell it to use its own browser for websites.' },
+    }, ['name', 'instructions']),
+    activity: 'working',
+    label: 'Hiring a Bot',
+    impl: async (a, ctx) => {
+      if (botByName(ctx.userId, String(a.name))) return { output: `A Bot named "${a.name}" already exists. Use send_to_bot, or pick another name.` };
+      try {
+        const { createBot } = await import('../routes.js');
+        const label = [a.company, a.role].filter(Boolean).join(' · ');
+        const b = createBot(ctx.userId, { name: String(a.name), label, description: String(a.role ?? ''), instructions: `${a.instructions}\n\nYou are part of ${a.company || "the user's"} team. When you finish, reply to whoever asked with send_to_bot, short and with the result.` });
+        return { output: JSON.stringify({ ok: true, name: b.name, hint: 'Now give it work with send_to_bot.' }), summary: `Hired ${b.name}` };
+      } catch (e: any) { return { output: e.message }; }
+    },
+  },
+  {
+    name: 'list_bots',
+    description: 'List every Bot on the team with its company/role.',
+    parameters: obj({}),
+    activity: 'working',
+    label: 'Checking the team',
+    impl: async (_a, ctx) => ({ output: (db.prepare("SELECT name, label, is_primary FROM bots WHERE user_id=? AND COALESCE(kind,'agent')<>'room' AND COALESCE(hidden,0)=0 ORDER BY created_at").all(ctx.userId) as any[]).map((b) => `- ${b.name}${b.label ? ` (${b.label})` : ''}${b.is_primary ? ' [main]' : ''}`).join('\n') }),
   },
   {
     name: 'send_to_bot',
@@ -386,7 +415,7 @@ export const TOOLS: ToolDef[] = [
       if (!target) return { output: `No bot named "${a.bot_name}". Team: ${(db.prepare('SELECT name FROM bots WHERE user_id=?').all(ctx.userId) as any[]).map((b) => b.name).join(', ')}` };
       if (target.id === ctx.botId) return { output: 'That is you.' };
       if (target.kind === 'room') return { output: `"${target.name}" is a group chat; use post_to_group instead.` };
-      if (ctx.depth >= 3) return { output: 'Too many hops between bots; answer the user directly instead.' };
+      if (ctx.depth >= 4) return { output: 'Too many hops between bots; answer the user directly instead.' };
       ctx.enqueueBotMessage(ctx.botId, target.id, String(a.message), ctx.depth + 1);
       return { output: `Sent to ${target.name}. Their reply will come back to you as a message.`, summary: `Messaged ${target.name}` };
     },
