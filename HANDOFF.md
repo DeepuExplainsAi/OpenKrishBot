@@ -274,3 +274,29 @@ Done in P13a: `skill-library.ts` loads shipped skills plus `~/.krishbot/skills/<
 Tests: skills.test (+2), e2e "skills import" (23 total). Unit 85, e2e 23, typecheck clean.
 NOT verified: import against real GitHub (fetch is faked in the unit test), UI in a browser. Only SKILL.md is imported, not scripts shipped beside it. Still not built: the 55-skill official catalog (can now be imported by link), items 2-9 above.
 Next: P13b = trigger "only if" conditions (2) and RSS trigger (3), then (4) projects.
+
+## MERGE PLAN: old repo `DeepuExplainsAi/Krishbot` -> this repo (2026-11-22). WAIT for the owner's go before doing it.
+Owner's intent: ONE project (Krishbot), updated step by step with the reference repos (OpenMan, OpenMausBot, Paperclip, OpenManus, OpenBot, Composio ideas). Two repos exist by accident of earlier agents. `krishbot-ai` (this one) is the more complete: ~178 files vs 118. Owner will test the v1.0.0 desktop release first, then say what to add. Never delete either repo; the old one only gets a README pointer at the end.
+Old repo: branches `main` (28 commits, Hermes-era + direct model connections + NSIS installer) and `full-port` (15 commits, local-only port). Clone it to ~/krishbot-old to read.
+
+### Take from old repo (not in this one), in this order
+1. Subscription models, no API key needed: `server/src/providers.ts` presets of type `cli` (Claude via `claude -p`, ChatGPT via `codex exec`, Gemini CLI, OpenCode, Kilo, Kiro, Qwen, "any command, prompt on stdin") + `server/src/agent/direct.ts` (CLI runner and neutral message format) + `server/src/terminal.ts` (opens a terminal for sign-in; has Windows/macOS/Linux branches). Port INTO `server/src/krish/providers.ts` and `resilient.ts` (new type `cli` next to openai-compatible; fallback chain and breaker must treat it like any provider). Test with a fake CLI script on all 3 OS in CI.
+2. Extra providers missing here: Anthropic API directly (own message format, `type: 'anthropic'`), xAI Grok, NVIDIA NIM, Hugging Face router, Moonshot (Kimi), Z.ai (GLM), GitHub Models, Perplexity, Fireworks. Add to the preset list; keep model ids as in the old file but re-check them.
+3. Models settings page: `web/src/components/config/ModelsSection.tsx` (grouped list: Your subscription / On this computer, free / Free tiers / API keys; live model list with Refresh). Rebuild it on the new `/api/krish/providers` API.
+4. `SKILL.md` at the repo root (guide for coding agents: install, start, update, Windows PowerShell notes). Update it for the new launcher and installers. Keep "do not change the licence or author name".
+5. `web/src/styles/select.css`, `web/src/voice/audio.ts` and `server/src/settings.ts` (app_settings table: autoApprove etc.): diff against this repo first, take only what is missing.
+6. Old NSIS/.deb details: already covered by `desktop/` (electron-builder). Only compare the icon script `build/icon.mjs` if a better icon is wanted.
+
+### Do NOT take
+Hermes engine, Orgo, Composio, xAI-only voice, `scripts/add-hq-to-hermes.py`, `bots.ts`/`box.ts` cloud parts, `start.bat`/`start.sh` (replaced by Krishbot.bat/krishbot.sh/launch.mjs and the desktop app). No cloud pieces at all: owner wants everything local.
+
+### Licence
+Both repos are AGPL-3.0 now (this one switched on 2026-11-22; the Bot HQ MIT notice stays in THIRD_PARTY_NOTICES.md). Code from the old repo is AGPL, so no licence conflict.
+
+### After the merge
+Update README (providers, subscription login), HANDOFF status, run unit + e2e, push a tag (v1.1.0) so the desktop workflow publishes new installers, then add a one-line README pointer in the old repo (no deletions).
+
+## Desktop release (2026-11-22)
+`desktop/` = Electron 39 shell (`main.cjs` starts the packaged server with ELECTRON_RUN_AS_NODE, opens a window; single instance; external links open in the browser). `scripts/desktop-prep.mjs` copies server+web builds in; `.github/workflows/release.yml` builds on Windows (NSIS setup + portable exe), macOS (dmg + zip, x64 and arm64), Linux (AppImage + deb) and smoke-tests the packaged server (`scripts/desktop-smoke.mjs`); a `v*` tag publishes a GitHub Release. `ci.yml` runs typecheck + unit + e2e on all 3 OS.
+Lessons: Electron 33 crashed the server (SIGSEGV) with better-sqlite3 13, Electron 39 works (Node 22). Use `npm ci --ignore-scripts` (better-sqlite3 ships prebuilds; the Windows runner has no usable compiler for a rebuild). rpm dropped: rpmbuild failed. Installers are UNSIGNED (Windows SmartScreen, macOS Gatekeeper warnings) until certificates exist. The window UI was never opened by a human on Windows/macOS: only the packaged server was smoke-tested.
+Open: Railway downloads page (static page that lists the GitHub Release files; the app itself stays local), rpm, auto-update, code signing, goals-tree UI check in a real browser, P13b (trigger conditions, RSS trigger), projects.
