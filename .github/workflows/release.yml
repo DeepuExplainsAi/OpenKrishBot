@@ -20,7 +20,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run build
       - run: node scripts/desktop-prep.mjs
-      - run: npm install --no-audit --no-fund
+      - run: npm install --no-audit --no-fund --ignore-scripts
         working-directory: desktop
       - run: npx electron-builder ${{ matrix.args }} --publish never
         working-directory: desktop

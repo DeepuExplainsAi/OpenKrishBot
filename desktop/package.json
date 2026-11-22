@@ -94,8 +94,7 @@
       "maintainer": "Krishbot",
       "target": [
         "AppImage",
-        "deb",
-        "rpm"
+        "deb"
       ]
     }
   },
