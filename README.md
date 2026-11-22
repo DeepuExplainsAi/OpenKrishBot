@@ -35,3 +35,6 @@ npm test
 ```
 
 See `HANDOFF.md` for design notes and what is not verified yet.
+
+## Licence
+GNU AGPL-3.0 (see `LICENSE`). Third-party notices: `THIRD_PARTY_NOTICES.md`.
