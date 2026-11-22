@@ -11,6 +11,7 @@ import { skillsPrompt } from '../skill-library.js';
 import { estimateTokens, overBudget, recordUsage } from '../usage.js';
 import { SUMMARY_PROMPT, compactHistory, recentWindow, type Msg } from './compact.js';
 import { loopNudge } from '../plan.js';
+import { checkProviderKey } from '../maus/server/provider-key-check.ts';
 import { DEFAULT_PROVIDER, PRESETS, hasKey, liveModels, forgetModelLists, resolve, saveProvider } from './providers.js';
 import { botHome, localToolMap, LOCAL_TOOLS } from './tools.js';
 import { TOOLS, policyFor, toolMap } from '../agent/tools.js';
@@ -296,8 +297,14 @@ providersApi.post('/providers/:id/test', async (c) => {
       return c.json({ ok: true, reply: text.trim().slice(0, 200) });
     }
     const { baseUrl, apiKey } = resolve(id);
-    const model = (await liveModels(id)).models[0] ?? preset.models[0];
     if (!baseUrl) return c.json({ error: 'Set the address first.' }, 400);
+    if (!preset.keyless && !apiKey) return c.json({ error: 'Paste the API key first, then press Test.' }, 400);
+    if (apiKey) {
+      const v = await checkProviderKey({ provider: 'openaiCompat', key: apiKey, url: baseUrl });
+      if (!v.ok && v.reason === 'rejected') return c.json({ error: `${preset.name} rejected this key (HTTP ${v.status}). Check that it is copied whole and is for ${preset.name}.` }, 401);
+      if (v.ok) return c.json({ ok: true, reply: `Key accepted${v.models.length ? `; models: ${v.models.slice(0, 3).join(', ')}` : ''}` });
+    }
+    const model = (await liveModels(id)).models[0] ?? preset.models[0];
     if (!model) return c.json({ error: 'No model found. Press Refresh or type one in the chat Engine panel.' }, 400);
     const r = await fetch(`${baseUrl}/chat/completions`, { method: 'POST', signal: AbortSignal.timeout(60_000), headers: { 'content-type': 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) }, body: JSON.stringify({ model, max_tokens: 20, messages: [{ role: 'user', content: 'Say hello in two words.' }] }) });
     const j: any = await r.json().catch(() => ({}));

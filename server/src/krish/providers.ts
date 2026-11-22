@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { cliFound } from './cli.js';
+import { ModelCatalogStore } from '../maus/server/model-catalog/catalog.ts';
 
 /** Model providers the OpenKrishBot engine can talk to. All speak the OpenAI chat-completions dialect. */
 export interface Preset { id: string; name: string; baseUrl: string; keyless?: boolean; local?: boolean; models: string[]; env?: string; note?: string; cli?: { command: string; bin: string; login?: string } }
@@ -42,6 +43,19 @@ export const PRESETS: Preset[] = [
 ];
 
 export const DEFAULT_PROVIDER = 'pollinations';
+
+/** OpenMausBot's model catalog (models.dev: ~190 providers). Every OpenAI-compatible one not listed above becomes a key provider. */
+export const catalog = new ModelCatalogStore({ dataDir: path.join(os.homedir(), '.openkrishbot'), log: () => {} });
+export function addCatalogPresets() {
+  const known = new Set(PRESETS.map((p) => p.id));
+  const { providers } = catalog.get();
+  for (const c of Object.values(providers)) {
+    if (!c.api || known.has(c.id)) continue;
+    PRESETS.splice(PRESETS.findIndex((p) => p.id === 'custom'), 0, { id: c.id, name: c.name, baseUrl: c.api, models: Object.keys(c.models).slice(0, 60), env: c.env[0] });
+  }
+}
+addCatalogPresets();
+void catalog.refresh().then((r) => { if (r === 'updated') addCatalogPresets(); });
 
 interface Saved { apiKey?: string; baseUrl?: string }
 const file = path.join(os.homedir(), '.openkrishbot', 'providers.json');

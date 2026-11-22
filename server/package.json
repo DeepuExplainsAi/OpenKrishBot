@@ -6,7 +6,7 @@
     "test": "tsx --test test/*.test.mts",
     "dev": "tsx watch --env-file=../.env src/index.ts",
     "start": "node --env-file-if-exists=../.env dist/index.js",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/maus/server/model-catalog/models-dev.snapshot.json','dist/maus/server/model-catalog/models-dev.snapshot.json')\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
