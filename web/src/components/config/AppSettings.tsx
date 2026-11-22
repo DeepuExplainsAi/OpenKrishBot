@@ -1,3 +1,4 @@
+import { SchedulePicker } from './SchedulePicker';
 import { localeChoices } from '../../i18n';
 import { setUiLanguage, uiLanguage } from '../../i18n/dom';
 import { PALETTES } from '../../lib/palettes';
@@ -626,7 +627,7 @@ function WorkflowsSection() {
         <section className="cfg-section">
           <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
             <input className="text-input" placeholder="Workflow name" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
-            <input className="text-input" placeholder="Run automatically (cron, optional) e.g. 0 9 * * 1-5" value={edit.schedule ?? ''} onChange={(e) => setEdit({ ...edit, schedule: e.target.value })} />
+            <SchedulePicker cron={edit.schedule ?? ''} onChange={(schedule) => setEdit({ ...edit, schedule })} />
             <div style={{ display: 'flex', gap: 6 }}>
               <input className="text-input" placeholder="Plan with AI: write a goal" value={goal} onChange={(e) => setGoal(e.target.value)} />
               <button type="button" className="cfg-btn cfg-btn--secondary" disabled={planning || !goal.trim()} onClick={plan}>{planning ? 'Planning…' : 'Plan with AI'}</button>

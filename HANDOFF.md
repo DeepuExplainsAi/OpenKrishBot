@@ -516,3 +516,6 @@ Done:
 - Not yet: nod copies (memory, schedules, ledger, vault, update/restart toast), Hindi extra strings, UI check of MCP screen in a browser.
 - nod update toast: web/src/components/desktop-update-toast.tsx (+css, lib/desktopUpdate.ts) copied from nod; desktop/main.cjs + preload.cjs bridge (status, dismiss, retry, download, restart) on electron-updater: background download, 'Restart to update', installs on quit.
 - nod memory (server/src/nod: memory-tree, memory-ops, memory-lint, redaction, personal-data; shared-nod/memory.ts) copied unchanged except import paths; smoke-tested (applyOps saves a note). Not yet wired to a route/UI; nod's Postgres modules (memory.ts, recall, ledger, schedules, vault) need a SQLite port of their queries.
+
+### v1.9.1 part 3 — nod schedules
+- `web/src/nod/lib/{schedule-timing,schedules}.ts` copied from nod; `SchedulePicker.tsx` (nod plan-controls picker: frequency/day/time + label) replaces the raw cron box in workflow edit. Runs on existing croner `routines.ts` (nod's pg-boss engine not portable to SQLite).
