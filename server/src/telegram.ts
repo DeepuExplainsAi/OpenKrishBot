@@ -43,14 +43,27 @@ let lastError: string | null = null;
 let abort: AbortController | null = null;
 let stopRow: (() => void) | null = null;
 let pairCode: string | null = null;
+let pairCodeAt = 0;
+const PAIR_TTL_MS = 10 * 60_000;
+const livePairCode = () => (pairCode && Date.now() - pairCodeAt < PAIR_TTL_MS ? pairCode : null);
 
 const call = async (method: string, body: object, signal?: AbortSignal) => {
   const r = await fetch(`${API}/bot${token}/${method}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal });
   const j: any = await r.json().catch(() => ({}));
-  if (!j.ok) throw Object.assign(new Error(j.description ?? `Telegram error ${r.status}`), { code: j.error_code ?? r.status });
+  if (!j.ok) throw Object.assign(new Error(j.description ?? `Telegram error ${r.status}`), { code: j.error_code ?? r.status, retryAfter: Number(j.parameters?.retry_after) || 0 });
   return j.result;
 };
-const sendText = async (chat: string, text: string) => { for (const part of chunk(text.replaceAll(MARK, ''))) await call('sendMessage', { chat_id: chat, text: part }); };
+/** One message part; Telegram's 429 says how long to wait, so wait that long (max 3 tries) instead of dropping the reply. */
+async function sendPart(chat: string, text: string) {
+  for (let tryNo = 0; ; tryNo++) {
+    try { return await call('sendMessage', { chat_id: chat, text }); }
+    catch (e: any) {
+      if (e.code !== 429 || tryNo >= 2) throw e;
+      await new Promise((r) => setTimeout(r, Math.min((e.retryAfter || 2) * 1000, 30_000)));
+    }
+  }
+}
+const sendText = async (chat: string, text: string) => { for (const part of chunk(text.replaceAll(MARK, ''), 3500)) await sendPart(chat, part); };
 
 function primaryBot(): { id: string; user_id: string } | null {
   return (db.prepare("SELECT id, user_id FROM bots WHERE engine='primary' LIMIT 1").get() as any) ?? null;
@@ -88,7 +101,7 @@ async function start() {
         for (const u of updates) {
           offset = u.update_id + 1; put('offset', String(offset));
           await handleUpdate(u, {
-            pairCode, allow: allowList(),
+            pairCode: livePairCode(), allow: allowList(),
             pair: (chat) => { put('allow', JSON.stringify([...new Set([...allowList(), chat])])); pairCode = null; },
             reply: sendText,
             relay: (chat, text) => relay.onMessage(chat, text, false, false),
@@ -97,7 +110,10 @@ async function start() {
       } catch (e: any) {
         if (ctl.signal.aborted) return;
         if (e.code === 401) { status = 'error'; lastError = 'Telegram rejected this token.'; return; }
-        status = 'error'; lastError = `Connection problem, retrying: ${e.message}`;
+        status = 'error';
+        if (e.code === 409) { lastError = 'Another program is already reading this bot (same token on another computer or app). Stop it there; retrying…'; wait = Math.max(wait, 10_000); }
+        else if (e.code === 429 && e.retryAfter) { lastError = `Telegram asked to slow down, waiting ${e.retryAfter}s.`; wait = e.retryAfter * 1000; }
+        else lastError = `Connection problem, retrying: ${e.message}`;
         await new Promise((r) => setTimeout(r, wait)); wait = Math.min(wait * 2, 60_000);
       }
     }
@@ -110,7 +126,7 @@ export function initTelegram() { if (get('on') === '1') start().catch((e) => { s
 
 export const telegramApi = new Hono<AuthVars>();
 telegramApi.use('*', requireUser);
-telegramApi.get('/', (c) => c.json({ status, bot: botName, error: lastError, hasToken: !!get('token'), paired: allowList().length, pairCode }));
+telegramApi.get('/', (c) => c.json({ status, bot: botName, error: lastError, hasToken: !!get('token'), paired: allowList().length, pairCode: livePairCode() }));
 telegramApi.put('/token', async (c) => {
   const { token: t } = await c.req.json<{ token?: string }>().catch(() => ({} as { token?: string }));
   if (!/^\d{6,12}:[\w-]{30,}$/.test(String(t ?? '').trim())) return c.json({ error: 'That does not look like a BotFather token (like 123456:ABC-…).' }, 400);
@@ -118,7 +134,7 @@ telegramApi.put('/token', async (c) => {
   await start();
   return c.json({ status, bot: botName, error: lastError });
 });
-telegramApi.post('/pair-code', (c) => { pairCode = crypto.randomInt(100000, 999999).toString(); return c.json({ pairCode }); });
+telegramApi.post('/pair-code', (c) => { pairCode = crypto.randomInt(100000, 999999).toString(); pairCodeAt = Date.now(); return c.json({ pairCode }); });
 telegramApi.post('/start', async (c) => { put('on', '1'); await start(); return c.json({ status, bot: botName, error: lastError }); });
 telegramApi.post('/stop', (c) => { put('on', '0'); stop(); return c.json({ ok: true }); });
 telegramApi.post('/unlink', (c) => { stop(); for (const k of ['token', 'on', 'allow', 'offset']) del(k); botName = null; return c.json({ ok: true }); });

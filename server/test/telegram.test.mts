@@ -27,3 +27,4 @@ test('paired chat is relayed; groups and non-text are ignored even if allowed', 
   assert.deepEqual(await run('do it', { allow: ['42'], type: 'group' }), []);
   assert.deepEqual(await handleUpdate({ update_id: 2, message: { chat: { id: 42, type: 'private' } } } as any, { pairCode: null, allow: ['42'], pair() {}, reply: async () => {}, relay: async () => { throw new Error('no'); } }), undefined);
 });
+
