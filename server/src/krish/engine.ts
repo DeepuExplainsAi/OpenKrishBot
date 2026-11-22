@@ -268,7 +268,7 @@ async function runToolOnce(botId: string, name: string, rawArgs: string, home: s
 
 // ---------- settings: providers and models ----------
 
-const groupOf = (p: (typeof PRESETS)[number]) => p.cli ? 'Your subscription' : p.local ? 'On this computer' : /free/i.test(p.name) ? 'Free tiers' : 'API keys';
+const groupOf = (p: (typeof PRESETS)[number]) => p.cli || /^opencode/.test(p.id) ? 'Your subscription' : p.local ? 'On this computer' : /free/i.test(p.name) ? 'Free tiers' : 'API keys';
 export const providersApi = new Hono<AuthVars>();
 providersApi.use('*', requireUser);
 providersApi.get('/providers', async (c) => {

@@ -32,7 +32,7 @@ export const PRESETS: Preset[] = [
   { id: 'cursor-cli', name: 'Cursor (via cursor-agent)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Cursor CLI, run `cursor-agent login`', cli: { command: 'cursor-agent -p', bin: 'cursor-agent', login: 'cursor-agent login' } },
   { id: 'vibe-cli', name: 'Mistral (via Vibe CLI)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Install Mistral Vibe and sign in', cli: { command: 'vibe -p', bin: 'vibe', login: 'vibe' } },
   { id: 'antigravity-cli', name: 'Google Gemini (Antigravity)', baseUrl: '', keyless: true, local: true, models: ['default'], note: 'Signed-in Antigravity/Gemini account', cli: { command: 'gemini -p " "', bin: 'gemini', login: 'gemini' } },
-  { id: 'opencode-cli', name: 'OpenCode (via OpenCode CLI)', baseUrl: '', keyless: true, local: true, models: ['default'], cli: { command: 'opencode run', bin: 'opencode', login: 'opencode auth login' } },
+  { id: 'opencode-cli', name: 'OpenCode (via OpenCode CLI)', note: 'Or paste your OpenCode key in the OpenCode entries below', baseUrl: '', keyless: true, local: true, models: ['default'], cli: { command: 'opencode run', bin: 'opencode', login: 'opencode auth login' } },
   { id: 'qwen-cli', name: 'Qwen Code', baseUrl: '', keyless: true, local: true, models: ['default'], cli: { command: 'qwen -p " "', bin: 'qwen', login: 'qwen' } },
   { id: 'anthropic', name: 'Anthropic (Claude API)', baseUrl: 'https://api.anthropic.com/v1', models: ['claude-sonnet-4-5', 'claude-opus-4-1', 'claude-haiku-4-5'], env: 'ANTHROPIC_API_KEY' },
   { id: 'xai', name: 'xAI (Grok)', baseUrl: 'https://api.x.ai/v1', models: ['grok-4', 'grok-code-fast-1'], env: 'XAI_API_KEY' },
