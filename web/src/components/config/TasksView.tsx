@@ -26,6 +26,11 @@ function TaskRow({ t, bot, showBot }: { t: Task; bot?: Bot; showBot: boolean }) 
       <span className="task-row__text">
         <span className="task-row__title">{t.title}</span>
         {t.note && <span className="task-row__note">{t.note}</span>}
+        {t.steps.length > 0 && (
+          <span className="task-steps">
+            {t.steps.map((st, i) => <span key={i} className={`task-step is-${st.status}`}><i aria-hidden />{st.text}</span>)}
+          </span>
+        )}
         <span className="task-row__meta">
           {showBot && bot && <><BotAvatarFor bot={bot} size={14} /><span>{bot.name}</span><span aria-hidden>·</span></>}
           <span>{when(t)}</span>

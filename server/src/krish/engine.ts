@@ -5,6 +5,7 @@ import { env } from '../env.js';
 import { requireUser, type AuthVars } from '../lib/auth.js';
 import { engineKey } from '../engine.js';
 import { callModel } from './resilient.js';
+import { loopNudge } from '../plan.js';
 import { DEFAULT_PROVIDER, PRESETS, hasKey, liveModels, resolve, saveProvider } from './providers.js';
 import { botHome, localToolMap, LOCAL_TOOLS } from './tools.js';
 import { TOOLS, policyFor, toolMap } from '../agent/tools.js';
@@ -124,7 +125,15 @@ krishApi.post('/v1/responses', async (c) => {
   return new Response(stream, { headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' } });
 });
 
+const recentCalls = new Map<string, string[]>();
+
 async function runTool(botId: string, name: string, rawArgs: string, home: string): Promise<string> {
+  const out = await runToolOnce(botId, name, rawArgs, home);
+  const nudge = loopNudge(recentCalls.get(botId) ?? (recentCalls.set(botId, []), recentCalls.get(botId)!), `${name}:${rawArgs}`);
+  return nudge ? `${out}\n\n${nudge}` : out;
+}
+
+async function runToolOnce(botId: string, name: string, rawArgs: string, home: string): Promise<string> {
   let args: any = {};
   try { args = rawArgs ? JSON.parse(rawArgs) : {}; } catch { return JSON.stringify({ error: 'The tool arguments were not valid JSON. Try again.' }); }
   const local = localToolMap.get(name);

@@ -7,7 +7,7 @@ import { newId } from './lib/ids.js';
 import { hub } from './lib/hub.js';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { createSession, destroySession, isLocalHost, isLoopbackAddress, isOwnerKey, requireUser, userFromCookieHeader, type AuthVars } from './lib/auth.js';
-import { allLive, appendRow, clearConversation, emitBot, getBot, getBotRow, getRow, listBots, listRoutines, listRows, listTasks, toRoutine, updateRow } from './store.js';
+import { allLive, appendRow, clearConversation, emitBot, getBot, getBotRow, getRow, listBots, listRoutines, listRows, listTasks, toRoutine, toTask, updateRow } from './store.js';
 import { enqueue, interrupt, resolveApproval } from './agent/loop.js';
 import { computerState, ensureComputer, forgetBotFiles, refreshComputer, releaseScreen, suspendComputer } from './computer.js';
 import { assignEngine, provisionEngine, removeEngine, syncPersona } from './engine.js';
@@ -343,7 +343,7 @@ api.get('/bots/:id/tasks', (c) => {
 
 api.get('/tasks', (c) => {
   const rows = db.prepare('SELECT t.* FROM tasks t JOIN bots b ON b.id=t.bot_id WHERE b.user_id=? ORDER BY t.updated_at DESC LIMIT 200').all(c.get('user').id) as any[];
-  return c.json({ tasks: rows.map((r) => ({ id: r.id, botId: r.bot_id, title: r.title, state: r.state, note: r.note, updatedAt: r.updated_at })) });
+  return c.json({ tasks: rows.map(toTask) });
 });
 
 api.get('/bots/:id/memories', (c) => {

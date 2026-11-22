@@ -42,12 +42,12 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P4 (DONE, verified e2e) Local connectors: MCP client (stdio + HTTP) in server/src/apps.ts, 39-app catalog, custom MCP / web-API apps, per-tool approvals, webhook routines; Composio removed
 - [x] P5 (DONE, verified) Phone remote control: QR pairing, LAN + free cloudflared tunnel, installable PWA, phone layout, device list/revoke
 - [x] P6 (DONE, partly verified) Resilient model calls + provider fallback, OpenRouter preset (free + GPT-6 Luna/Astra), WhatsApp bridge
-- [ ] P7 OpenManus features: planning flow, browser/python/file tools, multi-agent flow
+- [x] P7 (DONE, verified) OpenManus: `plan` tool (checklist in Tasks), stuck-loop nudge
 - [ ] P8 OpenBot features: AG-UI style approvals/interactive results, extra tools
 - [ ] P9 Voice (local STT/TTS), polish, packaging (desktop launcher), final audit
 
 ## Status
-P0-P6 done. Server boots with zero keys (verified). Next: P7 OpenManus (planning flow), P8 OpenBot (approvals), P9 polish/About/packaging.
+P0-P7 done. Server boots with zero keys (verified). Next: P8 OpenBot, P9 polish/About/packaging/final audit.
 
 ## P2 notes (for next agent)
 - server/src/engine.ts is now a slim replacement (old Hermes engine deleted). Every bot -> in-process engine at /krish/v1/responses (server/src/krish/engine.ts), guarded by engineKey().
@@ -99,3 +99,8 @@ P0-P6 done. Server boots with zero keys (verified). Next: P7 OpenManus (planning
 - WhatsApp: `whatsapp-relay.ts` (pure logic, tested: allowlist, self-chat, own-message marker, approval replies 1/2/3, stop, errors) + `whatsapp.ts` (Baileys 7.0.0-rc14, QR link, reconnect with backoff, creds in ~/.krishbot/whatsapp) + Settings -> WhatsApp. Only the main Bot. Verified: server starts the socket and WhatsApp's servers return a real QR. NOT verified: actual scan/link, sending, receiving (needs a real phone). Baileys is unofficial; account-ban risk is noted in the UI/file header. Groups and media are ignored.
 - Not done from OpenMausBot: rooms exist already; handoff cards, skills marketplace, multi-chat apps (Slack/Telegram) not ported.
 - About section: the app has no About/license screen right now (checked web/src). LICENSE and THIRD_PARTY_NOTICES.md exist in repo root only; the user said they will add licenses later.
+
+## P7 notes
+- OpenManus already matched by existing local tools (terminal, execute_code, read/write/patch file, web_search/extract, browser). Added what was missing: `plan` tool (create / mark_step / get; `server/src/plan.ts`, tested) stored on `tasks.steps` (JSON), shown as a checklist in the Tasks tab; and OpenManus's "stuck" check (`loopNudge`): third identical tool call in a row gets a nudge appended to the result.
+- Verified with a scripted fake model: plan created, step marked, state persisted, nudge fired.
+- Not ported: OpenManus multi-agent PlanningFlow executor (a separate agent per step), crawl4ai, chart visualization, sandbox. The single-agent plan tool covers the planning value; a per-step executor would be a bigger change.

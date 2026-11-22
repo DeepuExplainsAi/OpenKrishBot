@@ -167,7 +167,9 @@ export interface Routine {
   enabled: boolean; nextRunAt: number | null; lastRunAt: number | null; description: string;
 }
 
-export interface Task { id: string; botId: string; title: string; state: 'working' | 'needs_input' | 'done'; note: string; updatedAt: number }
+export type StepStatus = 'todo' | 'doing' | 'done' | 'blocked';
+export interface PlanStep { text: string; status: StepStatus; note?: string }
+export interface Task { id: string; botId: string; title: string; state: 'working' | 'needs_input' | 'done'; note: string; updatedAt: number; /** A plan: the steps the Bot works through (empty for a plain task). */ steps: PlanStep[] }
 
 export interface Memory { id: string; botId: string; text: string; createdAt: number; source?: 'chat' | 'learned' }
 

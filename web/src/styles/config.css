@@ -228,3 +228,13 @@
 /* phone pairing */
 .phone-qr { align-items: center; gap: 16px; }
 .phone-qr img { border-radius: 12px; background: #fff; padding: 6px; }
+
+/* plan steps inside a task row */
+.task-steps { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 2px; }
+.task-step { display: flex; align-items: baseline; gap: 8px; font-size: 13px; line-height: 18px; color: var(--color-text-secondary); text-align: left; }
+.task-step i { flex: none; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--color-border-secondary); transform: translateY(0.5px); }
+.task-step.is-doing { color: var(--color-text-primary); font-weight: 500; }
+.task-step.is-doing i { border-color: var(--color-primary); background: var(--color-primary); }
+.task-step.is-done { color: var(--color-text-tertiary); text-decoration: line-through; }
+.task-step.is-done i { border-color: var(--color-text-tertiary); background: var(--color-text-tertiary); }
+.task-step.is-blocked i { border-color: #d14343; background: #d14343; }

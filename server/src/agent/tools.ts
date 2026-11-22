@@ -1,4 +1,5 @@
 import { db, now } from '../db.js';
+import { activePlan, createPlan, markStep, render, saveSteps } from '../plan.js';
 import { newId } from '../lib/ids.js';
 import { hub } from '../lib/hub.js';
 import { box } from '../box.js';
@@ -210,6 +211,39 @@ export const TOOLS: ToolDef[] = [
       db.prepare('DELETE FROM routines WHERE id=? AND bot_id=?').run(a.routine_id, ctx.botId);
       hub.emit(ctx.userId, { type: 'routines', botId: ctx.botId });
       return { output: 'Deleted.' };
+    },
+  },
+  {
+    name: 'plan',
+    description: 'For work with several steps: write the plan first (create), then mark each step as you go (mark_step: doing, done or blocked). The user sees it as a checklist in Tasks. Skip it for quick questions.',
+    parameters: obj({
+      command: { type: 'string', enum: ['create', 'mark_step', 'get'] },
+      title: { type: 'string', description: 'create: what the plan achieves' },
+      steps: { type: 'array', items: { type: 'string' }, description: 'create: the steps, in order' },
+      step_index: { type: 'integer', description: 'mark_step: 0-based step number' },
+      status: { type: 'string', enum: ['todo', 'doing', 'done', 'blocked'] },
+      note: { type: 'string', description: 'mark_step: a short result or the reason it is blocked' },
+    }, ['command']),
+    activity: 'working',
+    label: 'Planning',
+    impl: async (a, ctx) => {
+      const tell = () => hub.emit(ctx.userId, { type: 'tasks', botId: ctx.botId });
+      if (a.command === 'create') {
+        if (!a.title || !Array.isArray(a.steps) || a.steps.length < 2) return { output: 'create needs a title and at least 2 steps.' };
+        const p = createPlan(ctx.botId, String(a.title), a.steps);
+        tell();
+        return { output: render(String(a.title), p.steps) + '\nWork on the step marked [→], then call mark_step.' };
+      }
+      const plan = activePlan(ctx.botId);
+      if (!plan) return { output: 'There is no active plan. Use create first.' };
+      if (a.command === 'mark_step') {
+        const r = markStep(plan.steps, Number(a.step_index), String(a.status ?? 'done'), a.note);
+        if (r.error) return { output: r.error };
+        const state = saveSteps(plan.id, r.steps);
+        tell();
+        return { output: render(plan.title, r.steps) + (state === 'done' ? '\nAll steps are done. Tell the user the result.' : '') };
+      }
+      return { output: render(plan.title, plan.steps) };
     },
   },
   {
