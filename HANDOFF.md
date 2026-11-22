@@ -44,7 +44,9 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P6 (DONE, partly verified) Resilient model calls + provider fallback, OpenRouter preset (free + GPT-6 Luna/Astra), WhatsApp bridge
 - [x] P7 (DONE, verified) OpenManus: `plan` tool (checklist in Tasks), stuck-loop nudge
 - [x] P8 (DONE, tested) OpenBot ideas: dangerous-action guard, audit log, secret redaction
-- [ ] P9 Voice (local STT/TTS), polish, packaging (desktop launcher), final audit
+- [x] P9a free browser voice
+- [x] P9b MCP registry search (thousands of connectors, all local)
+- [ ] P9c polish: audit-log viewer, launcher script, README rewrite, About, final cross-check of P1-P9
 
 ## Status
 P0-P8 done. Server boots with zero keys (verified). Next: P9 polish/About/packaging/final audit.
@@ -113,3 +115,9 @@ P0-P8 done. Server boots with zero keys (verified). Next: P9 polish/About/packag
 ## P9a notes (voice)
 - Voice is now fully free and local to the browser: `web/src/voice/speech.ts` (Web Speech recognition + speechSynthesis), `call.ts` (hands-free loop: listen -> send as normal message -> read the reply aloud, announces approvals), `dictation.ts` (mic in composer). xAI realtime/STT/TTS server code deleted (`server/src/voice.ts` only lists languages/speeds); `x_search` and XAI env removed.
 - Needs Chrome/Edge/Safari (Firefox has no speech recognition: shows a clear message). Chrome's recognition uses Google's service online; offline voice would need a local Whisper (not done).
+
+## P9b notes (connectors)
+- `GET /api/apps/registry?q=` searches the official MCP registry (registry.modelcontextprotocol.io) and returns installable hits: npm -> `npx -y`, pypi -> `uvx`, or a streamable-http remote URL; env vars / headers become key fields. Web: "Find more (MCP registry)" section in Connect Apps; Install calls the existing `/apps/custom`. Verified live: youtube 39 hits, github 37, instagram 40.
+- Combined with the 39 curated apps this covers the "1000+ connectors" goal without any hosted broker. Needs internet only to search; installs run locally.
+- Not verified: starting a registry server that needs `uvx` (uv not guaranteed on the user's PC); remote servers that need OAuth.
+- Chrome screenshot of the UI could not be taken on the 482 MB build VM (Chrome timed out); the web build + API were checked with curl instead. Owner should open it once on the laptop.

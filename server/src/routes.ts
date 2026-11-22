@@ -413,6 +413,29 @@ function afterConnect(userId: string, slug: string, botId?: string, seq?: number
   enqueue(botId, { type: 'system', text: `The user connected ${appInfo(slug)?.name ?? slug}. Continue with what you were doing.` });
 }
 
+/** Search the official MCP registry (thousands of servers). Each hit is turned into something addCustomApp can start on this computer. */
+api.get('/apps/registry', async (c) => {
+  const q = (c.req.query('q') ?? '').trim();
+  if (!q) return c.json({ results: [] });
+  try {
+    const res = await fetch(`https://registry.modelcontextprotocol.io/v0/servers?search=${encodeURIComponent(q)}&limit=40&version=latest`, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) throw new Error(`registry answered ${res.status}`);
+    const data: any = await res.json();
+    const results = (data.servers ?? []).map((x: any) => x.server).flatMap((s: any) => {
+      const base = { id: s.name as string, name: String(s.title || s.name).split('/').pop(), description: String(s.description ?? '').slice(0, 160) };
+      const pkg = (s.packages ?? []).find((p: any) => (p.registryType === 'npm' || p.registryType === 'pypi') && (p.transport?.type ?? 'stdio') === 'stdio');
+      if (pkg) {
+        const env = (pkg.environmentVariables ?? []).map((e: any) => ({ key: e.name, label: e.description || e.name, secret: !!e.isSecret }));
+        return [{ ...base, command: pkg.registryType === 'npm' ? 'npx' : 'uvx', args: pkg.registryType === 'npm' ? ['-y', pkg.identifier] : [pkg.identifier], env }];
+      }
+      const rem = (s.remotes ?? []).find((r: any) => r.type === 'streamable-http');
+      if (rem) return [{ ...base, url: rem.url as string, headers: (rem.headers ?? []).map((h: any) => ({ key: h.name, label: h.description || h.name, secret: !!h.isSecret })) }];
+      return [];
+    });
+    return c.json({ results });
+  } catch (e: any) { return c.json({ error: `Couldn’t reach the MCP registry (${e.message}). Check your internet connection.` }, 502); }
+});
+
 api.post('/apps/custom', async (c) => {
   const a = await c.req.json<any>().catch(() => ({}));
   try { await addCustomApp(a); } catch (e: any) { return c.json({ error: e.message }, 400); }

@@ -22,6 +22,9 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 
 export interface AppsResponse { apps: Toolkit[]; connected: string[]; categories: string[]; total: number }
 
+export interface RegistryField { key: string; label: string; secret: boolean }
+export interface RegistryHit { id: string; name: string; description: string; command?: string; args?: string[]; env?: RegistryField[]; url?: string; headers?: RegistryField[] }
+
 export interface RoomMember { id: string; name: string; label: string; avatarShape: string; avatarColor: string }
 
 export const api = {
@@ -49,6 +52,7 @@ export const api = {
 
   apps: (search = '', category = '') => req<AppsResponse>('GET', `/apps?search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}`),
   connect: (slug: string, values: Record<string, string> = {}, botId?: string, seq?: number) => req<{ ok: true }>('POST', `/apps/${slug}/connect`, { values, botId, seq }),
+  searchRegistry: (q: string) => req<{ results: RegistryHit[] }>('GET', `/apps/registry?q=${encodeURIComponent(q)}`),
   addCustomApp: (app: Record<string, unknown>) => req<{ ok: true }>('POST', '/apps/custom', app),
   disconnect: (slug: string) => req<{ ok: true }>('DELETE', `/apps/${slug}`),
 

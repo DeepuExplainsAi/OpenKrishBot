@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { api, type AppsResponse } from '../../lib/api';
+import { api, type AppsResponse, type RegistryHit } from '../../lib/api';
 import { useStore } from '../../store';
 import { Icon } from '../Icon';
 import { Menu } from '../Menu';
@@ -97,6 +97,52 @@ function Section({ title, apps, onViewAll, onChanged }: { title: string; apps: T
         {onViewAll && <button type="button" className="link-btn link-btn--small" onClick={onViewAll}>View all</button>}
       </div>
       <Grid apps={apps} onChanged={onChanged} />
+    </section>
+  );
+}
+
+/** Search the public MCP registry and install a server on this computer (runs with npx / uvx, or connects to its URL). */
+function RegistrySearch({ onDone }: { onDone: () => void }) {
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<RegistryHit[] | null>(null);
+  const [pick, setPick] = useState<RegistryHit | null>(null);
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const search = async () => {
+    if (!q.trim()) return;
+    setBusy(true); setErr(null); setPick(null);
+    try { setHits((await api.searchRegistry(q.trim())).results); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  };
+  const fields = pick ? (pick.env ?? pick.headers ?? []) : [];
+  const install = async () => {
+    if (!pick) return;
+    setBusy(true); setErr(null);
+    const body = pick.url
+      ? { kind: 'mcp', name: pick.name, url: pick.url, headers: Object.fromEntries((pick.headers ?? []).filter((h) => vals[h.key]).map((h) => [h.key, vals[h.key]])) }
+      : { kind: 'mcp', name: pick.name, command: pick.command, args: pick.args, env: Object.fromEntries((pick.env ?? []).filter((e) => vals[e.key]).map((e) => [e.key, vals[e.key]])) };
+    try { await api.addCustomApp(body); setPick(null); setHits(null); setQ(''); onDone(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <section className="apps-section">
+      <div className="apps-section__head"><span className="apps-section__title">Find more (MCP registry)</span></div>
+      <div className="custom-app">
+        <input className="text-input" placeholder="Search thousands of servers: youtube, postgres, instagram…" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void search(); }} />
+        {hits && !pick && (hits.length ? hits.map((h) => (
+          <button key={h.id} type="button" className="cat-pill" style={{ textAlign: 'left', display: 'block' }} onClick={() => { setPick(h); setVals({}); }}>
+            <b>{h.name}</b> · {h.description}
+          </button>
+        )) : <div className="apps-empty">Nothing installable found for “{q}”.</div>)}
+        {pick && (
+          <>
+            <div><b>{pick.name}</b> · {pick.description}</div>
+            {fields.map((f) => <input key={f.key} className="text-input" type={f.secret ? 'password' : 'text'} placeholder={f.label} spellCheck={false} value={vals[f.key] ?? ''} onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))} />)}
+            <button type="button" className="app-row__connect" disabled={busy} onClick={install}>{busy ? 'Starting…' : 'Install'}</button>
+          </>
+        )}
+        {err && <div className="app-row__error">{err}</div>}
+        <button type="button" className="app-row__connect" disabled={busy || !q.trim()} onClick={search}>{busy && !pick ? 'Searching…' : 'Search'}</button>
+      </div>
     </section>
   );
 }
@@ -217,6 +263,7 @@ export function ConnectAppsModal() {
           return <Section key={p.category} title={p.label} apps={list.slice(0, 4)} onViewAll={list.length > 2 ? () => setView({ kind: 'category', category: p.category }) : undefined} onChanged={refresh} />;
         })}
         <Section title="Your own" apps={apps.filter((a) => a.custom)} onChanged={refresh} />
+        <RegistrySearch onDone={refresh} />
         <CustomApp onDone={refresh} />
       </>
     );
