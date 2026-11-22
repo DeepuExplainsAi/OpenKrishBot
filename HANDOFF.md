@@ -339,3 +339,7 @@ Next: websites (7), share (8), skill-from-task (9).
 ## P15: Models settings page (2026-11-22)
 Old Krishbot had a Settings → Models page; the merged app had providers but no page. Added `web/.../ModelsSection.tsx` (groups: Your subscription / On this computer / Free tiers / API keys; key, address, Sign in, Test) and routes `POST /api/krish/providers/:id/test` and `/login` (opens the CLI's sign-in in a terminal via `server/src/terminal.ts`, copied from old Krishbot). `GET /providers` now returns group, cli, canLogin, hasKey, env.
 Verified over real HTTP against a fake OpenAI-compatible server: bad key -> "bad key", good key -> reply, missing CLI -> clear 409. NOT verified: UI rendering (no browser here); real sign-in terminal on Windows/Mac; no live model-list "Refresh" button in this page (models are picked in the chat Engine panel).
+
+## P16: installed app can start connected apps and CLIs (2026-11-22)
+Cause found: an installed desktop app is launched with a short PATH, so `npx`/`uvx` (connected apps) and subscription CLIs (`claude`, `codex`...) were not found. New `server/src/lib/launch.ts` (`launchEnv`, `launchCommand`) adds the usual tool folders to PATH and uses `npx.cmd` on Windows; used by `apps.ts` and `krish/cli.ts`.
+Verified: server started with `env -i PATH=/nonexistent` still connects the npx app; connect/custom http/bad command error/registry/remove all answered correctly over HTTP. Not verified on a real Windows install.

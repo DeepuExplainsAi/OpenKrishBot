@@ -1,7 +1,8 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { db, now } from './db.js';
+import { launchCommand, launchEnv } from './lib/launch.js';
 import type { Toolkit } from './types.js';
 
 /**
@@ -122,7 +123,7 @@ async function connect(slug: string, spec: Spec): Promise<Live> {
   const client = new Client({ name: 'krishbot', version: '1.0.0' });
   const transport = spec.url
     ? new StreamableHTTPClientTransport(new URL(spec.url), { requestInit: { headers: spec.headers ?? {} } })
-    : new StdioClientTransport({ command: spec.command!, args: spec.args ?? [], env: { ...getDefaultEnvironment(), ...(spec.env ?? {}) }, stderr: 'ignore' });
+    : new StdioClientTransport({ command: launchCommand(spec.command!), args: spec.args ?? [], env: launchEnv(spec.env), stderr: 'ignore' });
   await client.connect(transport);
   const entry = { client, tools: (await client.listTools()).tools };
   // a child that dies later must not stay cached: drop it so the next call starts a fresh one
