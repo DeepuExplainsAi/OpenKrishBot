@@ -1,4 +1,5 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { configApi } from '../lib/configApi';
 import { useConfigUI } from '../configStore';
 import { TasksIsland } from './config/TasksView';
 import type { Bot } from '@shared/types';
@@ -64,6 +65,15 @@ export function Sidebar() {
 
   const primary = bots.find((b) => b.isPrimary);
   const others = bots.filter((b) => !b.isPrimary).sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+  // Bots of a company are listed under its name.
+  const [companies, setCompanies] = useState<Record<string, string>>({});
+  const companyKey = bots.map((b) => b.projectId ?? '').join(',');
+  useEffect(() => { configApi.projects().then((r) => setCompanies(Object.fromEntries(r.projects.map((p) => [p.id, p.name])))).catch(() => {}); }, [companyKey]);
+  const groups = useMemo(() => {
+    const m = new Map<string, typeof others>();
+    for (const b of others) { const k = b.projectId && companies[b.projectId] ? b.projectId : ''; m.set(k, [...(m.get(k) ?? []), b]); }
+    return [...m.entries()].sort((a, b) => (a[0] === '' ? 1 : 0) - (b[0] === '' ? 1 : 0));
+  }, [others, companies]);
 
   return (
     <aside className={`sidebar${collapsed ? ' is-collapsed' : ''}`}>
@@ -100,15 +110,20 @@ export function Sidebar() {
           </div>
         )}
         <div className="bot-list">
-          {others.map((b) =>
-            collapsed ? (
-              <button key={b.id} type="button" className={`bot-rail-item${selectedBotId === b.id ? ' is-selected' : ''}`} onClick={() => selectBot(b.id)} title={displayName(b)}>
-                <BotAvatarFor bot={b} size={36} />
-              </button>
-            ) : (
-              <BotRow key={b.id} bot={b} selected={selectedBotId === b.id} running={!!live[b.id]?.isRunning} awaiting={live[b.id]?.awaiting?.reason ?? null} onSelect={selectBot} />
-            ),
-          )}
+          {groups.map(([key, list]) => (
+            <div key={key || 'none'}>
+              {!collapsed && key && <div className="bot-group__title">{companies[key]}</div>}
+              {list.map((b) =>
+                collapsed ? (
+                  <button key={b.id} type="button" className={`bot-rail-item${selectedBotId === b.id ? ' is-selected' : ''}`} onClick={() => selectBot(b.id)} title={displayName(b)}>
+                    <BotAvatarFor bot={b} size={36} />
+                  </button>
+                ) : (
+                  <BotRow key={b.id} bot={b} selected={selectedBotId === b.id} running={!!live[b.id]?.isRunning} awaiting={live[b.id]?.awaiting?.reason ?? null} onSelect={selectBot} />
+                ),
+              )}
+            </div>
+          ))}
           {!collapsed && others.length === 0 && (
             <button type="button" className="bot-list__empty" onClick={() => setModal('create')}>
               <span className="bot-list__empty-plus"><Icon name="plus" size={14} opacity={0.66} /></span>

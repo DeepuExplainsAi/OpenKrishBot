@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type Goal, type ProjectInfo, type GoalLevel, type GoalStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
+import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type Goal, type ProjectInfo, type VaultItem, type GoalLevel, type GoalStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -22,7 +22,8 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'phone', label: 'Phone' },
   { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'telegram', label: 'Telegram' },
-  { id: 'projects', label: 'Projects' },
+  { id: 'projects', label: 'Companies' },
+  { id: 'vault', label: 'Vault' },
   { id: 'goals', label: 'Goals' },
   { id: 'issues', label: 'Issues' },
   { id: 'workflows', label: 'Workflows' },
@@ -65,6 +66,7 @@ export function AppSettings() {
           {section === 'whatsapp' && <WhatsAppSection />}
           {section === 'telegram' && <TelegramSection />}
           {section === 'projects' && <ProjectsSection />}
+          {section === 'vault' && <VaultSection />}
           {section === 'goals' && <GoalsSection />}
           {section === 'issues' && <IssuesSection />}
           {section === 'skills' && <SkillsSection />}
@@ -701,22 +703,24 @@ function ProjectsSection() {
 
   return (
     <>
-      <PageHead title="Projects" sub="Shared instructions and reference files for a group of Bots. Every Bot in a project reads them on each turn." />
+      <PageHead title="Companies" sub="A company is a group of Bots with shared instructions and files. Your Chief can create one for you by hiring Bots. Export it as a file, import it on another computer." />
       <section className="cfg-section">
         <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <input className="text-input" placeholder="A project, e.g. Product launch" value={name} onChange={(e) => setName(e.target.value)} />
+            <input className="text-input" placeholder="A company, e.g. Dropship Co" value={name} onChange={(e) => setName(e.target.value)} />
             <button type="button" className="cfg-btn cfg-btn--primary" disabled={!name.trim()} onClick={() => act(configApi.addProject({ name }).then(() => setName('')))}>Add</button>
           </div>
+          <label className="cfg-row__sub">Import a company file: <input type="file" accept=".json,application/json" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void f.text().then((t) => act(configApi.importCompany(JSON.parse(t)))).catch(() => setErr('That file is not valid JSON.')); }} /></label>
           {err && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{err}</div>}
         </div>
       </section>
-      {projects === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : projects.length === 0 ? <div className="cfg-empty cfg-empty--flat">No projects yet.</div> : projects.map((p) => (
+      {projects === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : projects.length === 0 ? <div className="cfg-empty cfg-empty--flat">No companies yet. Ask your Chief: "Make a company that …".</div> : projects.map((p) => (
         <section className="cfg-section" key={p.id}>
           <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <b style={{ flex: 1 }}>{p.name}</b>
               <span className="cfg-row__sub">{inProject(p.id).map((b) => b.name).join(', ') || 'No Bots yet'}</span>
+              <a className="cfg-btn cfg-btn--secondary" href={`/api/projects/${p.id}/export`} download>Export</a>
               <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Delete" onConfirm={() => act(configApi.deleteProject(p.id))}>Delete</ConfirmButton>
             </div>
             <textarea className="text-input" rows={4} placeholder="Instructions every Bot in this project follows" defaultValue={p.instructions} onBlur={(e) => { if (e.target.value !== p.instructions) act(configApi.patchProject(p.id, { instructions: e.target.value })); }} />
@@ -744,6 +748,48 @@ function ProjectsSection() {
             ))}
           </div>
         </section>
+      )}
+    </>
+  );
+}
+
+function VaultSection() {
+  const [items, setItems] = useState<VaultItem[] | null>(null);
+  const [f, setF] = useState({ name: '', value: '', origin: '', auth: 'bearer', header: '', username: '' });
+  const [err, setErr] = useState('');
+  const load = useCallback(() => configApi.vault().then((r) => setItems(r.items)).catch(() => setItems([])), []);
+  useEffect(() => { load(); }, [load]);
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const login = f.auth === 'login';
+  const save = () => configApi.saveSecret({ ...f, name: f.name.trim() }).then(() => { setErr(''); setF({ name: '', value: '', origin: '', auth: 'bearer', header: '', username: '' }); load(); }).catch((e) => setErr(e.message));
+  return (
+    <>
+      <PageHead title="Vault" sub="Logins and API keys your Bots can use without ever seeing them. Stored encrypted on this computer. Bots see names only; a key is only sent to the site you save it for." />
+      <section className="cfg-section">
+        <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="text-input" placeholder="Name, e.g. amazon-login" value={f.name} onChange={set('name')} />
+            <select className="text-input" style={{ width: 190 }} value={f.auth} onChange={set('auth')} aria-label="Type">
+              <option value="bearer">API key (Bearer)</option><option value="header">API key (header)</option><option value="basic">Basic auth</option><option value="login">Website login</option>
+            </select>
+          </div>
+          {<input className="text-input" placeholder="Site, e.g. https://www.amazon.in" value={f.origin} onChange={set('origin')} />}
+          {f.auth === 'header' && <input className="text-input" placeholder="Header name, e.g. X-Api-Key" value={f.header} onChange={set('header')} />}
+          {(f.auth === 'basic' || login) && <input className="text-input" placeholder="Username / email" value={f.username} onChange={set('username')} autoComplete="off" />}
+          <input className="text-input" type="password" placeholder={login ? 'Password' : 'Key'} value={f.value} onChange={set('value')} autoComplete="new-password" />
+          {err && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{err}</div>}
+          <div><button type="button" className="cfg-btn cfg-btn--primary" disabled={!f.name.trim() || !f.value} onClick={save}>Save to vault</button></div>
+        </div>
+      </section>
+      {items === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : items.length === 0 ? <div className="cfg-empty cfg-empty--flat">Nothing saved yet.</div> : (
+        <section className="cfg-section"><div className="cfg-card">
+          {items.map((i) => (
+            <div key={i.id} className="cfg-row">
+              <div className="cfg-row__text"><div className="cfg-row__title">{i.name}</div><div className="cfg-row__sub">{i.auth}{i.origin ? ` · ${i.origin}` : ''}{i.username ? ` · ${i.username}` : ''} · value hidden</div></div>
+              <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Delete" onConfirm={() => configApi.deleteSecret(i.name).then(load)}>Delete</ConfirmButton>
+            </div>
+          ))}
+        </div></section>
       )}
     </>
   );

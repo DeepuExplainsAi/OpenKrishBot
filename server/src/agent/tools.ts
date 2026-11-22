@@ -12,7 +12,8 @@ import { siteFile } from '../sites.js';
 import { appendRow, getBotRow, listRoutines, toRoutine, describeCron } from '../store.js';
 import { appInfo, cachedAppTool, findAppTool, humanizeTool } from '../apps.js';
 import { scheduleRoutine, unscheduleRoutine } from '../routines.js';
-import { readProjectFileByName } from '../projects.js';
+import { secretNames, secretRequest } from '../vault.js';
+import { assignBot, companyByName, readProjectFileByName } from '../projects.js';
 import { createFeedRoutine, createWebhookRoutine, describeEvent } from '../triggers.js';
 import { setCheckins } from '../proactive.js';
 import { createRoom, postToRoom } from './rooms.js';
@@ -376,12 +377,29 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'list_secrets',
+    description: "Names of the logins and API keys the user saved in the Vault (never the values). Use secret_request for an API, browser_fill_secret for a website login.",
+    parameters: obj({}),
+    activity: 'working',
+    label: 'Checking the vault',
+    impl: async (_a, ctx) => ({ output: secretNames(ctx.userId).join('\n') || 'The vault is empty. Ask the user to add the key in Settings → Vault.' }),
+  },
+  {
+    name: 'secret_request',
+    description: 'Call an HTTPS API with a vault secret. The key is added by the app and only sent to the origin saved with it; you never see it. Give the vault name, the full URL, optional method and json/body.',
+    parameters: obj({ name: { type: 'string' }, url: { type: 'string' }, method: { type: 'string' }, json: {}, body: { type: 'string' } }, ['name', 'url']),
+    activity: 'working',
+    label: 'Calling an API with a vault key',
+    impl: async (a, ctx) => ({ output: await secretRequest(ctx.userId, a), summary: `Used vault key ${a.name}` }),
+  },
+  {
     name: 'create_bot',
     description: "Hire a new Bot (teammate) with its own role, instructions, browser and memory. Use it when work needs a specialist or should run in parallel, e.g. a 'Listing Bot' for Amazon, a 'Pinterest Bot', a 'Research Bot'. Group Bots into a company with the company field. Then give it work with send_to_bot. Check list_bots first so you do not create duplicates.",
     parameters: obj({
       name: { type: 'string', description: 'Short unique name, e.g. "Amazon Lister"' },
       role: { type: 'string', description: 'Job title, e.g. "Amazon product listing"' },
       company: { type: 'string', description: 'Company / department this Bot belongs to, e.g. "Dropship Co"' },
+      company_goal: { type: 'string', description: 'What the whole company is for; saved once as shared instructions every Bot in it reads' },
       instructions: { type: 'string', description: 'What this Bot does, step by step, and what to report back. Tell it to use its own browser for websites.' },
     }, ['name', 'instructions']),
     activity: 'working',
@@ -391,7 +409,9 @@ export const TOOLS: ToolDef[] = [
       try {
         const { createBot } = await import('../routes.js');
         const label = [a.company, a.role].filter(Boolean).join(' · ');
+        const projectId = a.company ? companyByName(ctx.userId, String(a.company), a.company_goal) : null;
         const b = createBot(ctx.userId, { name: String(a.name), label, description: String(a.role ?? ''), instructions: `${a.instructions}\n\nYou are part of ${a.company || "the user's"} team. When you finish, reply to whoever asked with send_to_bot, short and with the result.` });
+        if (projectId) assignBot(ctx.userId, b.id, projectId);
         return { output: JSON.stringify({ ok: true, name: b.name, hint: 'Now give it work with send_to_bot.' }), summary: `Hired ${b.name}` };
       } catch (e: any) { return { output: e.message }; }
     },

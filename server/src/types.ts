@@ -20,6 +20,8 @@ export interface Bot {
   avatarColor: AvatarColor;
   mode: 'personal' | 'teammate';
   isPrimary: boolean;
+  /** Company (project) this bot works in. */
+  projectId?: string | null;
   /** 'room' = group chat (members answer instead of the bot itself). */
   kind?: 'agent' | 'room';
   pinned: boolean;
@@ -235,6 +237,7 @@ export type ServerEvent =
   | { type: 'issues' }
   | { type: 'goals' }
   | { type: 'projects' }
+  | { type: 'vault' }
   | { type: 'memories'; botId: string }
   | { type: 'connections' }
   | { type: 'ping' };

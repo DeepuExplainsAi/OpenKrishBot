@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { requireUser, type AuthVars } from './lib/auth.js';
+import { createBot } from './routes.js';
+import { exportCompany, importCompany } from './projects.js';
 import { addFile, assignBot, createProject, deleteProject, listProjects, readFile, removeFile, updateProject } from './projects.js';
 
 /** /api/projects: shared instructions and reference files for a group of bots. */
@@ -21,4 +23,14 @@ projectsApi.put('/assign', async (c) => {
   const b = await body(c);
   const err = assignBot(c.get('user').id, String(b.botId ?? ''), b.projectId || null);
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+projectsApi.get('/:id/export', (c) => {
+  const d = exportCompany(c.get('user').id, c.req.param('id'));
+  return d ? c.json(d, 200, { 'content-disposition': `attachment; filename="${d.name.replace(/[^\w.-]+/g, '_')}.company.json"` }) : c.json({ error: 'not found' }, 404);
+});
+projectsApi.post('/import', async (c) => {
+  const userId = c.get('user').id;
+  try { return reply(c, importCompany(userId, await body(c), (b) => createBot(userId, b).id)); }
+  catch (e: any) { return c.json({ error: e.message }, 409); }
 });

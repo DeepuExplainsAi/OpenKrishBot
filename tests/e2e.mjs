@@ -254,6 +254,26 @@ try {
     ok((await api('GET', '/api/projects')).projects.length === 0, 'project still listed');
   });
 
+  await test('vault + company export/import over HTTP: value never comes back; bot carries projectId', async () => {
+    const put = await api('PUT', '/api/vault', { name: 'shop', value: 'SUPER-SECRET-VALUE-1', origin: 'https://api.example.com', auth: 'bearer' });
+    ok(put.item?.name === 'shop' && !JSON.stringify(put).includes('SUPER-SECRET'), 'vault save leaked or failed');
+    ok(!JSON.stringify(await api('GET', '/api/vault')).includes('SUPER-SECRET'), 'vault list leaked the value');
+    ok((await api('PUT', '/api/vault', { name: 'x', value: 'v', origin: 'http://evil.com' })).status === 400, 'plain http origin accepted');
+    const p = (await api('POST', '/api/projects', { name: 'Shop Co', instructions: 'Sell.' })).project;
+    await api('PUT', '/api/projects/assign', { botId: botA, projectId: p.id });
+    const bots = (await api('GET', '/api/bots')).bots;
+    ok(bots.find((b) => b.id === botA).projectId === p.id, 'bot has no projectId');
+    const ex = await fetch(`${BASE}/api/projects/${p.id}/export`, { headers: { cookie } });
+    ok(ex.ok && /attachment/.test(ex.headers.get('content-disposition') ?? ''), 'export is not a download');
+    const data = await ex.json();
+    ok(data.format === 'openkrishbot-company-v1' && data.bots.length === 1 && !JSON.stringify(data).includes('SUPER-SECRET'), 'export wrong');
+    const imp = (await api('POST', '/api/projects/import', data)).project;
+    ok(imp?.name === 'Shop Co (imported)' && imp.botIds.length === 1, 'import failed');
+    ok((await api('POST', '/api/projects/import', { x: 1 })).status === 400, 'bad file accepted');
+    ok((await api('DELETE', '/api/vault/shop')).ok, 'vault delete failed');
+    for (const id of [p.id, imp.id]) await api('DELETE', `/api/projects/${id}`);
+  });
+
   await test('goals: tree, owner, issue link, progress, cycle refused, delete lifts children', async () => {
     const m = (await api('POST', '/api/goals', { title: 'Mission', ownerBotId: botA })).goal;
     ok(m?.id && m.level === 'mission', 'mission not created');

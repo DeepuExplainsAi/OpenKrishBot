@@ -62,6 +62,7 @@ export interface LibrarySkill { id: string; name: string; description: string; t
 
 export interface TelegramInfo { status: 'off' | 'running' | 'error'; bot: string | null; error: string | null; hasToken: boolean; paired: number; pairCode: string | null }
 
+export interface VaultItem { id: string; name: string; origin: string; auth: 'bearer' | 'header' | 'basic' | 'login'; header: string; username: string; updatedAt: number }
 export interface ProjectInfo { id: string; name: string; instructions: string; files: { id: string; name: string; size: number }[]; botIds: string[]; updatedAt: number }
 
 export const configApi = {
@@ -85,6 +86,10 @@ export const configApi = {
   deleteProject: (id: string) => req<{ ok: true }>('DELETE', `/projects/${id}`),
   addProjectFile: (id: string, f: { name: string; content: string }) => req<{ project: ProjectInfo }>('POST', `/projects/${id}/files`, f),
   deleteProjectFile: (id: string, fileId: string) => req<{ ok: true }>('DELETE', `/projects/${id}/files/${fileId}`),
+  vault: () => req<{ items: VaultItem[] }>('GET', '/vault'),
+  saveSecret: (b: { name: string; value?: string; origin?: string; auth?: string; header?: string; username?: string }) => req<{ item: VaultItem }>('PUT', '/vault', b),
+  deleteSecret: (name: string) => req<{ ok: true }>('DELETE', `/vault/${encodeURIComponent(name)}`),
+  importCompany: (data: unknown) => req<{ project: ProjectInfo }>('POST', '/projects/import', data),
   assignProject: (botId: string, projectId: string | null) => req<{ ok: true }>('PUT', '/projects/assign', { botId, projectId }),
   goals: () => req<{ goals: Goal[] }>('GET', '/goals'),
   addGoal: (g: { title: string; description?: string; level?: GoalLevel; parentId?: string | null; ownerBotId?: string | null }) => req<{ goal: Goal }>('POST', '/goals', g),

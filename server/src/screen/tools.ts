@@ -3,6 +3,8 @@ import path from 'node:path';
 import { libraryRoot } from '../paths.js';
 import type { LocalTool } from '../krish/tools.js';
 import { screenOf } from './manager.js';
+import { db } from '../db.js';
+import { secretValue } from '../vault.js';
 
 /** Browser tools for a bot (the OpenManus browser_use set): look at the page as a numbered list, then act on a number. */
 
@@ -115,6 +117,26 @@ export const BROWSER_TOOLS: LocalTool[] = [
       if (a.submit) await pressKey(id, 'Enter');
       await new Promise((r) => setTimeout(r, 900));
       return snapshot(id);
+    },
+  },
+  {
+    name: 'browser_fill_secret',
+    description: "Type a vault secret into an input by its number (website login: username or password). You never see the value. The page's address must match the vault item's site if it has one.",
+    parameters: obj({ index: { type: 'number' }, name: { type: 'string', description: 'vault item name' }, part: { type: 'string', description: "'password' (default) or 'username'" } }, ['index', 'name']),
+    async run(a, c) {
+      const id = botOf(c.home); const s = await screenOf(id);
+      const userId = (db.prepare('SELECT user_id FROM bots WHERE id=?').get(id) as any)?.user_id;
+      const v = userId ? secretValue(userId, String(a.name)) : null;
+      if (!v) return JSON.stringify({ error: `No vault item "${a.name}". Use list_secrets.` });
+      const text = a.part === 'username' ? v.item.username : v.value;
+      if (!text) return JSON.stringify({ error: `"${v.item.name}" has no ${a.part === 'username' ? 'username' : 'value'} saved.` });
+      if (v.item.auth !== 'login') return JSON.stringify({ error: `"${v.item.name}" is an API key; use secret_request.` });
+      { const here = await s.eval<string>('location.origin'); if (here !== v.item.origin) return JSON.stringify({ error: `"${v.item.name}" may only be typed on ${v.item.origin}, this page is ${here}.` }); }
+      const { x, y } = await center(id, a.index);
+      await click(id, x, y);
+      await s.eval(`(() => { const e = document.activeElement; if (e && 'select' in e) e.select?.(); })()`);
+      await s.send('Input.insertText', { text });
+      return `Typed the ${a.part === 'username' ? 'username' : 'password'} from "${v.item.name}" into field ${a.index}. Take a browser_snapshot to continue (the value is hidden).`;
     },
   },
   {

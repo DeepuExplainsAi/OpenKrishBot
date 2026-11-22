@@ -12,13 +12,13 @@ const RULES: [RegExp, string][] = [
   [/\bgit\s+push\b[^;&|]*(--force|\s-f\b)/i, 'force-pushes git history'],
   [/\b(shutdown|reboot|halt|poweroff)\b/i, 'turns off the computer'],
   [/:\(\)\s*\{.*\};\s*:/, 'fork bomb'],
-  [/(\.ssh\/|\.aws\/credentials|\.krishbot\/(providers|whatsapp))/i, 'touches stored keys or logins'],
+  [/(\.ssh\/|\.aws\/credentials|\.krishbot\/(providers|whatsapp|vault)|vault\.key|bothq\.db)/i, 'touches stored keys or logins'],
 ];
 
 export function dangerReason(tool: string, args: any): string | null {
   const text = tool === 'terminal' ? String(args?.command ?? '')
     : tool === 'execute_code' ? String(args?.code ?? '')
-    : ['write_file', 'patch', 'read_file'].includes(tool) ? String(args?.path ?? '') : '';
+    : ['write_file', 'patch', 'read_file', 'search_files'].includes(tool) ? String(args?.path ?? '') : '';
   for (const [re, why] of RULES) if (re.test(text)) return why;
   return null;
 }

@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { scrubVault } from '../vault.js';
 import { takeScreenshot } from '../screen/tools.js';
 import fs from 'node:fs';
 import { db } from '../db.js';
@@ -193,7 +194,9 @@ krishApi.post('/v1/responses', async (c) => {
 const recentCalls = new Map<string, string[]>();
 
 async function runTool(botId: string, name: string, rawArgs: string, home: string): Promise<string> {
-  const out = redact(await runToolOnce(botId, name, rawArgs, home));
+  const owner = (db.prepare('SELECT user_id FROM bots WHERE id=?').get(botId) as any)?.user_id as string | undefined;
+  const raw = await runToolOnce(botId, name, rawArgs, home);
+  const out = redact(owner ? scrubVault(owner, raw) : raw);
   let a: any; try { a = JSON.parse(rawArgs || '{}'); } catch { a = rawArgs; }
   audit({ bot: botId, tool: name, status: out === DECLINED || out === SKIPPED ? 'declined' : /^\s*\{"error"/.test(out) ? 'error' : 'done', danger: dangerReason(name, a), args: a });
   const nudge = loopNudge(recentCalls.get(botId) ?? (recentCalls.set(botId, []), recentCalls.get(botId)!), `${name}:${rawArgs}`);

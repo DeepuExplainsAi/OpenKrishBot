@@ -367,3 +367,10 @@ NOT tested: a real model calling save_skill/publish_site; browser rendering of t
 - Removed old Grokbot compat (grokbot cookie, GROKBOT_ env, grokbot.db, localStorage `grokbot.*`).
 - Checked orgo-teammates / OpenMausBot / OpenBot: Chief-of-Staff + create_bot + team templates (OpenMausBot) are the relevant ones. Not ported: team import/export templates, @everyone routing, a "company" grouping UI, per-bot idle sleep.
 - NOT verified: a real model hiring bots and running Amazon/Flipkart/Pinterest jobs; 12 Chrome profiles on a small RAM machine (each bot starts its own Chrome on first browser use).
+
+## P20 (v1.1.3): companies, vault, export/import
+- Company = project; bots carry `projectId`; sidebar groups bots under the company name. Chief's `create_bot` takes `company` + `company_goal`.
+- `projects.ts`: `exportCompany` / `importCompany` (`openkrishbot-company-v1`, no chats/memory/keys; text scrubbed of vault values). Routes `GET /api/projects/:id/export`, `POST /api/projects/import`. UI: Settings → Companies.
+- `vault.ts` (+`routes-vault.ts`, Settings → Vault): AES-256-GCM, key `~/.krishbot/vault.key`. Every item is bound to an https site. Tools: `list_secrets` (names), `secret_request` (GET/HEAD only, key sent only to the saved site, no redirects), `browser_fill_secret` (website login typed into a field on the saved site only). `scrubVault` runs on every Krish-engine tool result. `danger.ts` now asks approval for `vault.key`/`bothq.db` paths.
+- Idea credit: Rakazo (Apache-2.0) bot-secrets design; no code copied.
+- Known gaps (from review): tool args are not scrubbed in transcript/audit; Hermes/MCP path does not run `scrubVault`; screenshots can show a typed password; a bot with `terminal` can still read vault.key (same OS user); sidebar company names refresh only on roster change.

@@ -25,6 +25,7 @@ export function toBot(r: any): Bot {
     avatarColor: r.avatar_color,
     mode: r.mode,
     isPrimary: !!r.is_primary,
+    projectId: r.project_id ?? null,
     kind: r.kind === 'room' ? 'room' : 'agent',
     pinned: !!r.pinned,
     effort: r.effort,

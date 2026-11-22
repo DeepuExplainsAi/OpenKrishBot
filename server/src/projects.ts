@@ -1,6 +1,9 @@
 import { db, now } from './db.js';
 import { newId } from './lib/ids.js';
 import { hub } from './lib/hub.js';
+import { redact } from './danger.js';
+import { scrubVault } from './vault.js';
+import { emitBot } from './store.js';
 
 /**
  * Projects (from OpenMan): shared instructions + small reference files that every bot in the project
@@ -98,6 +101,7 @@ export function assignBot(userId: string, botId: string, projectId: string | nul
   if (!b || b.user_id !== userId) return 'No such bot.';
   if (projectId && !own(userId, projectId)) return 'No such project.';
   db.prepare('UPDATE bots SET project_id=? WHERE id=?').run(projectId, botId);
+  emitBot(botId);
   touch(userId);
   return null;
 }
@@ -120,4 +124,44 @@ export function readProjectFileByName(botId: string, name: string): { name: stri
   const b = db.prepare('SELECT project_id FROM bots WHERE id=?').get(botId) as any;
   if (!b?.project_id) return null;
   return (db.prepare('SELECT name,content FROM project_files WHERE project_id=? AND lower(name)=lower(?)').get(b.project_id, name.trim()) as any) ?? null;
+}
+
+/** Company = project. Find one by name (any case) or create it. */
+export function companyByName(userId: string, name: string, goal?: string): string {
+  const found = db.prepare('SELECT id FROM projects WHERE user_id=? AND lower(name)=lower(?)').get(userId, name.trim()) as any;
+  if (found) return found.id;
+  const r = createProject(userId, { name, instructions: goal ?? '' });
+  if ('error' in r) throw new Error(r.error);
+  return r.id;
+}
+
+export interface CompanyExport { format: 'openkrishbot-company-v1'; name: string; instructions: string; files: { name: string; content: string }[]; bots: { name: string; role: string; instructions: string; avatarShape: string; avatarColor: string }[] }
+
+/** A company as one JSON file: bots and their jobs, shared instructions, reference files. Never chats, memory, keys or vault. */
+export function exportCompany(userId: string, id: string): CompanyExport | null {
+  const p = own(userId, id);
+  if (!p) return null;
+  const bots = db.prepare("SELECT name,description,label,instructions,avatar_shape,avatar_color FROM bots WHERE project_id=? AND COALESCE(kind,'agent')<>'room' ORDER BY created_at").all(id) as any[];
+  const files = db.prepare('SELECT name,content FROM project_files WHERE project_id=? ORDER BY created_at').all(id) as any[];
+  const clean = (t: string) => redact(scrubVault(userId, String(t ?? '')));
+  return { format: 'openkrishbot-company-v1', name: p.name, instructions: clean(p.instructions), files: files.map((f) => ({ name: f.name, content: clean(f.content) })), bots: bots.map((b) => ({ name: b.name, role: b.description || b.label, instructions: clean(b.instructions), avatarShape: b.avatar_shape, avatarColor: b.avatar_color })) };
+}
+
+export function importCompany(userId: string, data: any, hire: (b: { name: string; label: string; description: string; instructions: string; avatarShape: string; avatarColor: string }) => string): Project | { error: string } {
+  if (data?.format !== 'openkrishbot-company-v1' || !Array.isArray(data.bots)) return { error: 'Not an OpenKrishbot company file.' };
+  if (data.bots.length > 20) return { error: 'A company file can hold at most 20 bots.' };
+  if (data.bots.some((b: any) => !b || typeof b !== 'object')) return { error: 'The file has a broken bot entry.' };
+  let name = String(data.name || 'Company').slice(0, 190);
+  while (db.prepare('SELECT 1 FROM projects WHERE user_id=? AND lower(name)=lower(?)').get(userId, name)) name += ' (imported)';
+  const proj = createProject(userId, { name, instructions: String(data.instructions ?? '').slice(0, MAX_INSTRUCTIONS) });
+  if ('error' in proj) return proj;
+  for (const f of (data.files ?? []).slice(0, MAX_FILES)) addFile(userId, proj.id, { name: String(f.name), content: String(f.content ?? '').slice(0, MAX_FILE_CHARS) });
+  const taken = (n: string) => db.prepare('SELECT 1 FROM bots WHERE user_id=? AND lower(name)=lower(?)').get(userId, n);
+  for (const b of data.bots.slice(0, 20)) {
+    let n = String(b.name || 'Bot').slice(0, 60);
+    while (taken(n)) n += ' 2';
+    const id = hire({ name: n, label: `${name} · ${b.role ?? ''}`, description: String(b.role ?? ''), instructions: String(b.instructions ?? ''), avatarShape: b.avatarShape, avatarColor: b.avatarColor });
+    assignBot(userId, id, proj.id);
+  }
+  return view(own(userId, proj.id));
 }
