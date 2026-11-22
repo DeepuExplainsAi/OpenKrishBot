@@ -503,3 +503,4 @@ Done:
 - [x] P26 Bot icon: Bot settings > Upload picture (resized to 128px, drawn inside the bot's shape everywhere BotAvatarFor is used) / Remove picture; bots.avatar_image column; character shape and colour picker kept
 - [x] P27 Memory on/off in Settings > General (kv memory_on: off = no notes in prompt, memory/recall tools refuse). New project / continue old = Companies (departments): '+' > Add department / Templates / Import, bots grouped under their department in the sidebar, Move to department in the bot menu. GrokBot itself could not be found on GitHub, so nothing was ported from it
 - [x] P22 follow-up: Gemini sign-in now sets 'Login with Google' in ~/.gemini/settings.json and runs gemini so its browser sign-in opens (no terminal). Not tested here (gemini CLI is not installed on the build VM)
+- [x] P28 final: P21-P29 re-checked against code, CI green on Windows/Mac/Linux, tag v1.9.0 pushed
