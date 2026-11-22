@@ -25,3 +25,12 @@ test('crawlSite stays on the host and prefix, never repeats, respects the limit'
   assert.deepEqual(pages.map((p) => p.url), ['https://a.test/docs/', 'https://a.test/docs/x', 'https://a.test/docs/w']);
   assert.equal((await crawlSite('https://a.test/docs/', { maxPages: 1, fetchOne })).length, 1);
 });
+
+import { robotsDisallow, sitemapUrls } from '../src/krish/scrape.ts';
+test('robots and sitemap parsing; disallow and seeds steer the crawl', async () => {
+  assert.deepEqual(robotsDisallow('User-agent: bot\nDisallow: /x\nUser-agent: *\nDisallow: /private # c\nDisallow:\nAllow: /'), ['/private']);
+  assert.deepEqual(sitemapUrls('<urlset><url><loc> https://a.test/p1 </loc></url><loc>https://a.test/s.xml</loc></urlset>'), ['https://a.test/p1']);
+  const fetchOne = async (u: string) => ({ title: u, markdown: '', links: ['https://a.test/private/x'] });
+  const pages = await crawlSite('https://a.test/', { fetchOne, disallow: ['/private'], seeds: ['https://a.test/p1', 'https://a.test/private/y'] });
+  assert.deepEqual(pages.map((p) => p.url), ['https://a.test/', 'https://a.test/p1']);
+});

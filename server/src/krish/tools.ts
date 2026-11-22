@@ -17,7 +17,7 @@ export interface LocalTool {
 }
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({ type: 'object', properties, required });
-import { crawlSite, fetchPage } from './scrape.js';
+import { crawlPolitely, fetchPageCached } from './scrape.js';
 const cap = (s: string, n = 12000) => (s.length > n ? `${s.slice(0, n / 2)}\n…[${s.length - n} chars cut]…\n${s.slice(-n / 2)}` : s);
 
 function sh(cmd: string, args: string[], cwd: string, timeoutSec: number, input?: string): Promise<string> {
@@ -149,16 +149,16 @@ const BASE_TOOLS: LocalTool[] = [
     description: 'Read a web page for free: returns the main content as Markdown, plus its links. Use browser_* tools for pages that need login or JavaScript.',
     parameters: obj({ url: { type: 'string' }, links: { type: 'boolean', description: 'also list links found on the page' } }, ['url']),
     async run(a) {
-      const p = await fetchPage(String(a.url));
+      const p = await fetchPageCached(String(a.url));
       return cap(`# ${p.title}\n\n${p.markdown}${a.links ? `\n\nLinks:\n${p.links.join('\n')}` : ''}`, 15000);
     },
   },
   {
     name: 'web_crawl',
-    description: 'Read many pages of one website for free: starts at url and follows same-site links (breadth first). Returns each page as Markdown. Good for docs, blogs, product catalogues.',
+    description: 'Read many pages of one website for free: starts at url, uses the sitemap, follows same-site links (breadth first) and respects robots.txt. Returns each page as Markdown. Good for docs, blogs, product catalogues.',
     parameters: obj({ url: { type: 'string' }, max_pages: { type: 'number', description: 'default 10, max 50' }, path_prefix: { type: 'string', description: 'only follow links under this path, e.g. /docs' } }, ['url']),
     async run(a) {
-      const pages = await crawlSite(String(a.url), { maxPages: Number(a.max_pages) || 10, pathPrefix: a.path_prefix ? String(a.path_prefix) : '' });
+      const pages = await crawlPolitely(String(a.url), { maxPages: Number(a.max_pages) || 10, pathPrefix: a.path_prefix ? String(a.path_prefix) : '' });
       if (!pages.length) return 'Could not read any page.';
       const each = Math.floor(30000 / pages.length);
       return pages.map((p) => `## ${p.title}\n${p.url}\n\n${cap(p.markdown, each)}`).join('\n\n---\n\n');
