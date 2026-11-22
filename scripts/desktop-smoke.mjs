@@ -14,7 +14,10 @@ const exe = process.platform === 'win32' ? path.join(unpacked, 'OpenKrishBot.exe
   : process.platform === 'darwin' ? path.join(unpacked, 'OpenKrishBot.app/Contents/MacOS/OpenKrishBot')
   : path.join(unpacked, 'openkrishbot-desktop');
 const resources = process.platform === 'darwin' ? path.join(unpacked, 'OpenKrishBot.app/Contents/Resources/app') : path.join(unpacked, 'resources/app');
-const app = fs.existsSync(resources) ? resources : path.resolve('.');
+const found = fs.existsSync(resources) ? resources : path.resolve('.');
+// run from a copy outside the repo, so a library missing from the package is not found in the repo's node_modules
+const app = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-app-')), 'app');
+fs.cpSync(found, app, { recursive: true });
 const port = 18999;
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kb-smoke-'));
 const p = spawn(exe, [path.join(app, 'server/dist/index.js')], { cwd: path.join(app, 'server'), env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: String(port), HOME: home, USERPROFILE: home }, stdio: 'inherit' });
