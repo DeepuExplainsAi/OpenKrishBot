@@ -140,3 +140,11 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 ## P11a: danger mode is a user setting
 - Settings -> Permissions -> "Risky actions": **Always ask me** (default: danger.ts patterns ask every time, even after "Always allow") or **Follow "Always allow"** (guard off). Stored in kv `danger_mode`; API `GET/PUT /api/audit/danger-mode`. Verified live: ask mode -> risky command asked and declined; follow mode -> same command ran with no new card. Redaction and audit log stay on in both modes.
 - NEXT (owner's latest request): port remaining OpenManus (PlanningFlow with per-step executors), OpenMausBot (skills, handoff cards, Telegram/Slack), Paperclip (agent task assignment, org/delegation, heartbeats, budgets) and an n8n-style multi-agent workflow runner; re-test unverified items; finish with a full test suite run.
+
+## P11b: multi-agent workflows (n8n / OpenManus PlanningFlow style)
+- `server/src/flow.ts`: pure DAG scheduler. Steps have `needs`; ready steps run in parallel (cap 3), `{{input}}`/`{{step}}` templating, per-step retries (0-3), failure skips only downstream, stop signal, cycle/unknown-need validation. 7 unit tests (`test/flow.test.mts`).
+- `server/src/routes-flows.ts`: tables `flows`, `flow_runs`; `/api/flows` (list, PUT, delete, run, runs, stop). A step = a message to a real bot, answer read after its queue drains; bot errors become the step error.
+- UI: Settings -> Workflows (editor, run, live per-step status).
+- Verified live with scripted fake model: fork/join (2 parallel + merge) gave correct merged output; a 400 from the provider failed step a with the friendly message and skipped b; unknown bot rejected at save.
+- Found while testing: when the chosen provider is dead, the bot falls back to Pollinations (works; takes ~60s with retries).
+- NOT DONE: bot tool to start a workflow from chat; cron-triggered flows; step-level approval cards appear in each bot's own chat (a flow waits on them).

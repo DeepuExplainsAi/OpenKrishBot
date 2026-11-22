@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type AuditEntry, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
+import { configApi, type AuditEntry, type Flow, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -19,6 +19,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'apps', label: 'Connected apps' },
   { id: 'phone', label: 'Phone' },
   { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'workflows', label: 'Workflows' },
   { id: 'activity', label: 'Activity log' },
   { id: 'account', label: 'Account' },
 ];
@@ -54,6 +55,7 @@ export function AppSettings() {
           {section === 'apps' && <AppsSection />}
           {section === 'phone' && <PhoneSection />}
           {section === 'whatsapp' && <WhatsAppSection />}
+          {section === 'workflows' && <WorkflowsSection />}
           {section === 'activity' && <ActivitySection />}
           {section === 'account' && <AccountSection />}
         </div>
@@ -459,6 +461,112 @@ function WhatsAppSection() {
               <div className="cfg-row__text"><div className="cfg-row__title">Unlink this computer</div><div className="cfg-row__sub">Removes the saved WhatsApp login from this computer.</div></div>
               <ConfirmButton confirmLabel="Really unlink?" onConfirm={() => run(configApi.whatsappUnlink)}>Unlink</ConfirmButton>
             </div>
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+const blankStep = (n: number): FlowStep => ({ id: `step${n}`, bot: '', prompt: '', needs: [], retries: 0 });
+
+function WorkflowsSection() {
+  const bots = useStore((s) => s.bots).filter((b) => b.kind !== 'room');
+  const [flows, setFlows] = useState<Flow[] | null>(null);
+  const [edit, setEdit] = useState<{ id?: string; name: string; steps: FlowStep[] } | null>(null);
+  const [err, setErr] = useState('');
+  const [run, setRun] = useState<FlowRun | null>(null);
+  const [input, setInput] = useState('');
+  const load = useCallback(() => configApi.flows().then((r) => setFlows(r.flows)).catch(() => setFlows([])), []);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!run || run.status !== 'running') return;
+    const t = setInterval(() => configApi.flowRun(run.id).then((r) => setRun(r.run)).catch(() => {}), 1500);
+    return () => clearInterval(t);
+  }, [run]);
+
+  const patch = (i: number, p: Partial<FlowStep>) => setEdit((e) => e && { ...e, steps: e.steps.map((s, j) => (j === i ? { ...s, ...p } : s)) });
+  const save = async () => {
+    if (!edit) return;
+    try { await configApi.saveFlow(edit); setEdit(null); setErr(''); load(); } catch (e: any) { setErr(e.message); }
+  };
+  const start = async (f: Flow) => {
+    setErr('');
+    try { const { runId } = await configApi.runFlow(f.id, input); setRun((await configApi.flowRun(runId)).run); } catch (e: any) { setErr(e.message); }
+  };
+
+  if (edit) {
+    return (
+      <>
+        <PageHead title={edit.id ? 'Edit workflow' : 'New workflow'} sub="Each step is given to one Bot. Steps that don't wait on each other run at the same time. Use {{input}} for what you type when running, and {{step_id}} for an earlier step's answer." />
+        <section className="cfg-section">
+          <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
+            <input className="text-input" placeholder="Workflow name" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+            {edit.steps.map((s, i) => (
+              <div key={i} style={{ display: 'grid', gap: 6, padding: 8, border: '1px solid var(--border, #ddd)', borderRadius: 8 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input className="text-input" style={{ width: 110 }} placeholder="id" value={s.id} onChange={(e) => patch(i, { id: e.target.value })} />
+                  <select className="text-input" value={s.bot} onChange={(e) => patch(i, { bot: e.target.value })}>
+                    <option value="">Choose a Bot…</option>
+                    {bots.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
+                  </select>
+                  <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => setEdit({ ...edit, steps: edit.steps.filter((_, j) => j !== i).map((x) => ({ ...x, needs: (x.needs ?? []).filter((n) => n !== s.id) })) })}>Remove</button>
+                </div>
+                <textarea className="text-input" rows={2} placeholder="What should this Bot do?" value={s.prompt} onChange={(e) => patch(i, { prompt: e.target.value })} />
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 13 }}>
+                  <span>Waits for:</span>
+                  {edit.steps.filter((_, j) => j !== i).map((o) => (
+                    <label key={o.id}><input type="checkbox" checked={(s.needs ?? []).includes(o.id)} onChange={(e) => patch(i, { needs: e.target.checked ? [...(s.needs ?? []), o.id] : (s.needs ?? []).filter((n) => n !== o.id) })} /> {o.id}</label>
+                  ))}
+                  <label style={{ marginLeft: 'auto' }}>Retries <select value={s.retries ?? 0} onChange={(e) => patch(i, { retries: Number(e.target.value) })}>{[0, 1, 2, 3].map((n) => <option key={n}>{n}</option>)}</select></label>
+                </div>
+              </div>
+            ))}
+            <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => setEdit({ ...edit, steps: [...edit.steps, blankStep(edit.steps.length + 1)] })}><Icon name="plus" size={12} /> Add step</button>
+            {err && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{err}</div>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => { setEdit(null); setErr(''); }}>Cancel</button>
+              <button type="button" className="cfg-btn cfg-btn--primary" onClick={save}>Save workflow</button>
+            </div>
+          </div>
+        </section>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHead title="Workflows" sub="Chain several Bots, or run them side by side. Everything runs on this computer." />
+      <section className="cfg-section">
+        <div className="cfg-card">
+          <div className="cfg-row"><input className="text-input" placeholder="Input for the next run (optional)" value={input} onChange={(e) => setInput(e.target.value)} /></div>
+          {flows === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : flows.length === 0 ? <div className="cfg-empty cfg-empty--flat">No workflows yet.</div> : flows.map((f) => (
+            <div key={f.id} className="cfg-row">
+              <div className="cfg-row__text">
+                <div className="cfg-row__title">{f.name}</div>
+                <div className="cfg-row__sub">{f.steps.length} step{f.steps.length === 1 ? '' : 's'} · {[...new Set(f.steps.map((s) => s.bot))].join(', ')}</div>
+              </div>
+              <button type="button" className="cfg-btn cfg-btn--primary" onClick={() => start(f)}>Run</button>
+              <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => setEdit({ id: f.id, name: f.name, steps: f.steps })}>Edit</button>
+              <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Delete" onConfirm={async () => { await configApi.deleteFlow(f.id); load(); }}>Delete</ConfirmButton>
+            </div>
+          ))}
+        </div>
+        <button type="button" className="cfg-btn cfg-btn--primary" style={{ marginTop: 10 }} onClick={() => setEdit({ name: '', steps: [blankStep(1)] })}><Icon name="plus" size={12} /> New workflow</button>
+        {err && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{err}</div>}
+      </section>
+      {run && (
+        <section className="cfg-section">
+          <div className="cfg-section__label">Run · {run.status}{run.status === 'running' && <> · <button type="button" className="cfg-link" onClick={() => configApi.stopFlowRun(run.id)}>Stop</button></>}</div>
+          <div className="cfg-card">
+            {Object.entries(run.results).map(([id, r]) => (
+              <div key={id} className="cfg-row">
+                <div className="cfg-row__text">
+                  <div className="cfg-row__title">{id} · {r.status}{r.attempts > 1 ? ` (try ${r.attempts})` : ''}</div>
+                  <div className="cfg-row__sub" style={{ whiteSpace: 'pre-wrap' }}>{r.error ?? (r.output ?? '').slice(0, 600)}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}

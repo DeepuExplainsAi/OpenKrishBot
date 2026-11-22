@@ -1,4 +1,5 @@
 import { auditApi } from './audit.js';
+import { flowsApi } from './routes-flows.js';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
@@ -41,6 +42,7 @@ app.route('/pair', pairRoute);
 app.route('/api/phone', phoneApi);
 app.route('/api/whatsapp', whatsappApi);
 app.route('/api/audit', auditApi);
+app.route('/api/flows', flowsApi);
 app.route('/krish', krishApi);
 app.route('/api/krish', providersApi);
 app.route('/api/checkins', checkinsApi);
