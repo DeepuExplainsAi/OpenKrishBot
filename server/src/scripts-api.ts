@@ -9,7 +9,7 @@ import { appendRow, getBotRow, listRows } from './store.js';
 /**
  * Local scripts API: a program on this computer sends a bot a message and reads its answer, e.g.
  *   curl -H "Authorization: Bearer $TOKEN" -d '{"text":"run the tests"}' http://127.0.0.1:8787/script/bots/Ada/messages
- * Off by default, one token per bot (turn it on in the bot's settings), loopback only, token stored hashed.
+ * Off by default, one token per bot (turn it on in the bot's settings), loopback only unless SCRIPT_REMOTE=1, token stored hashed.
  */
 db.exec('CREATE TABLE IF NOT EXISTS script_tokens (bot_id TEXT PRIMARY KEY, hash TEXT NOT NULL, created_at INTEGER NOT NULL)');
 
@@ -29,10 +29,13 @@ export function botForToken(token: string): string | null {
   return row?.bot_id ?? null;
 }
 
+/** Server mode: SCRIPT_REMOTE=1 lets /script be called from other machines (the bot's token is still required; use HTTPS). */
+const remoteScripts = process.env.SCRIPT_REMOTE === '1';
+
 export const scriptApi = new Hono();
 
 scriptApi.use('*', async (c, next) => {
-  if (!isLocalHost(c.req.header('host')) || !isLoopbackAddress(getConnInfo(c).remote.address)) return c.json({ error: 'Local scripts only.' }, 403);
+  if (!remoteScripts && (!isLocalHost(c.req.header('host')) || !isLoopbackAddress(getConnInfo(c).remote.address))) return c.json({ error: 'Local scripts only (set SCRIPT_REMOTE=1 on a server to allow remote use).' }, 403);
   const m = /^Bearer (okb_[0-9a-f]+)$/.exec(c.req.header('authorization') ?? '');
   const botId = m ? botForToken(m[1]) : null;
   if (!botId) return c.json({ error: 'Missing or wrong token. Turn on Local scripts in the bot\'s settings.' }, 401);

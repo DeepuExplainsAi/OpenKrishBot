@@ -401,8 +401,8 @@ Done:
 
 ## TODO checklist (everything the user asked for; do in order, commit + push after each, update this file)
 1. [ ] Merge p18-queue to main after CI green; tag v1.4.0 and publish release (wait for `desktop` workflow, 8 assets).
-2. [ ] Docker: add a CI job that runs `docker build .` (needs `workflow` scope, which we lack: ask user to add it, or run build elsewhere). Document in README (run, sign-in link, reverse proxy + TLS, APP_URL).
-3. [ ] Remote server mode: bind/URL docs, `APP_URL` public, sign-in via link; optional access token for `/script`.
+2. [~] (README done P27; CI job needs workflow scope) Docker: add a CI job that runs `docker build .` (needs `workflow` scope, which we lack: ask user to add it, or run build elsewhere). Document in README (run, sign-in link, reverse proxy + TLS, APP_URL).
+3. [x] (done P27) Remote server mode: bind/URL docs, `APP_URL` public, sign-in via link; optional access token for `/script`.
 4. [x] (done, P20) Theme palette files: JSON palettes in `web/src/styles/themes/*.json` (CSS variables from `tokens.css`), picker in Settings → General, saved in localStorage; keep light/dark/system.
 5. [x] (done, P21: browser_extract + stuck warning; highlight skipped) browser-use ideas (MIT): `browser_extract` (structured fields from the page by a schema), a `browser_task` loop with step limit and "stuck" detection (same action/URL 3x -> stop and tell user), highlight of clickable elements in `browser_snapshot`.
 6. [x] (done, P22; browser_save_screenshot skipped, screenshots already saved) Playwright-MCP leftovers: `browser_console` (read console messages), `browser_network` (list requests), `browser_pdf`/`browser_save_screenshot` to file, `browser_drag`, `browser_resize`, `browser_handle_dialog`.
@@ -427,3 +427,8 @@ Done:
 ## P24–P25
 - P24 `krish/recall.ts`: `recall` tool, keyword ranking (rare words weigh more) over the bot's last 5000 chat messages. Test `recall.test.mts`.
 - P25 company templates accept per-bot `goal` + `backstory` (put before instructions in `projects.ts`); new templates `sop-software` (Manager -> PM -> Architect -> Engineer -> QA via run_pipeline) and `startup-studio` (CEO manager).
+
+## P27 — remote server docs
+- README "Run as a server (Docker)": compose, sign-in link, TLS proxy, `APP_URL`, `SCRIPT_REMOTE`.
+- `SCRIPT_REMOTE=1` lets `/script` be called from other machines (`scripts-api.ts`); the bot token is still required. Not unit-tested (flag is read at import).
+- Not done: Docker CI job (token lacks `workflow` scope), real Docker build.

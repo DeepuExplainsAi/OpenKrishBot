@@ -25,6 +25,18 @@ It works with no keys: the default model is free (Pollinations). Add Ollama or L
 
 Data lives in `data/` and `~/.openkrishbot`.
 
+## Run as a server (Docker)
+
+```
+docker compose up -d
+docker compose exec openkrishbot scripts/sign-in-link.sh you@example.com   # prints a one-time link (15 min)
+```
+
+- Data lives in the `openkrishbot-data` volume (`/data`). The container includes Chromium for the bot's browser.
+- Remote use: put a TLS reverse proxy (Caddy, nginx) in front of port 8787, then set `APP_URL` and `SERVER_URL` in `docker-compose.yml` to the public https address. With a public `APP_URL` only existing accounts and sign-in links can log in; `ALLOWED_EMAILS` limits who.
+- The `/script` API is loopback only. `SCRIPT_REMOTE=1` allows other machines (each bot's token is still required; use HTTPS).
+- Not yet tested on a real Docker host.
+
 ## Develop
 
 ```
