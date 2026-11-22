@@ -5,7 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-process.env.HOME = process.env.USERPROFILE = fs.mkdtempSync(path.join(os.tmpdir(), 'okb-cua-'));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okb-cua-'));
+process.env.HOME = process.env.USERPROFILE = home;
+process.env.DB_PATH = path.join(home, 'test.db');
 await import('../src/db-config.js');
 const { cuaPath, cuaSupported } = await import('../src/cua.js');
 const { CATALOG } = await import('../src/apps.js');
