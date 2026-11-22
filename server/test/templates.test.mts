@@ -22,3 +22,9 @@ test('role goal and backstory go in front of the instructions', async () => {
   importCompany('u-roles', { format: 'openkrishbot-company-v1', name: 'Roles Co', bots: [{ name: 'A', role: 'r', goal: 'G', backstory: 'B', instructions: 'I' }] }, (b) => { seen.push(b.instructions); return 'id'; });
   assert.deepEqual(seen, ['Your goal: G\n\nBackground: B\n\nI']);
 });
+
+test('a failed write warns that it may have happened; a failed read does not', async () => {
+  const { unknownOutcome } = await import('../src/apps.ts');
+  assert.match(unknownOutcome('POST', new Error('timeout')), /may still have gone through/);
+  assert.equal(unknownOutcome('GET', new Error('timeout')), 'timeout');
+});

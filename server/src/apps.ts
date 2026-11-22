@@ -190,6 +190,12 @@ export interface AppTool {
 const clip = (s: string, n = 60_000) => (s.length > n ? `${s.slice(0, n)}…(truncated)` : s);
 const toolName = (slug: string, tool: string) => `${slug.replace(/\W/g, '_')}__${tool}`.slice(0, 64);
 
+/** A write that failed on the wire may still have happened (openfuse idea): say so, so the bot checks instead of sending twice. */
+export function unknownOutcome(method: string, e: any): string {
+  const msg = e?.message ?? String(e);
+  return method === 'GET' ? msg : `${msg}. The request may still have gone through: check the result before trying again, do not send it twice.`;
+}
+
 function httpTool(r: Row): AppTool {
   const c = r.config;
   const fillText = [c.url, c.body, c.headers].join('\n');
@@ -205,8 +211,10 @@ function httpTool(r: Row): AppTool {
       for (const line of String(c.headers || '').split('\n')) { const i = line.indexOf(':'); if (i > 0) headers[line.slice(0, i).trim()] = fill(line.slice(i + 1).trim(), a); }
       const body = method === 'GET' || !c.body ? undefined : fill(c.body, a);
       if (body && !Object.keys(headers).some((h) => h.toLowerCase() === 'content-type')) headers['content-type'] = 'application/json';
-      const res = await fetch(fill(c.url, a, true), { method, headers, body, signal: AbortSignal.any([signal, AbortSignal.timeout(60_000)].filter((s): s is AbortSignal => !!s)) });
-      return clip(`HTTP ${res.status}\n${await res.text()}`);
+      try {
+        const res = await fetch(fill(c.url, a, true), { method, headers, body, signal: AbortSignal.any([signal, AbortSignal.timeout(60_000)].filter((s): s is AbortSignal => !!s)) });
+        return clip(`HTTP ${res.status}\n${await res.text()}`);
+      } catch (e: any) { throw new Error(unknownOutcome(method, e)); }
     },
   };
 }
