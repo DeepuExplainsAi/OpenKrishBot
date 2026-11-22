@@ -8,8 +8,8 @@ export const setLanguage = (v: string) => db.prepare("INSERT OR REPLACE INTO kv(
 
 export function languageRule(): string {
   const l = getLanguage();
-  if (l !== 'auto') return `Always reply in ${l}${l === 'Hinglish' ? ' (Hindi written in the Latin alphabet)' : ''}, whatever language the person writes in.`;
-  return 'Reply in the language the person writes in, in the same script: if they write Hinglish (Hindi in Latin letters), answer in Hinglish, never in Devanagari; if they write English, answer in English.';
+  if (l !== 'auto') return `Always reply in ${l}${l === 'Hinglish' ? ' (Hindi written ONLY in Latin letters, never Devanagari)' : ''}, whatever language the person writes in.`;
+  return 'Reply in the language and script the person writes in. If their message has Hindi words in Latin letters (e.g. "kya kar rahe ho", "mujhe batao"), that is Hinglish: answer in Hinglish using ONLY Latin letters. Never use Devanagari (हिंदी) unless their own message contains Devanagari. English in, English out.';
 }
 
 /** Settings > General > Memory: off = bots neither get their notes in the prompt nor save or search them. */
