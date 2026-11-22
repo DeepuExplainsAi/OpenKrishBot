@@ -62,7 +62,7 @@ const selfUpdates = () => (process.platform === 'win32' ? !process.env.PORTABLE_
 const progress = (f) => win?.setProgressBar(f);
 
 async function downloadAndOpen(version) {
-  const rel = await (await fetch(`https://api.github.com/repos/DeepuExplainsAi/krishbot-ai/releases/tags/v${version}`, { headers: { 'user-agent': 'OpenKrishBot' } })).json();
+  const rel = await (await fetch(`https://api.github.com/repos/DeepuExplainsAi/OpenKrishBot/releases/tags/v${version}`, { headers: { 'user-agent': 'OpenKrishBot' } })).json();
   const pick = process.platform === 'darwin' ? `mac-${process.arch === 'arm64' ? 'arm64' : 'x64'}.dmg` : 'Portable-';
   const asset = (rel.assets ?? []).find((a) => a.name.includes(pick));
   if (!asset) throw new Error('No matching file in the release');
