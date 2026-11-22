@@ -15,6 +15,7 @@ import { callTool as callHqTool, listTools as listHqTools } from '../mcp.js';
 import { claimToolRow, noteToolOutcome, requestApproval } from '../agent/loop.js';
 import { audit, dangerReason, getDangerMode, redact } from '../danger.js';
 import { runCli, cliFound } from './cli.js';
+import { openTerminal } from '../terminal.js';
 import { extraTools, callExtraTool } from './mcp-client.js';
 
 /**
@@ -244,10 +245,11 @@ async function runToolOnce(botId: string, name: string, rawArgs: string, home: s
 
 // ---------- settings: providers and models ----------
 
+const groupOf = (p: (typeof PRESETS)[number]) => p.cli ? 'Your subscription' : p.local ? 'On this computer' : /free/i.test(p.name) ? 'Free tiers' : 'API keys';
 export const providersApi = new Hono<AuthVars>();
 providersApi.use('*', requireUser);
 providersApi.get('/providers', async (c) => {
-  const out = await Promise.all(PRESETS.map(async (p) => ({ id: p.id, name: p.name, local: !!p.local, keyless: !!p.keyless, connected: p.cli ? cliFound(p.cli.bin) : p.keyless ? (p.local ? (await liveModels(p.id)).ok : true) : hasKey(p.id), models: (await liveModels(p.id)).models, note: p.note ?? null, baseUrl: resolve(p.id).baseUrl })));
+  const out = await Promise.all(PRESETS.map(async (p) => ({ id: p.id, name: p.name, local: !!p.local, keyless: !!p.keyless, connected: p.cli ? cliFound(p.cli.bin) : p.keyless ? (p.local ? (await liveModels(p.id)).ok : true) : hasKey(p.id), models: (await liveModels(p.id)).models, note: p.note ?? null, baseUrl: resolve(p.id).baseUrl, group: groupOf(p), cli: !!p.cli, canLogin: !!p.cli?.login, hasKey: hasKey(p.id), env: p.env ?? null })));
   return c.json({ providers: out, default: DEFAULT_PROVIDER });
 });
 providersApi.put('/providers/:id', async (c) => {
@@ -256,5 +258,35 @@ providersApi.put('/providers/:id', async (c) => {
   const b = await c.req.json<{ apiKey?: string; baseUrl?: string }>();
   saveProvider(id, { ...(b.apiKey !== undefined ? { apiKey: b.apiKey.trim() } : {}), ...(b.baseUrl !== undefined ? { baseUrl: b.baseUrl.trim() } : {}) });
   return c.json({ ok: true });
+});
+
+/** One short real question to the provider, so "Connected" means it answers. */
+providersApi.post('/providers/:id/test', async (c) => {
+  const id = c.req.param('id');
+  const preset = PRESETS.find((p) => p.id === id);
+  if (!preset) return c.json({ error: 'unknown provider' }, 404);
+  try {
+    if (preset.cli) {
+      if (!cliFound(preset.cli.bin)) return c.json({ error: `"${preset.cli.bin}" is not installed. ${preset.note ?? ''}` }, 409);
+      const text = await runCli(preset, 'Reply in at most five words.', [{ role: 'user', content: 'Say hello.' }], AbortSignal.timeout(90_000));
+      return c.json({ ok: true, reply: text.trim().slice(0, 200) });
+    }
+    const { baseUrl, apiKey } = resolve(id);
+    const model = (await liveModels(id)).models[0] ?? preset.models[0];
+    if (!baseUrl) return c.json({ error: 'Set the address first.' }, 400);
+    if (!model) return c.json({ error: 'No model found. Press Refresh or type one in the chat Engine panel.' }, 400);
+    const r = await fetch(`${baseUrl}/chat/completions`, { method: 'POST', signal: AbortSignal.timeout(60_000), headers: { 'content-type': 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) }, body: JSON.stringify({ model, max_tokens: 20, messages: [{ role: 'user', content: 'Say hello in two words.' }] }) });
+    const j: any = await r.json().catch(() => ({}));
+    if (!r.ok) return c.json({ error: String(j?.error?.message ?? j?.error ?? `HTTP ${r.status}`).slice(0, 300) }, 502);
+    return c.json({ ok: true, model, reply: String(j?.choices?.[0]?.message?.content ?? '').trim().slice(0, 200) });
+  } catch (e: any) { return c.json({ error: String(e?.message ?? e).slice(0, 300) }, 502); }
+});
+
+/** Open the subscription CLI's own sign-in in a terminal window on this computer. */
+providersApi.post('/providers/:id/login', async (c) => {
+  const cli = PRESETS.find((p) => p.id === c.req.param('id'))?.cli;
+  if (!cli?.login) return c.json({ error: 'No sign-in for this one.' }, 400);
+  if (!cliFound(cli.bin)) return c.json({ error: `"${cli.bin}" is not installed yet.` }, 409);
+  return c.json({ ok: true, opened: await openTerminal(cli.login), command: cli.login });
 });
 void env; void TOOLS; void toolMap;
