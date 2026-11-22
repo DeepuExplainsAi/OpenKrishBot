@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Hono } from 'hono';
 import { requireUser, type AuthVars } from './lib/auth.js';
 import { createBot } from './routes.js';
@@ -10,6 +12,18 @@ projectsApi.use('*', requireUser);
 
 const reply = (c: any, r: any) => (r === null ? c.json({ error: 'not found' }, 404) : 'error' in r ? c.json({ error: r.error }, 400) : c.json({ project: r }));
 const body = (c: any) => c.req.json().catch(() => ({}));
+
+const TEMPLATES = fileURLToPath(new URL('../templates/', import.meta.url));
+const templateNames = () => fs.readdirSync(TEMPLATES).filter((f) => f.endsWith('.company.json')).map((f) => f.replace('.company.json', ''));
+/** Ready-made companies: GET /api/projects/templates, POST /api/projects/templates/:id (hires the whole team). */
+projectsApi.get('/templates', (c) => c.json({ templates: templateNames().map((id) => { const t = JSON.parse(fs.readFileSync(`${TEMPLATES}${id}.company.json`, 'utf8')); return { id, name: t.name, goal: t.instructions, bots: t.bots.map((b: any) => b.name) }; }) }));
+projectsApi.post('/templates/:id', (c) => {
+  const id = c.req.param('id');
+  if (!templateNames().includes(id)) return c.json({ error: 'not found' }, 404);
+  const userId = c.get('user').id;
+  try { return reply(c, importCompany(userId, JSON.parse(fs.readFileSync(`${TEMPLATES}${id}.company.json`, 'utf8')), (b) => createBot(userId, b).id)); }
+  catch (e: any) { return c.json({ error: e.message }, 409); }
+});
 
 projectsApi.get('/', (c) => c.json({ projects: listProjects(c.get('user').id) }));
 projectsApi.post('/', async (c) => reply(c, createProject(c.get('user').id, await body(c))));
@@ -34,3 +48,4 @@ projectsApi.post('/import', async (c) => {
   try { return reply(c, importCompany(userId, await body(c), (b) => createBot(userId, b).id)); }
   catch (e: any) { return c.json({ error: e.message }, 409); }
 });
+

@@ -693,6 +693,8 @@ function ProjectsSection() {
   const bots = useStore((s) => s.bots).filter((b) => b.kind !== 'room');
   const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
   const [name, setName] = useState('');
+  const [templates, setTemplates] = useState<{ id: string; name: string; goal: string; bots: string[] }[]>([]);
+  useEffect(() => { configApi.companyTemplates().then((r) => setTemplates(r.templates)).catch(() => {}); }, []);
   const [err, setErr] = useState('');
   const load = useCallback(() => configApi.projects().then((r) => setProjects(r.projects)).catch(() => setProjects([])), []);
   useEffect(() => { load(); }, [load]);
@@ -711,6 +713,13 @@ function ProjectsSection() {
             <button type="button" className="cfg-btn cfg-btn--primary" disabled={!name.trim()} onClick={() => act(configApi.addProject({ name }).then(() => setName('')))}>Add</button>
           </div>
           <label className="cfg-row__sub">Import a company file: <input type="file" accept=".json,application/json" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void f.text().then((t) => act(configApi.importCompany(JSON.parse(t)))).catch(() => setErr('That file is not valid JSON.')); }} /></label>
+          {templates.length > 0 && <div className="cfg-row__sub">Ready-made companies (hires the whole team):</div>}
+          {templates.map((t) => (
+            <div key={t.id} style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+              <span className="cfg-row__sub"><b>{t.name}</b>: {t.bots.join(', ')}</span>
+              <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => act(configApi.addCompanyTemplate(t.id))}>Hire team</button>
+            </div>
+          ))}
           {err && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{err}</div>}
         </div>
       </section>

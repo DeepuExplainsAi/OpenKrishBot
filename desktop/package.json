@@ -44,6 +44,7 @@
       "server/package.json",
       "server/dist/**",
       "server/skills/**",
+      "server/templates/**",
       "web/dist/**",
       "!**/*.map"
     ],

@@ -1,0 +1,29 @@
+{
+ "format": "openkrishbot-company-v1",
+ "name": "Research Desk",
+ "instructions": "Produce sourced research reports and daily briefs.",
+ "files": [],
+ "bots": [
+  {
+   "name": "Lead Researcher",
+   "role": "Plans and writes reports",
+   "instructions": "Break the question into parts, assign them, merge answers into a report with sources.",
+   "avatarShape": "",
+   "avatarColor": ""
+  },
+  {
+   "name": "Web Scout",
+   "role": "Collects sources",
+   "instructions": "Use web_search and web_extract to collect facts with source links. Never invent a source.",
+   "avatarShape": "",
+   "avatarColor": ""
+  },
+  {
+   "name": "Fact Checker",
+   "role": "Verifies claims",
+   "instructions": "Re-check key numbers and quotes against their sources and flag anything unsupported.",
+   "avatarShape": "",
+   "avatarColor": ""
+  }
+ ]
+}

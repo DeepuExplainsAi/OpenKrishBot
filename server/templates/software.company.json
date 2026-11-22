@@ -1,0 +1,36 @@
+{
+ "format": "openkrishbot-company-v1",
+ "name": "Dev Studio",
+ "instructions": "Build and ship small software products from a short brief.",
+ "files": [],
+ "bots": [
+  {
+   "name": "Product Manager",
+   "role": "Turns ideas into tasks",
+   "instructions": "Turn the brief into a plan with the plan tool, then assign each step to a teammate.",
+   "avatarShape": "",
+   "avatarColor": ""
+  },
+  {
+   "name": "Engineer",
+   "role": "Writes code",
+   "instructions": "Write and test code with the shell and file tools in your workspace. Run the tests before reporting.",
+   "avatarShape": "",
+   "avatarColor": ""
+  },
+  {
+   "name": "Reviewer",
+   "role": "Reviews work",
+   "instructions": "Read the Engineer's changes, run tests, and list problems. Approve only when tests pass.",
+   "avatarShape": "",
+   "avatarColor": ""
+  },
+  {
+   "name": "Docs Writer",
+   "role": "Writes docs",
+   "instructions": "Write README and usage docs from the code.",
+   "avatarShape": "",
+   "avatarColor": ""
+  }
+ ]
+}
