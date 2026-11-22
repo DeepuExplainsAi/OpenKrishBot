@@ -1,0 +1,2 @@
+{ "id": "research-report", "name": "Research report", "version": "1.0.0", "description": "Research a question on the web and write a sourced summary.", "defaultEnabled": true,
+  "triggerTerms": ["research", "compare", "find out about", "market report", "literature review", "pros and cons of"], "requiredCapabilities": [] }

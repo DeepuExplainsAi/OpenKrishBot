@@ -1,0 +1,2 @@
+{ "id": "daily-brief", "name": "Daily brief", "version": "1.0.0", "description": "A short morning or evening summary of what matters.", "defaultEnabled": true,
+  "triggerTerms": ["daily brief", "morning brief", "my day", "what did i miss", "summarize my day"], "requiredCapabilities": [] }

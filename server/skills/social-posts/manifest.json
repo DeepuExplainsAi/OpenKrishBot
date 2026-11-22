@@ -1,0 +1,2 @@
+{ "id": "social-posts", "name": "Social posts", "version": "1.0.0", "description": "Write posts that fit each platform: length, tone, hashtags, hooks.", "defaultEnabled": true,
+  "triggerTerms": ["social post", "linkedin post", "instagram caption", "instagram post", "tweet", "threads post", "facebook post", "tiktok caption", "youtube short", "reel caption", "write a post"], "requiredCapabilities": [] }

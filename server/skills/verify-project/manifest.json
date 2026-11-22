@@ -1,0 +1,2 @@
+{ "id": "verify-project", "name": "Verify a project", "version": "1.0.0", "description": "Prove a change works by running the project's own checks.", "defaultEnabled": true,
+  "triggerTerms": ["verify", "make sure it works", "check that it works", "run the tests", "does it work", "test it"], "requiredCapabilities": [] }

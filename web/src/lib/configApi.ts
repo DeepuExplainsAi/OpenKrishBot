@@ -54,7 +54,11 @@ export interface Issue { id: string; title: string; body: string; status: IssueS
 
 export interface BudgetInfo { dailyTokens: number | null; today: { tokensIn: number; tokensOut: number; calls: number } }
 
+export interface LibrarySkill { id: string; name: string; description: string; triggers: string[]; enabled: boolean }
+
 export const configApi = {
+  skillLibrary: () => req<{ skills: LibrarySkill[] }>('GET', '/skill-library'),
+  setLibrarySkill: (id: string, enabled: boolean) => req<{ id: string; enabled: boolean }>('PUT', `/skill-library/${id}`, { enabled }),
   budget: (botId: string) => req<BudgetInfo>('GET', `/bots/${botId}/budget`),
   setBudget: (botId: string, dailyTokens: number | null) => req<BudgetInfo>('PUT', `/bots/${botId}/budget`, { dailyTokens }),
   issues: () => req<{ issues: Issue[] }>('GET', '/issues'),

@@ -161,3 +161,8 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 - `server/src/usage.ts`: table `usage_daily`; tokens from the provider's `usage` or ~4 chars/token estimate; `kv budget:<botId>` cap. Engine checks the cap before every model call and shows a friendly notice instead. API: `GET/PUT /api/bots/:id/budget`, `GET /api/usage` (7-day per-bot summary). UI: Engine panel row (today + limit).
 - Tests: `test/usage.test.mts` (3). Live: usage recorded, cap 10 blocked the next message with the notice, removing the cap restored replies, negative cap rejected.
 - Money cost is not tracked (providers here are free/BYO key); tokens only.
+
+## P11e: shipped skills (OpenMausBot manifest format)
+- `server/skills/<id>/{manifest.json,SKILL.md}`: social-posts, verify-project, research-report, daily-brief (written for Krishbot; OpenMausBot's own skills depend on its show_html/publish/phone tools, which don't exist here, so they were not copied).
+- `server/src/skill-library.ts`: loader (bad skills skipped), trigger-term match, max 3 per turn, injected into the system prompt in `krish/engine.ts`; on/off in kv `skill:<id>`; API `/api/skill-library`; UI Settings -> Skills.
+- Tests `test/skills.test.mts` (3). Live: triggered message gets the skill text, other message doesn't, off switch removes it.

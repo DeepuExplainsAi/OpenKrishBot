@@ -5,6 +5,7 @@ import { env } from '../env.js';
 import { requireUser, type AuthVars } from '../lib/auth.js';
 import { engineKey } from '../engine.js';
 import { callModel } from './resilient.js';
+import { skillsPrompt } from '../skill-library.js';
 import { estimateTokens, overBudget, recordUsage } from '../usage.js';
 import { loopNudge } from '../plan.js';
 import { DEFAULT_PROVIDER, PRESETS, hasKey, liveModels, resolve, saveProvider } from './providers.js';
@@ -76,7 +77,7 @@ krishApi.post('/v1/responses', async (c) => {
   const home = botHome(botId);
   fs.mkdirSync(`${home}/work`, { recursive: true });
   const memory = ['MEMORY.md', 'USER.md'].map((f) => { try { return fs.readFileSync(`${home}/memories/${f}`, 'utf8').replace(/\n§\n/g, '\n- '); } catch { return ''; } }).filter(Boolean).join('\n');
-  const system = `${b.instructions ?? ''}\n\n## Your computer\nYou run on the user's own computer, with a shell, files, Python and the web. Your workspace folder is ${home}/work. Be careful with anything destructive.${memory ? `\n\n## What you remember\n- ${memory}` : ''}`;
+  const system = `${b.instructions ?? ''}\n\n## Your computer\nYou run on the user's own computer, with a shell, files, Python and the web. Your workspace folder is ${home}/work. Be careful with anything destructive.${memory ? `\n\n## What you remember\n- ${memory}` : ''}${skillsPrompt(String(b.input ?? ''))}`;
 
   const stream = new ReadableStream({
     async start(ctrl) {

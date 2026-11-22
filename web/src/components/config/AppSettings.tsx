@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type AuditEntry, type Flow, type Issue, type IssueStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
+import { configApi, type AuditEntry, type Flow, type LibrarySkill, type Issue, type IssueStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -21,6 +21,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'issues', label: 'Issues' },
   { id: 'workflows', label: 'Workflows' },
+  { id: 'skills', label: 'Skills' },
   { id: 'activity', label: 'Activity log' },
   { id: 'account', label: 'Account' },
 ];
@@ -57,6 +58,7 @@ export function AppSettings() {
           {section === 'phone' && <PhoneSection />}
           {section === 'whatsapp' && <WhatsAppSection />}
           {section === 'issues' && <IssuesSection />}
+          {section === 'skills' && <SkillsSection />}
           {section === 'workflows' && <WorkflowsSection />}
           {section === 'activity' && <ActivitySection />}
           {section === 'account' && <AccountSection />}
@@ -626,6 +628,33 @@ function IssuesSection() {
                 {(Object.keys(ISSUE_LABEL) as IssueStatus[]).map((s) => <option key={s} value={s}>{ISSUE_LABEL[s]}</option>)}
               </select>
               <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Delete" onConfirm={() => act(configApi.deleteIssue(i.id))}>Delete</ConfirmButton>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function SkillsSection() {
+  const [skills, setSkills] = useState<LibrarySkill[] | null>(null);
+  useEffect(() => { configApi.skillLibrary().then((r) => setSkills(r.skills)).catch(() => setSkills([])); }, []);
+  const toggle = (s: LibrarySkill) => {
+    setSkills((l) => l && l.map((x) => (x.id === s.id ? { ...x, enabled: !s.enabled } : x)));
+    configApi.setLibrarySkill(s.id, !s.enabled).catch(() => setSkills((l) => l && l.map((x) => (x.id === s.id ? { ...x, enabled: s.enabled } : x))));
+  };
+  return (
+    <>
+      <PageHead title="Skills" sub="Built-in know-how your Bots use automatically when your message matches. Switch off any you don't want. Skills you write yourself live in each Bot's settings." />
+      <section className="cfg-section">
+        <div className="cfg-card">
+          {skills === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : skills.length === 0 ? <div className="cfg-empty cfg-empty--flat">No built-in skills found.</div> : skills.map((s) => (
+            <div key={s.id} className="cfg-row">
+              <div className="cfg-row__text">
+                <div className="cfg-row__title">{s.name}</div>
+                <div className="cfg-row__sub">{s.description} Used when you say: {s.triggers.join(', ')}…</div>
+              </div>
+              <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => toggle(s)} aria-pressed={s.enabled}>{s.enabled ? 'On' : 'Off'}</button>
             </div>
           ))}
         </div>

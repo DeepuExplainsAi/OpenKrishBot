@@ -13,6 +13,7 @@ import { computerState, readyScreen, resetBotScreen } from './computer.js';
 import { box } from './box.js';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
 import { listMemories } from './engine-memory.js';
+import { isEnabled, loadLibrary, setEnabled } from './skill-library.js';
 import { getBudget, setBudget, usageSummary, usageToday } from './usage.js';
 import type { LibraryFile, Skill } from './types.js';
 
@@ -147,6 +148,15 @@ configApi.put('/bots/:id/budget', async (c) => {
   if (dailyTokens !== null && dailyTokens !== undefined && !(Number.isFinite(dailyTokens) && dailyTokens >= 0)) return c.json({ error: 'dailyTokens must be a number.' }, 400);
   setBudget(b.id, dailyTokens ?? null);
   return c.json({ dailyTokens: getBudget(b.id), today: usageToday(b.id) });
+});
+
+configApi.get('/skill-library', (c) => c.json({ skills: loadLibrary().map((s) => ({ id: s.id, name: s.name, description: s.description, triggers: s.triggerTerms.slice(0, 6), enabled: isEnabled(s) })) }));
+configApi.put('/skill-library/:id', async (c) => {
+  const s = loadLibrary().find((x) => x.id === c.req.param('id'));
+  if (!s) return c.json({ error: 'not found' }, 404);
+  const { enabled } = await c.req.json<{ enabled?: boolean }>().catch(() => ({} as { enabled?: boolean }));
+  setEnabled(s.id, enabled !== false);
+  return c.json({ id: s.id, enabled: isEnabled(s) });
 });
 
 configApi.get('/usage', (c) => c.json({ usage: usageSummary(c.get('user').id, 7) }));
