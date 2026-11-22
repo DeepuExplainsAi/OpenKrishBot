@@ -32,7 +32,7 @@
     "appId": "ai.krishbot.app",
     "productName": "Krishbot",
     "asar": false,
-    "npmRebuild": true,
+    "npmRebuild": false,
     "directories": {
       "output": "release",
       "buildResources": "build"
