@@ -246,3 +246,8 @@ Fixed: room `@name` matches whole names only (@Sam no longer wakes @Samantha); t
 Tests: rooms.test.mts (mentions), flows-schedule (missedRun). Catch-up at boot is NOT tested end to end.
 Not a bug: flow timezone. Cron uses the computer's own timezone, which is the user's on a local app.
 Not fixable here: Ollama `num_ctx`. Its OpenAI-compatible endpoint ignores it; the user sets OLLAMA_CONTEXT_LENGTH for the Ollama server. Mention in release notes.
+
+## P12i: plan close, retry pause, notices (2026-11-22)
+Added: `plan close` command (a Bot can drop an unfinished plan); the invisible stream retry now waits 1.5 s; THIRD_PARTY_NOTICES.md credits OpenManus, Paperclip, OpenMausBot (no enterprise code), OpenBot. Credits live only in that file, not in the UI.
+`plan close` has no test.
+Left as is on purpose: reasoning is not replayed to the model (providers differ; replay can break some); mid-stream error payloads get one invisible retry (only when nothing was shown yet).

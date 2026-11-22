@@ -158,12 +158,12 @@ export const TOOLS: ToolDef[] = [
     name: 'plan',
     description: 'For work with several steps: write the plan first (create), then mark each step as you go (mark_step: doing, done or blocked). The user sees it as a checklist in Tasks. Skip it for quick questions.',
     parameters: obj({
-      command: { type: 'string', enum: ['create', 'mark_step', 'get'] },
+      command: { type: 'string', enum: ['create', 'mark_step', 'get', 'close'] },
       title: { type: 'string', description: 'create: what the plan achieves' },
       steps: { type: 'array', items: { type: 'string' }, description: 'create: the steps, in order' },
       step_index: { type: 'integer', description: 'mark_step: 0-based step number' },
       status: { type: 'string', enum: ['todo', 'doing', 'done', 'blocked'] },
-      note: { type: 'string', description: 'mark_step: a short result or the reason it is blocked' },
+      note: { type: 'string', description: 'mark_step: a short result or the reason it is blocked; close: why' },
     }, ['command']),
     activity: 'working',
     label: 'Planning',
@@ -179,6 +179,11 @@ export const TOOLS: ToolDef[] = [
       }
       const plan = activePlan(ctx.botId);
       if (!plan) return { output: 'There is no active plan. Use create first.' };
+      if (a.command === 'close') {
+        db.prepare("UPDATE tasks SET state='done', note=?, updated_at=? WHERE id=?").run(String(a.note ?? 'Closed.'), now(), plan.id);
+        tell();
+        return { output: `Plan "${plan.title}" closed.` };
+      }
       if (a.command === 'mark_step') {
         const r = markStep(plan.steps, Number(a.step_index), String(a.status ?? 'done'), a.note);
         if (r.error) return { output: r.error };

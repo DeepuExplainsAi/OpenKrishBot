@@ -48,6 +48,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## Designs adapted from other open-source agents
+
+Krishbot's engine reimplements (in TypeScript, not copied line by line) ideas from these projects. Their licences require this notice.
+
+- **OpenManus** (MIT, Copyright (c) 2025 manna_and_poem): the plan tool with step statuses, the stuck-loop check, and the step-by-step workflow idea (`server/src/plan.ts`, `server/src/flow.ts`).
+- **Paperclip** (MIT, Copyright (c) 2025 Paperclip AI): bot-to-bot issues with checkout and wake caps, daily token budgets, the provider circuit breaker (`server/src/issues.ts`, `server/src/usage.ts`, `server/src/krish/breaker.ts`, `server/src/krish/resilient.ts`).
+- **OpenMausBot** (Apache-2.0): the skill file format and trigger matching (`server/src/skill-library.ts`). Nothing from its `enterprise/` folder is used.
+- **OpenBot** (MIT, Copyright (c) 2026 CopilotKit): chat UI patterns.
+
+MIT permission notice, applying to the MIT projects above: Permission is hereby granted, free of charge, to any person obtaining a copy of the software and associated documentation files, to deal in the software without restriction, including the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies, subject to the above copyright notices being included in all copies or substantial portions. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
 ## Hermes Agent
 
 The bots run on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research, which is MIT-licensed. Hermes is installed and run as a separate program; no Hermes code is copied into this repository.
