@@ -12,6 +12,10 @@ class BotScreen {
   viewers = new Set<FrameFn>();
   last: Frame | null = null;
   idleTimer: NodeJS.Timeout | null = null;
+  /** Latest page messages and requests (for browser_console / browser_network), oldest dropped. */
+  console: string[] = [];
+  requests = new Map<string, { method: string; url: string; status?: number; type?: string }>();
+  dialog = '';
 
   constructor(readonly botId: string) {}
 
@@ -28,6 +32,11 @@ class BotScreen {
       const next = targetInfos.find((t: any) => t.type === 'page');
       if (next) await this.attach(next.targetId); else await this.openTab('about:blank');
     });
+    cdp.on('Runtime.consoleAPICalled', (p, sid) => { if (sid === this.session) this.log(`${p.type}: ${(p.args ?? []).map((a: any) => a.value ?? a.description ?? a.type).join(' ')}`); });
+    cdp.on('Runtime.exceptionThrown', (p, sid) => { if (sid === this.session) this.log(`error: ${p.exceptionDetails?.exception?.description ?? p.exceptionDetails?.text}`); });
+    cdp.on('Network.requestWillBeSent', (p, sid) => { if (sid !== this.session) return; this.requests.set(p.requestId, { method: p.request.method, url: p.request.url, type: p.type }); if (this.requests.size > 300) this.requests.delete(this.requests.keys().next().value!); });
+    cdp.on('Network.responseReceived', (p, sid) => { const r = sid === this.session ? this.requests.get(p.requestId) : null; if (r) r.status = p.response.status; });
+    cdp.on('Page.javascriptDialogOpening', (p, sid) => { if (sid === this.session) this.dialog = `${p.type}: ${p.message}`; });
     cdp.on('Page.screencastFrame', (p, sid) => {
       cdp.send('Page.screencastFrameAck', { sessionId: p.sessionId }, sid).catch(() => {});
       if (sid !== this.session) return;
@@ -54,11 +63,14 @@ class BotScreen {
     await Promise.all([
       this.cdp.send('Page.enable', {}, sessionId),
       this.cdp.send('Runtime.enable', {}, sessionId),
+      this.cdp.send('Network.enable', {}, sessionId),
       this.cdp.send('Emulation.setDeviceMetricsOverride', { width: SCREEN_W, height: SCREEN_H, deviceScaleFactor: 1, mobile: false }, sessionId),
     ]);
     await this.cdp.send('Target.activateTarget', { targetId }).catch(() => {});
     if (this.viewers.size) await this.startCast();
   }
+
+  log(line: string) { this.console.push(line.slice(0, 500)); if (this.console.length > 200) this.console.shift(); }
 
   async tabs(): Promise<{ id: string; url: string; title: string; active: boolean }[]> {
     const { targetInfos } = await this.cdp.send('Target.getTargets');

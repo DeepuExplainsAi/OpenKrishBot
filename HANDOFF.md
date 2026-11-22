@@ -405,7 +405,7 @@ Done:
 3. [ ] Remote server mode: bind/URL docs, `APP_URL` public, sign-in via link; optional access token for `/script`.
 4. [x] (done, P20) Theme palette files: JSON palettes in `web/src/styles/themes/*.json` (CSS variables from `tokens.css`), picker in Settings → General, saved in localStorage; keep light/dark/system.
 5. [x] (done, P21: browser_extract + stuck warning; highlight skipped) browser-use ideas (MIT): `browser_extract` (structured fields from the page by a schema), a `browser_task` loop with step limit and "stuck" detection (same action/URL 3x -> stop and tell user), highlight of clickable elements in `browser_snapshot`.
-6. [ ] Playwright-MCP leftovers: `browser_console` (read console messages), `browser_network` (list requests), `browser_pdf`/`browser_save_screenshot` to file, `browser_drag`, `browser_resize`, `browser_handle_dialog`.
+6. [x] (done, P22; browser_save_screenshot skipped, screenshots already saved) Playwright-MCP leftovers: `browser_console` (read console messages), `browser_network` (list requests), `browser_pdf`/`browser_save_screenshot` to file, `browser_drag`, `browser_resize`, `browser_handle_dialog`.
 7. [ ] crawl4ai leftovers: `sitemap.xml` discovery in `web_crawl`, robots.txt respect, content-fit filter (drop nav/footers), CSS-selector extraction, cache for repeated URLs.
 8. [ ] mem0 leftovers: semantic recall (local embeddings or keyword index over past chats) injected into the prompt; per-user vs per-bot memory scopes.
 9. [ ] crewAI / MetaGPT leftovers: role templates with goal + backstory, task context passing, hierarchical "manager" bot that plans and assigns, SOP-style company templates (Product Manager -> Architect -> Engineer -> QA).
@@ -416,3 +416,7 @@ Done:
 
 ## P20 — Palette files
 - `web/src/themes/*.json` (`{name, base, vars}`; Midnight, Forest, Sand, Rose) loaded by `web/src/lib/palettes.ts` (`import.meta.glob`); only `--color-*` vars apply. `configStore`: `palette`, `setPalette`; picker under Settings → General → Colours. A palette sets its own light/dark base. Add a palette = add a JSON file.
+
+## P21–P22 — browser tools
+- P21 `screen/extract.ts`: `browser_extract` (CSS selectors -> JSON rows; `sel@attr`, `@attr` = the row itself) and a stuck-page warning in `browser_snapshot` after 3 identical looks. Test `extract.test.mts`.
+- P22 `screen/manager.ts` keeps console + network ring buffers and last dialog; new tools `browser_console`, `browser_network`, `browser_dialog`, `browser_resize`, `browser_drag`, `browser_pdf`. Covered by `browser-tools.test.mts` (runs in CI only; check its result there).

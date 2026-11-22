@@ -253,6 +253,78 @@ export const BROWSER_TOOLS: LocalTool[] = [
     },
   },
   {
+    name: 'browser_console',
+    description: 'Messages and errors the current page wrote to its console (latest 50). Use to find out why a page is broken.',
+    parameters: obj({ clear: { type: 'boolean' } }),
+    async run(a, c) {
+      const s = await screenOf(botOf(c.home));
+      const out = s.console.slice(-50).join('\n') || '(nothing logged)';
+      if (a.clear) s.console = [];
+      return out;
+    },
+  },
+  {
+    name: 'browser_network',
+    description: 'Requests the page made (latest 50): method, status, URL. Optional filter text on the URL. Use to find the API a page calls.',
+    parameters: obj({ filter: { type: 'string' } }),
+    async run(a, c) {
+      const s = await screenOf(botOf(c.home));
+      const f = a.filter ? String(a.filter).toLowerCase() : '';
+      const rows = [...s.requests.values()].filter((r) => !f || r.url.toLowerCase().includes(f)).slice(-50);
+      return rows.map((r) => `${r.method} ${r.status ?? '...'} ${r.type ?? ''} ${r.url.slice(0, 200)}`).join('\n') || '(no requests)';
+    },
+  },
+  {
+    name: 'browser_dialog',
+    description: 'Answer a JavaScript alert / confirm / prompt that is blocking the page.',
+    parameters: obj({ accept: { type: 'boolean' }, text: { type: 'string', description: 'answer for a prompt' } }, ['accept']),
+    async run(a, c) {
+      const s = await screenOf(botOf(c.home));
+      const was = s.dialog || '(none reported)';
+      await s.send('Page.handleJavaScriptDialog', { accept: a.accept !== false, ...(a.text ? { promptText: String(a.text) } : {}) });
+      s.dialog = '';
+      return `Dialog ${a.accept !== false ? 'accepted' : 'dismissed'}: ${was}`;
+    },
+  },
+  {
+    name: 'browser_resize',
+    description: 'Change the browser window size (e.g. 390x844 to see a phone layout).',
+    parameters: obj({ width: { type: 'number' }, height: { type: 'number' } }, ['width', 'height']),
+    async run(a, c) {
+      const w = Math.min(Math.max(Number(a.width) || 0, 200), 3000), h = Math.min(Math.max(Number(a.height) || 0, 200), 3000);
+      const s = await screenOf(botOf(c.home));
+      await s.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 600 });
+      return `Window is now ${w}x${h}.`;
+    },
+  },
+  {
+    name: 'browser_drag',
+    description: 'Drag the element with number `from` onto the element with number `to` (from the latest snapshot).',
+    parameters: obj({ from: { type: 'number' }, to: { type: 'number' } }, ['from', 'to']),
+    async run(a, c) {
+      const id = botOf(c.home); const s = await screenOf(id);
+      const p = await center(id, Number(a.from)); const q = await center(id, Number(a.to));
+      await s.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', clickCount: 1 });
+      for (let i = 1; i <= 8; i++) await s.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x + (q.x - p.x) * i / 8, y: p.y + (q.y - p.y) * i / 8, button: 'left', buttons: 1 });
+      await s.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: q.x, y: q.y, button: 'left', clickCount: 1 });
+      return snapshot(id);
+    },
+  },
+  {
+    name: 'browser_pdf',
+    description: 'Save the current page as a PDF file in your library and return its path.',
+    parameters: obj({ name: { type: 'string', description: 'file name without extension' } }),
+    async run(a, c) {
+      const s = await screenOf(botOf(c.home));
+      const r = await s.send('Page.printToPDF', { printBackground: true });
+      const dir = path.join(libraryRoot(), botOf(c.home), 'pdf');
+      fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, `${String(a.name || 'page').replace(/[^\w.-]+/g, '_')}.pdf`);
+      fs.writeFileSync(file, Buffer.from(r.data, 'base64'));
+      return `Saved ${file}`;
+    },
+  },
+  {
     name: 'browser_eval', ask: 'Run a script inside the web page',
     description: 'Run JavaScript in the current page and return the result (JSON). For reading data the snapshot does not show.',
     parameters: obj({ script: { type: 'string' } }, ['script']),

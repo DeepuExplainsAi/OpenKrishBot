@@ -10,6 +10,7 @@ const PAGE = `<html><head><title>Shop</title></head><body><a href="/two" id="l">
 <select id="s"><option value="a">Apple</option><option value="b">Banana</option></select>
 <input type="file" id="f"><div id="out"></div><div id="late"></div>
 <script>document.getElementById('s').onchange = (e) => document.getElementById('out').textContent = 'picked ' + e.target.value;
+console.log('hello-log');
 setTimeout(() => { document.getElementById('late').textContent = 'late-ready'; }, 700);</script></body></html>`;
 
 test('browser tools: navigate, select, upload, wait, tabs, read', { skip: (!findChrome() && 'no Chrome installed') || (process.platform === 'darwin' && !!process.env.CI && 'headless Chrome hangs on the macOS CI runner') || (process.env.OPENKRISHBOT_BROWSER_TEST !== '1' && !process.env.CI && 'runs in CI, or locally with OPENKRISHBOT_BROWSER_TEST=1') }, async () => {
@@ -31,6 +32,11 @@ test('browser tools: navigate, select, upload, wait, tabs, read', { skip: (!find
     assert.match(await run('browser_snapshot'), /picked b/);
     assert.match(await run('browser_upload', { index: idx(/\[(\d+)\] input:file/), path: 'a.txt' }), /Attached a\.txt/);
     assert.match(await run('browser_read'), /# Shop/);
+    assert.deepEqual(JSON.parse(await run('browser_extract', { each: 'option', fields: { name: '', value: '@value' } })).map((r: any) => r.name), ['Apple', 'Banana']);
+    assert.match(await run('browser_console'), /hello-log/);
+    assert.match(await run('browser_network', { filter: '127.0.0.1' }), /GET 200/);
+    assert.match(await run('browser_resize', { width: 390, height: 844 }), /390x844/);
+    assert.match(await run('browser_pdf', { name: 'shop' }), /shop\.pdf/);
     await run('browser_tabs', { action: 'new', url: base });
     assert.equal((await run('browser_tabs', { action: 'list' })).split('\n').length, 2);
   } finally { closeAllScreens(); srv.close(); }
