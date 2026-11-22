@@ -20,8 +20,10 @@ const cap = (s: string, n = 12000) => (s.length > n ? `${s.slice(0, n / 2)}\n…
 function sh(cmd: string, args: string[], cwd: string, timeoutSec: number, input?: string): Promise<string> {
   return new Promise((resolve) => {
     const p = execFile(cmd, args, { cwd, timeout: timeoutSec * 1000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, TERM: 'dumb' } }, (err, stdout, stderr) => {
-      const code = err ? (typeof (err as any).code === 'number' ? (err as any).code : 1) : 0;
-      resolve(JSON.stringify({ exit_code: code, output: cap(`${stdout ?? ''}${stderr ?? ''}`) }));
+      const e = err as any;
+      const code = err ? (typeof e.code === 'number' ? e.code : 1) : 0;
+      const note = e?.killed ? `\n[timed out after ${timeoutSec}s and was stopped]` : e?.code === 'ENOENT' ? `\n[${cmd} is not installed or not on PATH]` : '';
+      resolve(JSON.stringify({ exit_code: code, output: cap(`${stdout ?? ''}${stderr ?? ''}${note}`) }));
     });
     if (input !== undefined) p.stdin?.end(input);
   });
@@ -29,6 +31,37 @@ function sh(cmd: string, args: string[], cwd: string, timeoutSec: number, input?
 
 const abs = (p: string, cwd: string) => (path.isAbsolute(p) ? p : path.join(cwd, p));
 const stripHtml = (h: string) => h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '__pycache__']);
+
+/** List a folder, or grep file contents. Pure Node so it works the same on Windows, Mac and Linux. */
+function searchFiles(root: string, pattern: string | null): string {
+  if (!pattern) {
+    return fs.readdirSync(root, { withFileTypes: true }).map((e) => `${e.isDirectory() ? 'd' : '-'} ${e.name}`).join('\n') || '(empty folder)';
+  }
+  let re: RegExp;
+  try { re = new RegExp(pattern); } catch (e: any) { return JSON.stringify({ error: `bad regex: ${e.message}` }); }
+  const hits: string[] = [];
+  let scanned = 0;
+  const walk = (dir: string) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (hits.length >= 100 || scanned > 5000) return;
+      const f = path.join(dir, e.name);
+      if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(f); continue; }
+      if (!e.isFile()) continue;
+      scanned++;
+      let text: string;
+      try { if (fs.statSync(f).size > 2_000_000) continue; text = fs.readFileSync(f, 'utf8'); } catch { continue; }
+      if (text.includes('\0')) continue;
+      let per = 0;
+      for (const [i, line] of text.split('\n').entries()) {
+        if (re.test(line)) { hits.push(`${path.relative(root, f)}:${i + 1}:${line.slice(0, 300)}`); if (++per >= 5 || hits.length >= 100) break; }
+      }
+    }
+  };
+  walk(root);
+  return hits.join('\n') || 'No matches.';
+}
 
 const BASE_TOOLS: LocalTool[] = [
   {
@@ -60,9 +93,10 @@ const BASE_TOOLS: LocalTool[] = [
     parameters: obj({ path: { type: 'string' }, content: { type: 'string' } }, ['path', 'content']),
     async run(a, c) {
       const f = abs(String(a.path), c.cwd);
+      const existed = fs.existsSync(f);
       fs.mkdirSync(path.dirname(f), { recursive: true });
       fs.writeFileSync(f, String(a.content));
-      return `Wrote ${f} (${String(a.content).length} chars)`;
+      return `${existed ? 'Overwrote' : 'Created'} ${f} (${String(a.content).length} chars)`;
     },
   },
   {
@@ -71,10 +105,17 @@ const BASE_TOOLS: LocalTool[] = [
     parameters: obj({ path: { type: 'string' }, old_text: { type: 'string' }, new_text: { type: 'string' } }, ['path', 'old_text', 'new_text']),
     async run(a, c) {
       const f = abs(String(a.path), c.cwd);
-      const s = fs.readFileSync(f, 'utf8');
-      const n = s.split(String(a.old_text)).length - 1;
+      const raw = fs.readFileSync(f, 'utf8');
+      // Windows files use CRLF; the model writes LF. Match on LF, write back in the file's own style.
+      const crlf = raw.includes('\r\n');
+      const s = raw.replace(/\r\n/g, '\n');
+      const oldT = String(a.old_text).replace(/\r\n/g, '\n');
+      const newT = String(a.new_text).replace(/\r\n/g, '\n');
+      const n = s.split(oldT).length - 1;
+      if (!oldT) return JSON.stringify({ error: 'old_text is empty' });
       if (n !== 1) return JSON.stringify({ error: n === 0 ? 'old_text not found' : `old_text matches ${n} times; add more context` });
-      fs.writeFileSync(f, s.replace(String(a.old_text), () => String(a.new_text)));
+      const out = s.replace(oldT, () => newT);
+      fs.writeFileSync(f, crlf ? out.replace(/\n/g, '\r\n') : out);
       return 'Edited ' + f;
     },
   },
@@ -82,7 +123,7 @@ const BASE_TOOLS: LocalTool[] = [
     name: 'search_files',
     description: 'List files in a folder, or search file contents with a regex (grep).',
     parameters: obj({ path: { type: 'string', description: 'folder, default workspace' }, pattern: { type: 'string', description: 'regex to search for in contents (optional)' } }),
-    run: (a, c) => sh('bash', ['-c', a.pattern ? 'grep -rIn --exclude-dir=node_modules --exclude-dir=.git -m 5 -E "$1" . | head -100' : 'ls -la', '_', String(a.pattern ?? '')], abs(String(a.path ?? '.'), c.cwd), 30),
+    async run(a, c) { return searchFiles(abs(String(a.path ?? '.'), c.cwd), a.pattern ? String(a.pattern) : null); },
   },
   {
     name: 'web_search',

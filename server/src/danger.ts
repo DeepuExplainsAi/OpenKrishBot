@@ -5,7 +5,7 @@ import { db } from './db.js';
 
 /** Commands that can destroy data or leak the machine. These ask every time, even after "Always allow". */
 const RULES: [RegExp, string][] = [
-  [/\brm\s+(-[a-z]*[rf][a-z]*\s+)+(\/|~|\$HOME|\*)(\s|$)/i, 'deletes everything under a top-level folder'],
+  [/\brm\s+(-[a-z]*[rf][a-z]*\s+)+[\"']?(\/\*?|~\/?\*?|\$\{?HOME\}?\/?\*?|\*)[\"']?(\s|$)/i, 'deletes everything under a top-level folder'],
   [/\b(mkfs|dd\s+if=|fdisk|wipefs)\b/i, 'writes to a disk directly'],
   [/\b(curl|wget)\b[^|;]*\|\s*(sudo\s+)?(sh|bash|zsh|python3?)\b/i, 'runs a downloaded script'],
   [/\bchmod\s+-R\s+7?77\b/i, 'opens permissions on a whole tree'],

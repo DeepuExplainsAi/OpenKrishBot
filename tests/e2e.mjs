@@ -40,6 +40,23 @@ const fake = http.createServer((req, res) => {
       res.write(`data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_t', function: { name: 'terminal', arguments: JSON.stringify({ command: `touch ${process.env.E2E_MARK}` }) } }] } }] })}\n\n`);
       return res.end();
     }
+    if (/HANGOPEN/.test(text)) { // finish_reason sent, socket then stays open (some local servers do this)
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: 'HANG-OK' }, finish_reason: 'stop' }] })}\n\n`);
+      return; // never ends
+    }
+    if (/NOINDEX/.test(text)) { // two parallel tool calls from a relay that omits `index`
+      return sseChunks(res, [
+        { tool_calls: [{ id: 'c_a', function: { name: 'terminal', arguments: '{"command":"echo AAA' } }] },
+        { tool_calls: [{ function: { arguments: '"}' } }] },
+        { tool_calls: [{ id: 'c_b', function: { name: 'terminal', arguments: '{"command":"echo BBB"}' } }] },
+      ]);
+    }
+    if (/CUTOFF/.test(text)) { // tool call cut by the token limit: must NOT run
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c_x', function: { name: 'terminal', arguments: `{"command":"touch ${process.env.E2E_MARK}2` } }] }, finish_reason: 'length' }] })}\n\n`);
+      return res.end();
+    }
     const cmd = text.match(/RUN (.+)$/)?.[1];
     if (cmd) return sseChunks(res, [{ tool_calls: [{ index: 0, id: 'call_1', function: { name: 'terminal', arguments: JSON.stringify({ command: cmd }) } }] }]);
     sseChunks(res, [{ content: `ECHO[${text.replace(/^[\s\S]*?(?=\S)/, '').slice(0, 200)}]` }]);
@@ -154,6 +171,30 @@ try {
     await api('PUT', `/api/bots/${botB}/budget`, { dailyTokens: null });
     await say(botB, 'back again');
     await until(async () => (await assistantTexts(botB)).some((t) => t.includes('ECHO[back again')), 20000, 'reply after budget removed');
+  });
+
+  await test('stream that stays open after finish_reason still completes', async () => {
+    await say(botA, 'HANGOPEN please');
+    await until(async () => (await assistantTexts(botA)).some((t) => t.includes('HANG-OK')), 15000, 'reply despite open socket');
+    await until(async () => !(await api('GET', '/api/bots')).live?.find((l) => l.botId === botA)?.isRunning, 15000, 'turn ends');
+  });
+
+  await test('parallel tool calls without index stay separate', async () => {
+    await say(botA, 'NOINDEX go');
+    // approve whatever is pending (earlier tests may already have set "always allow"), until both calls are done
+    const cmds = async () => (await rows(botA)).filter((r) => r.body.type === 'tool-call' && (r.body.callId === 'c_a' || r.body.callId === 'c_b')).map((r) => `${r.body.callId}=${r.body.args?.command}`);
+    await until(async () => {
+      for (const r of (await rows(botA)).filter((x) => x.body.card === 'approval' && x.body.status === 'pending')) await api('POST', `/api/approvals/${r.body.approvalId}`, { decision: 'allow' });
+      return (await cmds()).length >= 2;
+    }, 25000, 'both tool calls');
+    const got = await cmds();
+    ok(got.includes('c_a=echo AAA') && got.includes('c_b=echo BBB'), `calls were merged or garbled: ${got}`);
+  });
+
+  await test('tool call cut by length is refused and never runs', async () => {
+    await say(botA, 'CUTOFF now');
+    await until(async () => (await rows(botA)).some((r) => /ran out of room/.test(JSON.stringify(r.body))), 20000, 'friendly error');
+    ok(!fs.existsSync(process.env.E2E_MARK + '2'), 'cut-off tool call ran');
   });
 
   await test('bad input: malformed approval/message/bot bodies get 400/413, not a crash or a decision', async () => {

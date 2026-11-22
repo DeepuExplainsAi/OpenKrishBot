@@ -47,28 +47,41 @@ async function toolsFor(botId: string) {
   return list;
 }
 
-/** Yields stream chunks; throws if the body ends without [DONE] or a finish_reason, or if the provider sends an error payload. */
-async function* deltas(res: Response) {
+const IDLE_MS = 120_000;   // no bytes for this long = the model is stuck (slow local models stream for minutes, so only idle counts)
+const GRACE_MS = 1_500;    // after finish_reason, wait briefly for a trailing usage chunk, then stop (some servers keep the socket open)
+
+/** Yields stream chunks; throws if the body ends without [DONE] or a finish_reason, goes idle, or the provider sends an error payload. */
+async function* deltas(res: Response, out: { finish?: string } = {}) {
   const dec = new TextDecoder();
+  const it = (res.body as any as AsyncIterable<Uint8Array>)[Symbol.asyncIterator]();
   let buf = '';
   let complete = false;
-  for await (const chunk of res.body as any as AsyncIterable<Uint8Array>) {
-    buf += dec.decode(chunk, { stream: true });
-    let i: number;
-    while ((i = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, i).trim();
-      buf = buf.slice(i + 1);
-      if (!line.startsWith('data:')) continue;
-      const raw = line.slice(5).trim();
-      if (raw === '[DONE]') { complete = true; continue; }
-      if (!raw) continue;
-      let j: any;
-      try { j = JSON.parse(raw); } catch { continue; }
-      if (j.error) throw new Error(String(j.error.message ?? j.error));
-      if (j.choices?.some((ch: any) => ch.finish_reason)) complete = true;
-      yield j;
+  try {
+    for (;;) {
+      const wait = complete ? GRACE_MS : IDLE_MS;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const next = await Promise.race([it.next(), new Promise<'timeout'>((r) => { timer = setTimeout(() => r('timeout'), wait); })]);
+      clearTimeout(timer);
+      if (next === 'timeout') { if (complete) return; throw new Error('stream went idle'); }
+      if (next.done) break;
+      buf += dec.decode(next.value, { stream: true });
+      let i: number;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line.startsWith('data:')) continue;
+        const raw = line.slice(5).trim();
+        if (raw === '[DONE]') return void (complete = true);
+        if (!raw) continue;
+        let j: any;
+        try { j = JSON.parse(raw); } catch { continue; }
+        if (j.error) throw new Error(String(j.error.message ?? j.error));
+        const fin = j.choices?.find((ch: any) => ch.finish_reason)?.finish_reason;
+        if (fin) { complete = true; out.finish = fin; }
+        yield j;
+      }
     }
-  }
+  } finally { void it.return?.(); }
   if (!complete) throw new Error('stream ended early');
 }
 
@@ -103,11 +116,13 @@ krishApi.post('/v1/responses', async (c) => {
           let calls: Record<number, { id: string; name: string; args: string }> = {};
           for (let tryNo = 0; ; tryNo++) {
             text = ''; calls = {}; emitted = false;
+            const byId = new Map<string, number>();
             const att = await callModel(botId, { model, stream: true, messages: [{ role: 'system', content: system }, ...history.slice(-MAX_HISTORY)], ...(tools.length ? { tools, tool_choice: 'auto' } : {}), ...(effort && /gpt-5|o\d|gpt-oss/.test(model) ? { reasoning_effort: effort } : {}) }, bot?.provider, c.req.raw.signal, { onRetry: (note) => send('krish.notice', { text: note }) });
             if (att.switchedFrom) { send('krish.notice', { text: `${att.switchedFrom} failed, so ${att.providerName} answered.` }); }
             const res = att.res;
             try {
-              for await (const j of deltas(res)) {
+              const fin: { finish?: string } = {};
+              for await (const j of deltas(res, fin)) {
                 if (j.usage) reported = j.usage;
                 const d = j.choices?.[0]?.delta;
                 if (!d) continue;
@@ -115,15 +130,20 @@ krishApi.post('/v1/responses', async (c) => {
                 if (r) { emitted = true; send('response.reasoning_summary_text.delta', { delta: r }); }
                 if (d.content) { text += d.content; send('response.output_text.delta', { delta: d.content }); }
                 for (const tc of d.tool_calls ?? []) {
-                  const k = calls[tc.index ?? 0] ??= { id: tc.id ?? `call_${Date.now()}_${n++}`, name: '', args: '' };
-                  if (tc.id) k.id = tc.id;
+                  // slot by index; relays that omit it: a new id opens a new slot, no id continues the last one
+                  const slot = tc.index ?? (tc.id ? (byId.get(tc.id) ?? byId.set(tc.id, Object.keys(calls).length).get(tc.id)!) : Math.max(0, Object.keys(calls).length - 1));
+                  const k = calls[slot] ??= { id: tc.id ?? `call_${Date.now()}_${n++}`, name: '', args: '' };
+                  if (tc.id) { k.id = tc.id; byId.set(tc.id, slot); }
                   if (tc.function?.name) k.name += tc.function.name;
                   if (tc.function?.arguments) k.args += tc.function.arguments;
                 }
               }
+              if (fin.finish && fin.finish !== 'stop' && fin.finish !== 'tool_calls' && Object.keys(calls).length) {
+                throw Object.assign(new Error(fin.finish === 'length' ? 'The model ran out of room mid tool call, so nothing was run. Try a shorter request.' : `The model stopped (${fin.finish}) before finishing a tool call, so nothing was run.`), { name: 'ModelError', final: true });
+              }
               break;
             } catch (e: any) {
-              if (c.req.raw.signal.aborted) throw e;
+              if (c.req.raw.signal.aborted || e?.final) throw e;
               // nothing shown yet: a replay is invisible, so try once more. Otherwise keep what arrived and say so.
               if (!emitted && !text && !Object.keys(calls).length && tryNo < 1) { send('krish.notice', { text: 'The model connection dropped, trying again…' }); continue; }
               if ((text || emitted) && !Object.keys(calls).length) { send('krish.notice', { text: 'The model connection dropped before it finished; this answer may be cut short.' }); break; }

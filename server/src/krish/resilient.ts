@@ -93,11 +93,14 @@ export async function callModel(
       if (signal.aborted) throw new Error('Stopped.');
       let failure: Failure; let wait: number | null = null;
       try {
+        // the timeout covers connecting only; once headers arrive the stream may run as long as bytes keep coming
+        const conn = new AbortController();
+        const connTimer = setTimeout(() => conn.abort(), CONNECT_TIMEOUT_MS);
         const res = await doFetch(`${baseUrl}/chat/completions`, {
-          method: 'POST', signal: AbortSignal.any([signal, AbortSignal.timeout(CONNECT_TIMEOUT_MS)]),
+          method: 'POST', signal: AbortSignal.any([signal, conn.signal]),
           headers: { 'content-type': 'application/json', ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
           body: JSON.stringify({ ...body, model }),
-        });
+        }).finally(() => clearTimeout(connTimer));
         if (res.ok && res.body) { recordSuccess(preset.id); return { res, provider: preset.id, providerName: preset.name, model, ...(ti > 0 ? { switchedFrom: targets[0].preset.name } : {}) }; }
         wait = retryAfterMs(res.headers.get('retry-after'));
         failure = classify(preset.name, res.status, await res.text().catch(() => ''));

@@ -203,3 +203,21 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 - Video part 1 (smooth animations): bubble entrance (`rise`), fade when switching bots (`view-fade`, keyed by bot id), loading skeletons in the transcript until rows load, button press feedback, offline banner ("Connection lost. Reconnecting…") shown only after a first successful connect (`sseEverConnected`). Existing menu/modal/toast/steps animations kept. `prefers-reduced-motion` already disables all of it.
 - Source repos are cloned under /tmp (OpenMausBot Apache-2.0, OpenBot/OpenManus/Paperclip MIT). Rule from owner: take the best parts from them instead of writing from scratch; keep Krishbot's own look. Credit goes in THIRD_PARTY_NOTICES.md only (no licence text in the UI).
 - Next P12d: goals tree (Paperclip `goals` table: level, status, parent, owner) in SQLite; P12e per-step PlanningFlow from OpenManus `app/flow/planning.py`; then Slack/Discord, handoff cards, money cost.
+
+## P12d: compared our engine/tools/MCP with the reference repos (2026-11-22)
+Owner asked: read the reference code and check OUR code will really work. Two sub-agents compared ours with OpenManus, OpenMausBot drivers and Paperclip. The third (chat apps/phone/launchers) timed out: STILL TO DO.
+Fixed (all with tests, 61 unit + 19 e2e pass):
+- Stream kept open after `finish_reason` made completed tool turns fail: now ends after a 1.5 s grace. Idle timer (120 s without bytes) replaces the 45 s cap that also cut long answers (45 s now covers connecting only).
+- Parallel tool calls from relays that omit `index` were merged into one: now slotted by id.
+- `finish_reason` length/content_filter with a tool call: refused, tool NOT run, clear message.
+- Tool timeout reported as plain exit 1: now says "timed out after Ns"; missing program says so.
+- `patch` on Windows CRLF files (model writes LF): matches on LF, keeps the file's CRLF. Empty old_text refused.
+- `search_files` needed bash (absent on Windows): pure Node now (skips node_modules/.git, 100 hits).
+- `write_file` says Created/Overwrote.
+- Danger rule now also catches `rm -rf /*`, `~/`, `$HOME/`, `${HOME}`, quoted `"/"`.
+- MCP: child env no longer inherits the server's provider keys (SDK default env + declared env only); a dead child is dropped from the cache so the next call restarts it; MCP `isError` results are now errors, not "done".
+STILL OPEN from the comparison (not done yet, in priority order):
+1. Issues: checkout never expires after a crash/restart/turn end (Paperclip adopts stale checkouts); status PATCH to in_progress can deadlock an issue; deleting a bot leaves stale assignee/holder; heartbeat has no attempt cap; cancel does not interrupt the holder.
+2. Flows: runs stay `running` forever after a restart; failure wipes earlier step results; no per-step timeout; retries immediate and unclassified; croner `protect` does not stop overlapping runs (handler returns at once); step output can pick up other replies of the same bot; missed cron runs not caught up; no timezone per flow.
+3. Engine: a broken MCP app slows every turn (serial, up to 60 s); Ollama models without tool support abort the turn (should retry without tools); mid-stream error payloads not retried; Ollama `num_ctx` not set; reasoning not replayed; plans cannot be listed/updated/deleted and a new plan abandons the old one; skill with empty trigger matches everything.
+4. Budget: UTC reset, krish engine only (check `managed` path).
