@@ -343,3 +343,7 @@ Verified over real HTTP against a fake OpenAI-compatible server: bad key -> "bad
 ## P16: installed app can start connected apps and CLIs (2026-11-22)
 Cause found: an installed desktop app is launched with a short PATH, so `npx`/`uvx` (connected apps) and subscription CLIs (`claude`, `codex`...) were not found. New `server/src/lib/launch.ts` (`launchEnv`, `launchCommand`) adds the usual tool folders to PATH and uses `npx.cmd` on Windows; used by `apps.ts` and `krish/cli.ts`.
 Verified: server started with `env -i PATH=/nonexistent` still connects the npx app; connect/custom http/bad command error/registry/remove all answered correctly over HTTP. Not verified on a real Windows install.
+
+## P17: speed (2026-11-22)
+Measured: `/api/krish/providers` and `/api/bots/:id/engine` took ~0.35-0.39 s each, because every call re-ran `which` for each CLI preset and re-fetched `/models` for every provider (cloud ones with no key too). Now `cliFound` is cached 30 s, `liveModels` 60 s, and a keyless-less cloud provider skips the network. Settings -> Models opens with `?fresh=1`, and Test clears the cache. Result: 0.057 s first call, 0.001 s after. Unit 99/99.
+Not measured: UI render speed in a browser (no Chrome here); startup time of the packaged app on Windows.

@@ -4,8 +4,15 @@ import { launchEnv } from '../lib/launch.js';
 import type { Preset } from './providers.js';
 
 /** Subscription models: a command-line assistant that is signed in with the user's own plan. The prompt goes on stdin. */
+export const forgetCliLookups = () => found.clear();
+const found = new Map<string, { at: number; ok: boolean }>();
+/** Cached for 30 s: this spawns a process, and the settings pages ask for every CLI on every open. */
 export function cliFound(bin: string): boolean {
-  return spawnSync(process.platform === 'win32' ? 'where' : 'which', [bin], { stdio: 'ignore', env: launchEnv() }).status === 0;
+  const hit = found.get(bin);
+  if (hit && Date.now() - hit.at < 30_000) return hit.ok;
+  const ok = spawnSync(process.platform === 'win32' ? 'where' : 'which', [bin], { stdio: 'ignore', env: launchEnv() }).status === 0;
+  found.set(bin, { at: Date.now(), ok });
+  return ok;
 }
 
 export function runCli(p: Preset, system: string, history: { role: string; content?: string | null }[], signal: AbortSignal): Promise<string> {

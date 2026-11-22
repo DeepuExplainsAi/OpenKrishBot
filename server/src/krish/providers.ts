@@ -67,8 +67,21 @@ export function resolve(id: string | null | undefined): { preset: Preset; baseUr
 export const hasKey = (id: string) => !!resolve(id).apiKey;
 
 /** Live model list for a provider (Ollama/LM Studio/custom list what is installed); falls back to the preset's. */
+const listed = new Map<string, { at: number; v: { ok: boolean; models: string[] } }>();
 export async function liveModels(id: string): Promise<{ ok: boolean; models: string[] }> {
   const { preset, baseUrl, apiKey } = resolve(id);
+  const k = `${id}|${baseUrl}|${apiKey}`;
+  const hit = listed.get(k);
+  if (hit && Date.now() - hit.at < 60_000) return hit.v;
+  const v = await fetchModels(id);
+  listed.set(k, { at: Date.now(), v });
+  return v;
+}
+
+async function fetchModels(id: string): Promise<{ ok: boolean; models: string[] }> {
+  const { preset, baseUrl, apiKey } = resolve(id);
+  // a cloud provider that needs a key and has none cannot answer: show its built-in list without waiting on the network
+  if (!preset.keyless && !apiKey && !preset.cli) return { ok: false, models: preset.models };
   if (preset.cli) return { ok: cliFound(preset.cli.bin), models: preset.models };
   if (!baseUrl) return { ok: false, models: [] };
   try {

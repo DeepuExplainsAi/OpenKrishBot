@@ -14,7 +14,7 @@ import { TOOLS, policyFor, toolMap } from '../agent/tools.js';
 import { callTool as callHqTool, listTools as listHqTools } from '../mcp.js';
 import { claimToolRow, noteToolOutcome, requestApproval } from '../agent/loop.js';
 import { audit, dangerReason, getDangerMode, redact } from '../danger.js';
-import { runCli, cliFound } from './cli.js';
+import { runCli, cliFound, forgetCliLookups } from './cli.js';
 import { openTerminal } from '../terminal.js';
 import { extraTools, callExtraTool } from './mcp-client.js';
 
@@ -249,6 +249,7 @@ const groupOf = (p: (typeof PRESETS)[number]) => p.cli ? 'Your subscription' : p
 export const providersApi = new Hono<AuthVars>();
 providersApi.use('*', requireUser);
 providersApi.get('/providers', async (c) => {
+  if (c.req.query('fresh')) forgetCliLookups();
   const out = await Promise.all(PRESETS.map(async (p) => ({ id: p.id, name: p.name, local: !!p.local, keyless: !!p.keyless, connected: p.cli ? cliFound(p.cli.bin) : p.keyless ? (p.local ? (await liveModels(p.id)).ok : true) : hasKey(p.id), models: (await liveModels(p.id)).models, note: p.note ?? null, baseUrl: resolve(p.id).baseUrl, group: groupOf(p), cli: !!p.cli, canLogin: !!p.cli?.login, hasKey: hasKey(p.id), env: p.env ?? null })));
   return c.json({ providers: out, default: DEFAULT_PROVIDER });
 });
@@ -262,6 +263,7 @@ providersApi.put('/providers/:id', async (c) => {
 
 /** One short real question to the provider, so "Connected" means it answers. */
 providersApi.post('/providers/:id/test', async (c) => {
+  forgetCliLookups();
   const id = c.req.param('id');
   const preset = PRESETS.find((p) => p.id === id);
   if (!preset) return c.json({ error: 'unknown provider' }, 404);

@@ -53,7 +53,7 @@ function Row({ p, onChange }: { p: Provider; onChange: () => void }) {
 export function ModelsSection() {
   const [list, setList] = useState<Provider[] | null>(null);
   const [err, setErr] = useState('');
-  const load = useCallback(() => { call('GET', '/api/krish/providers').then((r) => setList(r.providers)).catch((e) => setErr(e.message)); }, []);
+  const load = useCallback(() => { call('GET', '/api/krish/providers?fresh=1').then((r) => setList(r.providers)).catch((e) => setErr(e.message)); }, []);
   useEffect(() => { load(); }, [load]);
   return (
     <>
