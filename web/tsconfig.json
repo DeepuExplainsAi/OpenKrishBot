@@ -9,13 +9,13 @@
     "noEmit": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "allowImportingTsExtensions": false,
+    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false,
     "resolveJsonModule": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "types": ["vite/client"],
-    "paths": { "@shared/*": ["../server/src/*"] }
+    "paths": { "@shared/*": ["../server/src/*"], "@/*": ["./src/maus/*"] }
   },
   "include": ["src", "vite.config.ts"]
 }

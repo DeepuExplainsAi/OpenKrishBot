@@ -1,0 +1,19 @@
+/* OpenMausBot's utility classes on OpenKrishBot's theme. No preflight: the app's own base styles stay as they are. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "./components";
+@theme inline {
+  --color-ink: var(--color-text-primary);
+  --color-ink-secondary: var(--color-text-secondary);
+  --color-ink-tertiary: var(--color-text-tertiary);
+  --color-raised: var(--color-bg-tertiary);
+  --color-raised-hover: var(--color-bg-active);
+  --color-inset: var(--color-bg-pane);
+  --color-hairline: var(--color-border-secondary);
+  --color-accent: var(--color-primary);
+  --color-accent-text: var(--color-text-primary);
+  --color-success: var(--color-bot-green);
+  --color-danger: var(--color-bot-red);
+  --color-warning: var(--color-bot-orange);
+}

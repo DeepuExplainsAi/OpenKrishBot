@@ -506,3 +506,11 @@ Done:
 - [x] P28 final: P21-P29 re-checked against code, CI green on Windows/Mac/Linux, tag v1.9.0 pushed
 - [x] v1.9.1 part 1 (Maus port): `server/src/maus/` holds OpenMausBot's own files (model-catalog + models.dev snapshot, provider-key-check, mcp-oauth/-store/-discovery, mcp-http, mcp-registry, mcp-directory...). Models: all ~190 models.dev providers now appear under API keys (OpenCode Zen/Go included); Test uses Maus's key check (401 = "key rejected"). Hosted apps (Linear, Asana, Atlassian, PayPal, Webflow, Cloudflare) use Maus's native OAuth (POST /api/apps/:slug/connect returns `signIn.authorizationUrl`; poll GET /api/apps/:slug/signin/:flowId) instead of mcp-remote. Verified: Linear returns a real authorization URL. UI side of sign-in: next part.
 - Next parts: (2) web UI: sign-in popup + key paste for every provider, (3) Hindi/i18n for web (use OpenMausBot hi.json), (4) n8n-io/nod features, (5) release v1.9.1.
+
+## v1.9.1 part 2 (copied from OpenMausBot / nod, adapted only at the seams)
+- Logo: black circle with the two eyes (assets/icon.svg, desktop/build icon.png/.ico, web/public icons).
+- Live models: `krish/providers.ts` `cliModels()` uses Maus `model-manifest` (Claude, Cursor, Grok, Kimi, Antigravity), Codex `readCodexModelCatalog` (asks `codex app-server`), `opencode models`. OpenCode key entries (models.dev `opencode`, `opencode-go`) sit under "Your subscription".
+- MCP servers: `server/src/mcp-servers.ts` = Maus routes/mcp-servers.ts + host/mcp-config.ts on `~/.openkrishbot/mcp-servers.json` (`/api/mcp/servers` add/edit/import/enable/test/sign-in). Enabled servers join the chat's apps (`apps.ts mcpServerRows`).
+- Web: Maus `McpServersPanel`, `McpServerEditor`, `mcp-draft`, `mcp-paste`, `Select`, … in `web/src/maus/` (alias `@/` -> `src/maus`), Tailwind utilities only (no preflight) mapped to app tokens in `maus/tailwind.css`; Settings > "MCP servers".
+- Shims (the only written code): `maus/state/store.ts`, `maus/lib/live-events.ts`, `maus/components/bot-panel/panel-link.ts`, `server/src/maus/shim.ts`.
+- Not yet: nod copies (memory, schedules, ledger, vault, update/restart toast), Hindi extra strings, UI check of MCP screen in a browser.

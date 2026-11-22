@@ -8,7 +8,7 @@ import { applyPalette } from './lib/palettes';
 
 export type Theme = 'system' | 'light' | 'dark';
 export type BotSettingsTab = 'general' | 'skills' | 'memories' | 'routines';
-export type AppSection = 'general' | 'computer' | 'permissions' | 'models' | 'apps' | 'phone' | 'whatsapp' | 'telegram' | 'workflows' | 'skills' | 'issues' | 'goals' | 'projects' | 'vault' | 'activity' | 'account';
+export type AppSection = 'general' | 'computer' | 'permissions' | 'models' | 'mcp' | 'apps' | 'phone' | 'whatsapp' | 'telegram' | 'workflows' | 'skills' | 'issues' | 'goals' | 'projects' | 'vault' | 'activity' | 'account';
 
 interface ConfigUI {
   botSettings: { botId: string; tab: BotSettingsTab } | null;

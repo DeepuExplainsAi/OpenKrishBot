@@ -14,12 +14,14 @@ import { ToolkitLogo } from '../ToolkitLogo';
 import { Glyph } from './glyphs';
 import { ConfirmButton, Switch } from './ui';
 import { ModelsSection } from './ModelsSection';
+import { McpServersPanel } from '../../maus/components/McpServersPanel';
 
 const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'general', label: 'General' },
   { id: 'models', label: 'Models' },
   { id: 'computer', label: 'Computer' },
   { id: 'permissions', label: 'Permissions' },
+  { id: 'mcp', label: 'MCP servers' },
   { id: 'apps', label: 'Connected apps' },
   { id: 'phone', label: 'Phone' },
   { id: 'whatsapp', label: 'WhatsApp' },
@@ -63,6 +65,7 @@ export function AppSettings() {
           {section === 'models' && <ModelsSection />}
           {section === 'computer' && <ComputerSection />}
           {section === 'permissions' && <PermissionsSection />}
+          {section === 'mcp' && <div className="maus-ui"><McpServersPanel embedded /></div>}
           {section === 'apps' && <AppsSection />}
           {section === 'phone' && <PhoneSection />}
           {section === 'whatsapp' && <WhatsAppSection />}
