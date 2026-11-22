@@ -612,7 +612,7 @@ function WorkflowsSection() {
       </section>
       {run && (
         <section className="cfg-section">
-          <div className="cfg-section__label">Run · {run.status}{run.status === 'running' && <> · <button type="button" className="cfg-link" onClick={() => configApi.stopFlowRun(run.id)}>Stop</button></>}</div>
+          <div className="cfg-section__label">Run · {run.status}{run.status === 'running' && <> · <button type="button" className="cfg-link" onClick={() => configApi.stopFlowRun(run.id)}>Stop</button></>}{(run.status === 'failed' || run.status === 'stopped') && <> · <button type="button" className="cfg-link" onClick={async () => { try { const { runId } = await configApi.resumeFlowRun(run.id); setRun((await configApi.flowRun(runId)).run); setErr(''); } catch (e: any) { setErr(e.message); } }}>Continue (keeps finished steps)</button></>}</div>
           <div className="cfg-card">
             {Object.entries(run.results).map(([id, r]) => (
               <div key={id} className="cfg-row">

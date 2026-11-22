@@ -77,3 +77,20 @@ test('retries wait between attempts (backoff)', async () => {
   assert.equal(stamps.length, 3);
   assert.ok(stamps[1] - stamps[0] >= 35 && stamps[2] - stamps[1] >= 70, `gaps ${stamps[1] - stamps[0]}, ${stamps[2] - stamps[1]}`);
 });
+
+test('resume keeps finished steps, reruns failed and skipped ones, and feeds old outputs downstream', async () => {
+  const steps = [S('a'), S('b', ['a']), S('c', ['b'])];
+  const first = await runFlow(steps, { input: '', exec: async (s) => { if (s.id === 'b') throw new Error('boom'); return `out-${s.id}`; } });
+  assert.equal(first.status, 'failed');
+  assert.equal(first.results.c.status, 'skipped');
+  const ran: string[] = [];
+  const prompts: Record<string, string> = {};
+  const again = await runFlow([S('a'), { ...S('b', ['a']), prompt: 'b sees {{a}}' }, S('c', ['b'])], {
+    input: '', resume: first.results,
+    exec: async (s, p) => { ran.push(s.id); prompts[s.id] = p; return `new-${s.id}`; },
+  });
+  assert.equal(again.status, 'done');
+  assert.deepEqual(ran, ['b', 'c']);
+  assert.equal(prompts.b, 'b sees out-a');
+  assert.equal(again.results.a.output, 'out-a');
+});

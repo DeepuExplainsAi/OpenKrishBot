@@ -98,7 +98,8 @@ flowsApi.get('/:id/runs', (c) => {
   return c.json({ runs: (db.prepare('SELECT * FROM flow_runs WHERE flow_id=? ORDER BY started_at DESC LIMIT 20').all(c.req.param('id')) as any[]).map(toRun) });
 });
 
-export function startFlowRun(userId: string, flowId: string, input: string): string {
+/** `resumeFrom`: continue an earlier run of this flow (its finished steps are kept, the rest run again). */
+export function startFlowRun(userId: string, flowId: string, input: string, resumeFrom?: RunResults): string {
   const f = own(userId, flowId);
   if (!f) throw new Error('Flow not found.');
   const steps = JSON.parse(f.steps) as FlowStep[];
@@ -110,9 +111,9 @@ export function startFlowRun(userId: string, flowId: string, input: string): str
     last = results;
     db.prepare('UPDATE flow_runs SET status=?, results=?, finished_at=? WHERE id=?').run(status, JSON.stringify(results), done ? now() : null, runId);
   };
-  const initial = Object.fromEntries(steps.map((s) => [s.id, { status: 'pending', attempts: 0 }]));
+  const initial = Object.fromEntries(steps.map((s) => [s.id, resumeFrom?.[s.id]?.status === 'done' ? resumeFrom[s.id] : { status: 'pending', attempts: 0 }]));
   db.prepare('INSERT INTO flow_runs(id,flow_id,input,status,results,started_at) VALUES (?,?,?,?,?,?)').run(runId, flowId, input, 'running', JSON.stringify(initial), now());
-  void runFlow(steps, { input, signal: ctl.signal, concurrency: 3, exec: (s, p) => askBot(userId, s.bot, p, ctl.signal), onUpdate: (r) => save('running', r) })
+  void runFlow(steps, { input, signal: ctl.signal, concurrency: 3, resume: resumeFrom, exec: (s, p) => askBot(userId, s.bot, p, ctl.signal), onUpdate: (r) => save('running', r) })
     .then((r) => save(r.status, r.results, true))
     .catch((e) => save('failed', { ...last, _run: { status: 'failed', error: String(e?.message ?? e), attempts: 0 } }, true))
     .finally(() => aborts.delete(runId));
@@ -128,6 +129,15 @@ flowsApi.post('/:id/run', async (c) => {
 flowsApi.get('/runs/:runId', (c) => {
   const r = db.prepare('SELECT r.* FROM flow_runs r JOIN flows f ON f.id=r.flow_id WHERE r.id=? AND f.user_id=?').get(c.req.param('runId'), c.get('user').id) as any;
   return r ? c.json({ run: toRun(r) }) : c.json({ error: 'not found' }, 404);
+});
+
+flowsApi.post('/runs/:runId/resume', (c) => {
+  const r = db.prepare('SELECT r.* FROM flow_runs r JOIN flows f ON f.id=r.flow_id WHERE r.id=? AND f.user_id=?').get(c.req.param('runId'), c.get('user').id) as any;
+  if (!r) return c.json({ error: 'not found' }, 404);
+  if (r.status === 'running' || r.status === 'done') return c.json({ error: `This run is ${r.status}; only failed or stopped runs can continue.` }, 409);
+  if (db.prepare("SELECT 1 FROM flow_runs WHERE flow_id=? AND status='running'").get(r.flow_id)) return c.json({ error: 'This flow already has a run going.' }, 409);
+  try { return c.json({ runId: startFlowRun(c.get('user').id, r.flow_id, r.input, JSON.parse(r.results)) }); }
+  catch (e: any) { return c.json({ error: e.message }, 404); }
 });
 
 flowsApi.post('/runs/:runId/stop', (c) => {
@@ -160,7 +170,7 @@ export function scheduleFlow(flowId: string, userId: string, schedule: string) {
   }));
 }
 
-/** Runs that were in flight when the server stopped can never finish: mark them so the UI and the overlap guard are not stuck. */
+/** Runs that were in flight when the server stopped can never finish: mark them failed (finished steps stay, so "Continue" can resume) so the UI and the overlap guard are not stuck. */
 export function reconcileRuns() {
   const r = db.prepare("UPDATE flow_runs SET status='failed', finished_at=? WHERE status='running'").run(now());
   if (r.changes) console.log(`[flows] ${r.changes} run(s) were interrupted by the restart`);

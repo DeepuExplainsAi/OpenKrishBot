@@ -54,6 +54,8 @@ export interface RunOptions {
   stepTimeoutMs?: number;
   /** First retry waits this long, then doubles (default 2 s). */
   retryBaseMs?: number;
+  /** Results of an earlier run of the same steps: finished steps keep their output, everything else starts again. */
+  resume?: RunResults;
   exec: (step: FlowStep, prompt: string) => Promise<string>;
   onUpdate?: (results: RunResults) => void;
 }
@@ -61,7 +63,7 @@ export interface RunOptions {
 export async function runFlow(steps: FlowStep[], o: RunOptions): Promise<{ status: 'done' | 'failed' | 'stopped'; results: RunResults }> {
   const bad = validate(steps);
   if (bad) throw new Error(bad);
-  const results: RunResults = Object.fromEntries(steps.map((s) => [s.id, { status: 'pending', attempts: 0 } as StepResult]));
+  const results: RunResults = Object.fromEntries(steps.map((s) => [s.id, o.resume?.[s.id]?.status === 'done' ? structuredClone(o.resume[s.id]) : ({ status: 'pending', attempts: 0 } as StepResult)]));
   const max = Math.max(1, Math.min(o.concurrency ?? 3, 8));
   let running = 0;
   const notify = () => o.onUpdate?.(structuredClone(results));

@@ -454,3 +454,8 @@ Done:
 ## P32 — group chat rotation (autogen selector-group-chat idea, from scratch)
 - Bug: a message to the whole group always woke the first 3 members, so members 4+ never answered. `agent/rooms.ts` `pickResponders` now rotates (last asked id kept in `kv` `roomlast:<room>`); @mentions unchanged. Test in `rooms.test.mts`.
 - From the stagehand/langgraph/autogen review, still open: flow resume after crash, approval with edited args, room termination conditions, human gate between flow steps, selector cache for `browser_extract`.
+
+## P33 — continue a failed flow run (langgraph checkpoint idea, from scratch)
+- `flow.ts` `RunOptions.resume`: steps that are `done` in an earlier run keep their output; the rest run again and see the old outputs via `{{id}}`. `POST /api/flows/runs/:runId/resume` (only failed/stopped runs, one run per flow at a time) -> new run. UI: "Continue (keeps finished steps)" next to a failed/stopped run (Settings -> Workflows). Test in `flow.test.mts`.
+- Works after a crash too: the restart marks the run failed but keeps saved step results. A step that was mid-run when the crash hit runs again, so its side effects can happen twice.
+- NOT checked in a browser (UI button only typechecked).

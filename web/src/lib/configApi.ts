@@ -115,6 +115,7 @@ export const configApi = {
   runFlow: (id: string, input: string) => req<{ runId: string }>('POST', `/flows/${id}/run`, { input }),
   flowRun: (runId: string) => req<{ run: FlowRun }>('GET', `/flows/runs/${runId}`),
   flowRuns: (id: string) => req<{ runs: FlowRun[] }>('GET', `/flows/${id}/runs`),
+  resumeFlowRun: (runId: string) => req<{ runId: string }>('POST', `/flows/runs/${runId}/resume`, {}),
   stopFlowRun: (runId: string) => req<{ ok: true }>('POST', `/flows/runs/${runId}/stop`, {}),
   dangerMode: () => req<{ mode: 'ask' | 'follow' }>('GET', '/audit/danger-mode'),
   setDangerMode: (mode: 'ask' | 'follow') => req<{ mode: 'ask' | 'follow' }>('PUT', '/audit/danger-mode', { mode }),
