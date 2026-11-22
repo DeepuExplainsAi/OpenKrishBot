@@ -1,7 +1,7 @@
 {
   "name": "krishbot-desktop",
   "productName": "Krishbot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Krishbot: a team of AI agents on your own computer. Free, local, Mera AI.",
   "author": "Krishbot <DeepuExplainsAi@users.noreply.github.com>",
   "homepage": "https://github.com/DeepuExplainsAi/krishbot-ai",
@@ -66,7 +66,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "perMachine": false
+      "perMachine": false,
+      "artifactName": "Krishbot-Setup-${version}-win-x64.${ext}"
     },
     "mac": {
       "category": "public.app-category.productivity",
@@ -96,6 +97,9 @@
         "AppImage",
         "deb"
       ]
+    },
+    "portable": {
+      "artifactName": "Krishbot-Portable-${version}-win-x64.${ext}"
     }
   },
   "license": "AGPL-3.0-only"
