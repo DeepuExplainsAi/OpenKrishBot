@@ -198,3 +198,8 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 - Transcript: auto-scroll pin is released only when the USER scrolls up (before, content growing under the viewport could unpin it).
 - Voice `speak()`: abort listener removed after each utterance (no listener pile-up), already-aborted signal returns at once.
 - Tests: typecheck, build, 56 unit, 16 e2e pass. UI behaviour (scroll, boundary) is NOT browser-tested here: no usable Chrome on the 482 MB VM.
+
+## P12c: motion and polish (2026-11-22)
+- Video part 1 (smooth animations): bubble entrance (`rise`), fade when switching bots (`view-fade`, keyed by bot id), loading skeletons in the transcript until rows load, button press feedback, offline banner ("Connection lost. Reconnecting…") shown only after a first successful connect (`sseEverConnected`). Existing menu/modal/toast/steps animations kept. `prefers-reduced-motion` already disables all of it.
+- Source repos are cloned under /tmp (OpenMausBot Apache-2.0, OpenBot/OpenManus/Paperclip MIT). Rule from owner: take the best parts from them instead of writing from scratch; keep Krishbot's own look. Credit goes in THIRD_PARTY_NOTICES.md only (no licence text in the UI).
+- Next P12d: goals tree (Paperclip `goals` table: level, status, parent, owner) in SQLite; P12e per-step PlanningFlow from OpenManus `app/flow/planning.py`; then Slack/Discord, handoff cards, money cost.

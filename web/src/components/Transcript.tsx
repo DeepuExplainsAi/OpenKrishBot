@@ -248,7 +248,8 @@ export function Transcript({ bot, rows, live, loaded }: Props) {
   return (
     <div className="transcript-wrap">
     <div className="transcript" ref={scrollRef} onScroll={onScroll}>
-      <div className="transcript__col">
+      <div className="transcript__col" key={bot.id}>
+        {!loaded && <><div className="skeleton skeleton--bubble" /><div className="skeleton skeleton--bubble is-right" /><div className="skeleton skeleton--bubble" /></>}
         {loaded && rows.length === 0 && <EmptyChat bot={bot} />}
         {items.map((it) => {
           switch (it.kind) {

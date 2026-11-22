@@ -248,3 +248,15 @@
   max-width: 960px; margin: 0 auto 8px; padding: 6px 12px; border-radius: 12px; background: var(--color-danger-bg); color: var(--color-danger-text);
   font-size: 13px; line-height: 18px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
+
+/* ---------- motion polish ---------- */
+.bubble-wrap { animation: rise 180ms var(--ease-out) both; }
+.transcript__col { animation: view-fade 180ms var(--ease-out) both; }
+@keyframes view-fade { from { opacity: 0; } to { opacity: 1; } }
+.skeleton { border-radius: 14px; background: linear-gradient(90deg, var(--color-bg-hover) 25%, var(--color-bg-active) 50%, var(--color-bg-hover) 75%); background-size: 300% 100%; animation: skeleton 1.3s linear infinite; }
+@keyframes skeleton { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.skeleton--bubble { height: 44px; width: 62%; }
+.skeleton--bubble.is-right { align-self: flex-end; width: 42%; }
+.skeleton--row { height: 54px; margin: 2px 0; }
+.offline-banner { position: absolute; top: 0; left: 0; right: 0; z-index: 30; text-align: center; font-size: 12px; line-height: 16px; padding: 6px 12px; background: var(--color-danger); color: #fff; animation: banner-in 200ms var(--ease-out); }
+@keyframes banner-in { from { transform: translateY(-100%); } to { transform: none; } }

@@ -21,6 +21,8 @@ interface State {
   /** Bumped on every `connections` event so open views can refetch. */
   connectionsVersion: number;
   sseConnected: boolean;
+  /** Set after the first successful connection, so the offline banner never flashes on startup. */
+  sseEverConnected: boolean;
 
   detailsOpen: boolean;
   sidebarCollapsed: boolean;
@@ -61,6 +63,7 @@ export const useStore = create<State>((set, get) => ({
   computer: null,
   connectionsVersion: 0,
   sseConnected: false,
+  sseEverConnected: false,
   detailsOpen: lsGet(LS_DETAILS) !== '0',
   sidebarCollapsed: lsGet(LS_SIDEBAR) === '1',
   mobileChat: false,

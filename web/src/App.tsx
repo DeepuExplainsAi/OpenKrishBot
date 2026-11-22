@@ -22,6 +22,7 @@ function Shell() {
   const collapsed = useStore((s) => s.sidebarCollapsed);
   const hasBot = useStore((s) => !!s.selectedBotId);
   const mobileChat = useStore((s) => s.mobileChat);
+  const offline = useStore((s) => s.sseEverConnected && !s.sseConnected);
   const botId = useStore((s) => s.selectedBotId);
   const view = useConfigUI((s) => s.view);
 
@@ -51,6 +52,7 @@ function Shell() {
 
   return (
     <div className={`app${mobileChat ? ' is-chat-open' : ''}${collapsed ? ' is-sidebar-collapsed' : ''}${detailsOpen && hasBot && view === 'chat' ? ' has-details' : ''}`}>
+      {offline && <div className="offline-banner" role="status">Connection lost. Reconnecting…</div>}
       <Sidebar />
       <ErrorBoundary resetKey={`${view}:${botId}`}>{view === 'tasks' ? <TasksView /> : <ChatView />}</ErrorBoundary>
       {detailsOpen && hasBot && view === 'chat' && <DetailsPanel />}

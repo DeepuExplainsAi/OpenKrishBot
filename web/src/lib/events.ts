@@ -24,7 +24,7 @@ export function startEvents(): () => void {
     es = new EventSource('/api/events', { withCredentials: true });
     es.onopen = () => {
       retry = 1000;
-      useStore.getState().set({ sseConnected: true });
+      useStore.getState().set({ sseConnected: true, sseEverConnected: true });
       if (everConnected) resync();
       everConnected = true;
     };
