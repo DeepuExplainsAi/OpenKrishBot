@@ -43,11 +43,11 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P5 (DONE, verified) Phone remote control: QR pairing, LAN + free cloudflared tunnel, installable PWA, phone layout, device list/revoke
 - [x] P6 (DONE, partly verified) Resilient model calls + provider fallback, OpenRouter preset (free + GPT-6 Luna/Astra), WhatsApp bridge
 - [x] P7 (DONE, verified) OpenManus: `plan` tool (checklist in Tasks), stuck-loop nudge
-- [ ] P8 OpenBot features: AG-UI style approvals/interactive results, extra tools
+- [x] P8 (DONE, tested) OpenBot ideas: dangerous-action guard, audit log, secret redaction
 - [ ] P9 Voice (local STT/TTS), polish, packaging (desktop launcher), final audit
 
 ## Status
-P0-P7 done. Server boots with zero keys (verified). Next: P8 OpenBot, P9 polish/About/packaging/final audit.
+P0-P8 done. Server boots with zero keys (verified). Next: P9 polish/About/packaging/final audit.
 
 ## P2 notes (for next agent)
 - server/src/engine.ts is now a slim replacement (old Hermes engine deleted). Every bot -> in-process engine at /krish/v1/responses (server/src/krish/engine.ts), guarded by engineKey().
@@ -104,3 +104,8 @@ P0-P7 done. Server boots with zero keys (verified). Next: P8 OpenBot, P9 polish/
 - OpenManus already matched by existing local tools (terminal, execute_code, read/write/patch file, web_search/extract, browser). Added what was missing: `plan` tool (create / mark_step / get; `server/src/plan.ts`, tested) stored on `tasks.steps` (JSON), shown as a checklist in the Tasks tab; and OpenManus's "stuck" check (`loopNudge`): third identical tool call in a row gets a nudge appended to the result.
 - Verified with a scripted fake model: plan created, step marked, state persisted, nudge fired.
 - Not ported: OpenManus multi-agent PlanningFlow executor (a separate agent per step), crawl4ai, chart visualization, sandbox. The single-agent plan tool covers the planning value; a per-step executor would be a bigger change.
+
+## P8 notes
+- `server/src/danger.ts`: dangerous commands/paths (rm -rf /, curl|sh, force push, disk writes, ssh/key files) ask EVERY time, even after "Always allow"; the card says why. Tool output is redacted (API keys/tokens -> `[secret hidden]`) before it reaches the model or chat. Every tool run is appended to `~/.krishbot/audit.log` (JSON lines, local only, args redacted). Tests: `server/test/danger.test.mts`.
+- Not ported from OpenBot: AG-UI protocol, Tauri desktop shell, other agent adapters (not needed for single-user local app).
+- Pending UI idea: audit log viewer in Settings.

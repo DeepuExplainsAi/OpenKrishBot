@@ -11,6 +11,7 @@ import { botHome, localToolMap, LOCAL_TOOLS } from './tools.js';
 import { TOOLS, policyFor, toolMap } from '../agent/tools.js';
 import { callTool as callHqTool, listTools as listHqTools } from '../mcp.js';
 import { claimToolRow, noteToolOutcome, requestApproval } from '../agent/loop.js';
+import { audit, dangerReason, redact } from '../danger.js';
 import { extraTools, callExtraTool } from './mcp-client.js';
 
 /**
@@ -128,7 +129,9 @@ krishApi.post('/v1/responses', async (c) => {
 const recentCalls = new Map<string, string[]>();
 
 async function runTool(botId: string, name: string, rawArgs: string, home: string): Promise<string> {
-  const out = await runToolOnce(botId, name, rawArgs, home);
+  const out = redact(await runToolOnce(botId, name, rawArgs, home));
+  let a: any; try { a = JSON.parse(rawArgs || '{}'); } catch { a = rawArgs; }
+  audit({ bot: botId, tool: name, status: /^\s*\{"error"/.test(out) ? 'error' : 'done', danger: dangerReason(name, a), args: a });
   const nudge = loopNudge(recentCalls.get(botId) ?? (recentCalls.set(botId, []), recentCalls.get(botId)!), `${name}:${rawArgs}`);
   return nudge ? `${out}\n\n${nudge}` : out;
 }
@@ -142,12 +145,13 @@ async function runToolOnce(botId: string, name: string, rawArgs: string, home: s
       // Local tools go through the same approval cards as every other write.
       const userId = (db.prepare('SELECT user_id FROM bots WHERE id=?').get(botId) as any).user_id as string;
       const seq = await claimToolRow(botId, name);
-      if (local.ask) {
+      const danger = dangerReason(name, args);
+      if (local.ask || danger) {
         const key = `local:${name}`;
         const mode = (db.prepare('SELECT mode FROM policies WHERE user_id=? AND tool=?').get(userId, key) as any)?.mode ?? 'needs_approval';
         if (mode === 'blocked') { noteToolOutcome(botId, seq, { status: 'denied', summary: 'Not allowed' }); return DECLINED; }
-        if (mode !== 'always_allow') {
-          const a = await requestApproval({ userId, botId }, { key, title: `Local: ${local.ask}` }, args, seq);
+        if (danger || mode !== 'always_allow') {
+          const a = await requestApproval({ userId, botId }, { key, title: `Local: ${local.ask ?? name}${danger ? ` (careful: ${danger})` : ''}` }, args, seq);
           if (a !== 'allow') return a === 'deny' ? DECLINED : SKIPPED;
         }
       }
