@@ -117,8 +117,8 @@ export const configApi = {
   flowRuns: (id: string) => req<{ runs: FlowRun[] }>('GET', `/flows/${id}/runs`),
   resumeFlowRun: (runId: string) => req<{ runId: string }>('POST', `/flows/runs/${runId}/resume`, {}),
   stopFlowRun: (runId: string) => req<{ ok: true }>('POST', `/flows/runs/${runId}/stop`, {}),
-  dangerMode: () => req<{ mode: 'ask' | 'follow' }>('GET', '/audit/danger-mode'),
-  setDangerMode: (mode: 'ask' | 'follow') => req<{ mode: 'ask' | 'follow' }>('PUT', '/audit/danger-mode', { mode }),
+  dangerMode: () => req<{ mode: DangerMode }>('GET', '/audit/danger-mode'),
+  setDangerMode: (mode: DangerMode) => req<{ mode: DangerMode }>('PUT', '/audit/danger-mode', { mode }),
   usage: () => req<{ usage: { botId: string; name: string; tokensIn: number; tokensOut: number; calls: number; costUsd: number }[] }>('GET', '/usage'),
   audit: () => req<{ entries: AuditEntry[] }>('GET', '/audit'),
   whatsapp: () => req<WhatsAppInfo>('GET', '/whatsapp'),
@@ -173,3 +173,5 @@ export const configApi = {
   connectedApps: () => req<{ connectedApps?: Toolkit[]; connected: string[] }>('GET', '/apps?limit=1'),
   logout: () => req<{ ok: true }>('POST', '/auth/logout'),
 };
+
+export type DangerMode = 'ask' | 'follow' | 'auto';

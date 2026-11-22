@@ -54,7 +54,21 @@ export function readAudit(limit = 200): Record<string, unknown>[] {
   } catch { return []; }
 }
 
-/** 'ask' (default): dangerous actions ask every time, even after "Always allow". 'follow': "Always allow" is respected for everything. */
-export type DangerMode = 'ask' | 'follow';
-export const getDangerMode = (): DangerMode => ((db.prepare("SELECT value FROM kv WHERE key='danger_mode'").get() as any)?.value === 'follow' ? 'follow' : 'ask');
-export const setDangerMode = (m: DangerMode) => { db.prepare("INSERT OR REPLACE INTO kv(key,value) VALUES ('danger_mode',?)").run(m === 'follow' ? 'follow' : 'ask'); };
+/**
+ * 'ask' (default): risky actions ask every time, even after "Always allow".
+ * 'follow': "Always allow" is respected for everything.
+ * 'auto': nothing asks except risky actions (payments, deleting system files, ...), which still ask each time.
+ */
+export type DangerMode = 'ask' | 'follow' | 'auto';
+const MODES: DangerMode[] = ['ask', 'follow', 'auto'];
+export const isDangerMode = (m: unknown): m is DangerMode => MODES.includes(m as DangerMode);
+export const getDangerMode = (): DangerMode => { const v = (db.prepare("SELECT value FROM kv WHERE key='danger_mode'").get() as any)?.value; return isDangerMode(v) ? v : 'ask'; };
+export const setDangerMode = (m: DangerMode) => { db.prepare("INSERT OR REPLACE INTO kv(key,value) VALUES ('danger_mode',?)").run(isDangerMode(m) ? m : 'ask'); };
+
+const MONEY = /(^|[_.-])(pay|payment|payout|charge|refund|transfer|purchase|checkout|invoice|subscribe|withdraw|send_money|buy|order)([_.-]|$)/i;
+/** Why this call must ask even in 'auto' mode, or null. */
+export function riskyReason(tool: string, args: any): string | null {
+  return dangerReason(tool, args) ?? (MONEY.test(tool) ? 'moves money' : null);
+}
+/** True when the user's "ask first" for this tool can be skipped because the mode is 'auto'. */
+export const autoSkips = (tool: string, args: any) => getDangerMode() === 'auto' && !riskyReason(tool, args);

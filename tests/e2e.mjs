@@ -156,6 +156,21 @@ try {
     ok(!fs.existsSync(marker), 'denied command ran anyway');
   });
 
+  await test('autonomous mode: normal tools run without asking, risky ones still ask', async () => {
+    ok((await api('PUT', '/api/audit/danger-mode', { mode: 'auto' })).status === 200, 'set auto');
+    try {
+      const before = (await rows(botA)).filter((r) => r.body.card === 'approval').length;
+      await say(botA, 'RUN echo auto-77');
+      await until(async () => (await assistantTexts(botA)).some((t) => t.includes('auto-77')), 20000, 'ran without a card');
+      ok((await rows(botA)).filter((r) => r.body.card === 'approval').length === before, 'a card appeared in auto mode');
+      const marker = path.join(home, 'auto-marker');
+      await say(botA, `RUN chmod -R 777 /tmp/no-such-dir-auto; touch ${marker}`);
+      const card = await until(async () => (await rows(botA)).find((r) => r.body.card === 'approval' && r.body.status === 'pending' && /chmod -R/.test(JSON.stringify(r.body))), 20000, 'risky card');
+      await api('POST', `/api/approvals/${card.body.approvalId}`, { decision: 'deny' });
+      ok(!fs.existsSync(marker), 'denied risky command ran');
+    } finally { await api('PUT', '/api/audit/danger-mode', { mode: 'ask' }); }
+  });
+
   await test('mid-stream connection drop is retried invisibly', async () => {
     dropsLeft = 1;
     await say(botB, 'DROP please');

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type Goal, type ProjectInfo, type VaultItem, type GoalLevel, type GoalStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
+import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type Goal, type ProjectInfo, type VaultItem, type GoalLevel, type GoalStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo, type DangerMode } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -271,22 +271,28 @@ function PermissionsSection() {
   const [policies, setPolicies] = useState<{ tool: string; mode: string }[] | null>(null);
   const load = useCallback(() => { configApi.policies().then((r) => setPolicies(r.policies)).catch(() => setPolicies([])); }, []);
   useEffect(() => { load(); }, [load]);
-  const [mode, setMode] = useState<'ask' | 'follow'>('ask');
+  const [mode, setMode] = useState<DangerMode>('ask');
   useEffect(() => { configApi.dangerMode().then((r) => setMode(r.mode)).catch(() => {}); }, []);
-  const pick = (m: 'ask' | 'follow') => { setMode(m); configApi.setDangerMode(m).catch(() => configApi.dangerMode().then((r) => setMode(r.mode)).catch(() => {})); };
+  const pick = (m: DangerMode) => { setMode(m); configApi.setDangerMode(m).catch(() => configApi.dangerMode().then((r) => setMode(r.mode)).catch(() => {})); };
   return (
     <>
       <PageHead title="Permissions" sub="Actions your Bots can take without asking first. Remove one and they’ll ask again next time." />
       <section className="cfg-section">
-        <div className="cfg-section__label">Risky actions (delete everything, run downloaded scripts, force-push…)</div>
+        <div className="cfg-section__label">How much your Bots ask</div>
         <div className="cfg-card">
-          <div className="cfg-row">
-            <div className="cfg-row__text">
-              <div className="cfg-row__title">{mode === 'ask' ? 'Always ask me' : 'Follow “Always allow”'}</div>
-              <div className="cfg-row__sub">{mode === 'ask' ? 'Risky actions ask every time, even if you chose “Always allow”.' : 'Risky actions run without asking if you chose “Always allow” for that tool.'}</div>
+          {([
+            ['ask', 'Always ask me', 'Risky actions ask every time, even if you chose “Always allow”.'],
+            ['follow', 'Follow “Always allow”', 'Risky actions run without asking if you chose “Always allow” for that tool.'],
+            ['auto', 'Always autonomous', 'Bots do everything without asking. Only payments and deleting system files still ask each time.'],
+          ] as [DangerMode, string, string][]).map(([m, title, sub]) => (
+            <div key={m} className="cfg-row">
+              <div className="cfg-row__text">
+                <div className="cfg-row__title">{title}{mode === m ? ' ✓' : ''}</div>
+                <div className="cfg-row__sub">{sub}</div>
+              </div>
+              <button type="button" className="cfg-btn cfg-btn--secondary" disabled={mode === m} onClick={() => pick(m)}>{mode === m ? 'On' : 'Use'}</button>
             </div>
-            <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => pick(mode === 'ask' ? 'follow' : 'ask')}>{mode === 'ask' ? 'Follow “Always allow”' : 'Always ask me'}</button>
-          </div>
+          ))}
         </div>
       </section>
       <section className="cfg-section">

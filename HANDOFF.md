@@ -474,3 +474,9 @@ Done:
 - Rooms: `postToRoom` allows one post per bot per user message (stops bot-to-bot floods). Test in `rooms.test.mts`.
 - Test status at release: typecheck clean, 145 unit, 27/27 e2e (`npm run build` then `node tests/e2e.mjs`).
 - Not built: approval with edited args, selector cache for `browser_extract`, room stop-phrases. Not verified: any UI in a real browser; Windows/Mac installs; Docker build.
+
+## P36 — "Always autonomous" mode
+- `danger_mode` now has 3 values: `ask` (risky asks every time), `follow` ("Always allow" respected everywhere), `auto` (nothing asks except risky calls).
+- Risky = `dangerReason` rules (rm -rf of top folders, disks, downloaded scripts, force-push, keys) plus tool names that move money (`riskyReason` in `danger.ts`). Risky calls ask in `auto` as well.
+- Applied in `krish/engine.ts` (local tools, HQ tools, connected apps) and `mcp.ts`. UI: Settings > Permissions, three choices.
+- Tests: `danger-auto.test.mts`, e2e "autonomous mode".

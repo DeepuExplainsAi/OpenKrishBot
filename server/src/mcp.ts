@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { Hono } from 'hono';
 import { getBotRow } from './store.js';
+import { autoSkips } from './danger.js';
 import { appTools } from './apps.js';
 import { mcpToken, primaryBotId } from './engine.js';
 import { claimToolRow, enqueueBotMessage, markSilent, noteToolOutcome, requestApproval, turnDepth } from './agent/loop.js';
@@ -71,7 +72,7 @@ export async function callTool(botId: string | null, rawName: string, args: any)
       noteToolOutcome(botId, rowSeq, { status: 'denied', summary: 'Not allowed' });
       return text(DECLINED);
     }
-    if (pol.decision === 'ask') {
+    if (pol.decision === 'ask' && !autoSkips(name, args)) {
       const answer = await requestApproval({ userId, botId }, pol, args, rowSeq);
       if (answer !== 'allow') return text(answer === 'deny' ? DECLINED : SKIPPED);
     }
