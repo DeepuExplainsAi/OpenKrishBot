@@ -409,7 +409,7 @@ Done:
 7. [x] (done, P23: sitemap, robots.txt, 10-min cache; content filter = Readability, CSS extraction = browser_extract) crawl4ai leftovers: `sitemap.xml` discovery in `web_crawl`, robots.txt respect, content-fit filter (drop nav/footers), CSS-selector extraction, cache for repeated URLs.
 8. [x] (done, P24: `recall` tool = keyword search over old chats; per-user memory scope not done) mem0 leftovers: semantic recall (local embeddings or keyword index over past chats) injected into the prompt; per-user vs per-bot memory scopes.
 9. [x] (done, P25: goal+backstory fields, templates sop-software + startup-studio with CEO manager) crewAI / MetaGPT leftovers: role templates with goal + backstory, task context passing, hierarchical "manager" bot that plans and assigns, SOP-style company templates (Product Manager -> Architect -> Engineer -> QA).
-10. [~] Other repos from the user's first list not mined yet: suparagent (marketplace), openfuse (connectors), munder-difflin (rooms), orgo-teammates. Read each, list ideas, build the useful ones.
+10. [~] (P29 egress guard done; still to build, ranked: webhook HMAC+rate limit, fence untrusted webhook/feed text, routine catch-up+retry, routine undo, spend caps, quiet hours, needs-you digest) Other repos from the user's first list not mined yet: suparagent (marketplace), openfuse (connectors), munder-difflin (rooms), orgo-teammates. Read each, list ideas, build the useful ones.
 11. [ ] Find more popular MIT/Apache repos (e.g. n8n-style workflow nodes, AutoGen, LangGraph ideas, Open Interpreter, Stagehand, Firecrawl OSS parts): ideas or code with notices in `THIRD_PARTY_NOTICES.md`. Never copy PolyForm/AGPL/noncommercial code.
 12. [ ] Verify on real machines: Windows installer + hidden launcher, browser tools on macOS.
 13. [ ] Final: version bump, tag, release assets check, tell the user.
@@ -436,3 +436,9 @@ Done:
 ## P28 — audit args scrubbed
 - `krish/engine.ts` `runTool`: audit-log args now go through `scrubVault`, so a vault value typed into a tool call is not written to the audit file. Still open: transcript rows, Hermes/MCP path.
 - v1.4.0 released (8 assets, desktop workflow green).
+
+## P29 — egress guard (from suparagent idea, written from scratch)
+- Reason: `web_extract`/`web_crawl` followed redirects anywhere, so a page could point a bot at `http://127.0.0.1:8787/api/...` (loopback = auto-login as owner) or cloud metadata.
+- `lib/egress.ts`: `isPrivateIp`, `assertPublicUrl` (http(s) only, DNS-resolved host must be public). `scrape.ts`: `fetchPage(url, {publicOnly})` re-checks every redirect hop (max 5); `fetchPageCached`, robots/sitemap fetches use it. Escape hatch `OPENKRISHBOT_ALLOW_PRIVATE_FETCH=1`. Test `egress.test.mts`.
+- Not covered: DNS rebinding between check and connect (check resolves, fetch resolves again); `apps.ts` / `vault.ts` fetches (user-configured URLs, left as is); browser tools (can open localhost on purpose).
+- Reference review of suparagent/openfuse/munder-difflin/orgo-teammates done (MIT/Apache); ideas list is in item 10.

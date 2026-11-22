@@ -1,6 +1,7 @@
 import { parseHTML } from 'linkedom';
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
+import { assertPublicUrl } from '../lib/egress.js';
 
 /** Free page reader: fetch, keep the main article (Mozilla Readability), return Markdown with links. No keys, no browser. */
 const md = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' });
@@ -17,7 +18,7 @@ export function htmlToMarkdown(body: string, baseUrl: string): { title: string; 
 }
 
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36';
-const text = async (url: string) => { try { const r = await fetch(url, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(10000) }); return r.ok ? await r.text() : ''; } catch { return ''; } };
+const text = async (url: string) => { try { await assertPublicUrl(url); const r = await fetch(url, { headers: { 'user-agent': UA }, redirect: 'manual', signal: AbortSignal.timeout(10000) }); return r.ok ? await r.text() : ''; } catch { return ''; } };
 
 /** Disallow rules of robots.txt that apply to everyone (`User-agent: *`). */
 export function robotsDisallow(robots: string): string[] {
@@ -42,17 +43,28 @@ const cache = new Map<string, { at: number; page: Awaited<ReturnType<typeof fetc
 export async function fetchPageCached(url: string) {
   const hit = cache.get(url);
   if (hit && Date.now() - hit.at < 600_000) return hit.page;
-  const page = await fetchPage(url);
+  const page = await fetchPage(url, { publicOnly: true });
   cache.set(url, { at: Date.now(), page });
   if (cache.size > 100) cache.delete(cache.keys().next().value!);
   return page;
 }
 
-export async function fetchPage(url: string): Promise<{ title: string; markdown: string; links: string[] }> {
-  const r = await fetch(url, { headers: { 'user-agent': UA, 'accept-language': 'en' }, redirect: 'follow', signal: AbortSignal.timeout(25000) });
-  const body = await r.text();
-  if (!/html/i.test(r.headers.get('content-type') ?? '')) return { title: url, markdown: body, links: [] };
-  return htmlToMarkdown(body, r.url);
+/** `publicOnly` refuses private/local addresses, also on every redirect hop (the tools pass it; tests may not). */
+export async function fetchPage(url: string, opts: { publicOnly?: boolean } = {}): Promise<{ title: string; markdown: string; links: string[] }> {
+  let cur = url;
+  for (let hop = 0; ; hop++) {
+    if (opts.publicOnly) await assertPublicUrl(cur);
+    const r = await fetch(cur, { headers: { 'user-agent': UA, 'accept-language': 'en' }, redirect: opts.publicOnly ? 'manual' : 'follow', signal: AbortSignal.timeout(25000) });
+    const loc = r.status >= 300 && r.status < 400 ? r.headers.get('location') : null;
+    if (loc) {
+      if (hop >= 5) throw new Error('Too many redirects');
+      cur = new URL(loc, cur).href;
+      continue;
+    }
+    const body = await r.text();
+    if (!/html/i.test(r.headers.get('content-type') ?? '')) return { title: url, markdown: body, links: [] };
+    return htmlToMarkdown(body, opts.publicOnly ? cur : r.url);
+  }
 }
 
 export interface CrawledPage { url: string; title: string; markdown: string }
