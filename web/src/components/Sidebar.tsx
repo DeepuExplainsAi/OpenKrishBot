@@ -8,6 +8,7 @@ import { displayName, useStore } from '../store';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
 import { Menu } from './Menu';
+import { AddMenu, BotMenu } from './BotMenu';
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -31,21 +32,58 @@ function previewFor(bot: Bot, running: boolean, awaiting: string | null) {
 }
 
 const BotRow = memo(function BotRow({ bot, selected, running, awaiting, onSelect }: { bot: Bot; selected: boolean; running: boolean; awaiting: string | null; onSelect: (id: string) => void }) {
+  const [menu, setMenu] = useState(false);
   return (
-    <button type="button" className={`bot-row${selected ? ' is-selected' : ''}`} onClick={() => onSelect(bot.id)} aria-current={selected || undefined}>
-      <span className="bot-row__avatar">
-        <BotAvatarFor bot={bot} size={36} />
-        {(running || awaiting || bot.unread > 0) && (
-          <span className={`status-dot ${awaiting ? 'is-attention' : running ? 'is-working' : 'is-unread'}`} aria-label={awaiting ? 'Needs attention' : running ? 'Working' : 'Unread activity'} />
-        )}
-      </span>
-      <span className="bot-row__text">
-        <span className="bot-row__name">{displayName(bot)}</span>
-        <span className="bot-row__preview">{previewFor(bot, running, awaiting)}</span>
-      </span>
-    </button>
+    <div className="bot-row-wrap" onContextMenu={(e) => { e.preventDefault(); setMenu(true); }}>
+      <button type="button" className={`bot-row${selected ? ' is-selected' : ''}`} onClick={() => onSelect(bot.id)} aria-current={selected || undefined}>
+        <span className="bot-row__avatar">
+          <BotAvatarFor bot={bot} size={36} />
+          {(running || awaiting || bot.unread > 0) && (
+            <span className={`status-dot ${awaiting ? 'is-attention' : running ? 'is-working' : 'is-unread'}`} aria-label={awaiting ? 'Needs attention' : running ? 'Working' : 'Unread activity'} />
+          )}
+        </span>
+        <span className="bot-row__text">
+          <span className="bot-row__name">{bot.pinned ? '📌 ' : ''}{displayName(bot)}</span>
+          <span className="bot-row__preview">{previewFor(bot, running, awaiting)}</span>
+        </span>
+      </button>
+      <button type="button" className="bot-row__more icon-btn icon-btn--plain" onClick={() => setMenu(!menu)} aria-label={`Options for ${bot.name}`} aria-haspopup="menu"><Icon name="more" opacity={0.66} /></button>
+      {menu && <BotMenu bot={bot} onClose={() => setMenu(false)} />}
+    </div>
   );
 });
+
+/** The Chief of Staff's tile; the pencil renames it in place. */
+function ChiefTile({ bot, selected, collapsed, working, onSelect }: { bot: Bot; selected: boolean; collapsed: boolean; working: boolean; onSelect: (id: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(bot.name);
+  const [menu, setMenu] = useState(false);
+  const save = () => {
+    const next = name.trim();
+    setEditing(false);
+    if (next && next !== bot.name) configApi.updateBot(bot.id, { name: next }).catch((e) => window.alert(e.message));
+    else setName(bot.name);
+  };
+  return (
+    <div className="pinned" onContextMenu={(e) => { e.preventDefault(); setMenu(true); }}>
+      <button type="button" className={`pinned__tile${selected ? ' is-selected' : ''}`} onClick={() => onSelect(bot.id)} title={displayName(bot)}>
+        <span className="pinned__avatar">
+          <BotAvatarFor bot={bot} size={collapsed ? 44 : 60} star />
+          {working && <span className="status-dot is-working pinned__dot" />}
+        </span>
+        {!collapsed && !editing && <span className="pinned__label">{displayName(bot)}</span>}
+      </button>
+      {!collapsed && editing && (
+        <input className="pinned__input" autoFocus value={name} maxLength={60} onChange={(e) => setName(e.target.value)} onBlur={save}
+          onKeyDown={(e) => { if (e.key === 'Enter') save(); else if (e.key === 'Escape') { setName(bot.name); setEditing(false); } }} aria-label="Chief of Staff name" />
+      )}
+      {!collapsed && !editing && (
+        <button type="button" className="pinned__edit icon-btn icon-btn--plain" onClick={() => { setName(bot.name); setEditing(true); }} aria-label="Rename" title="Rename"><Icon name="edit" size={14} opacity={0.66} /></button>
+      )}
+      {menu && <BotMenu bot={bot} onClose={() => setMenu(false)} />}
+    </div>
+  );
+}
 
 export function Sidebar() {
   const bots = useStore((s) => s.bots);
@@ -61,10 +99,13 @@ export function Sidebar() {
   const selectBot = useCallback((id: string) => { useConfigUI.getState().setView('chat'); storeSelectBot(id); }, [storeSelectBot]);
   const setModal = useStore((s) => s.setModal);
   const [accountMenu, setAccountMenu] = useState(false);
+  const [addMenu, setAddMenu] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const logout = async () => { await api.logout().catch(() => {}); location.reload(); };
 
   const primary = bots.find((b) => b.isPrimary);
-  const others = bots.filter((b) => !b.isPrimary).sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+  const archived = bots.filter((b) => !b.isPrimary && b.archived);
+  const others = bots.filter((b) => !b.isPrimary && !b.archived).sort((a, b) => b.lastActivityAt - a.lastActivityAt);
   // Bots of a company are listed under its name.
   const [companies, setCompanies] = useState<Record<string, string>>({});
   const companyKey = bots.map((b) => b.projectId ?? '').join(',');
@@ -88,9 +129,12 @@ export function Sidebar() {
               <button type="button" className="icon-btn" onClick={() => setModal('search')} aria-label="Search" title="Search (⌘K)">
                 <Icon name="search" opacity={0.66} />
               </button>
-              <button type="button" className="icon-btn" onClick={() => setModal('create')} aria-label="New Bot" title="New Bot">
-                <Icon name="plus" opacity={0.66} />
-              </button>
+              <span className="sidebar__add">
+                <button type="button" className="icon-btn" onClick={() => setAddMenu(!addMenu)} aria-label="Add" aria-haspopup="menu" title="New bot, chat, department…">
+                  <Icon name="plus" opacity={0.66} />
+                </button>
+                {addMenu && <AddMenu onClose={() => setAddMenu(false)} />}
+              </span>
             </>
           )}
         </div>
@@ -99,15 +143,7 @@ export function Sidebar() {
       <div className="sidebar__scroll">
         <TasksIsland />
         {primary && (
-          <div className="pinned">
-            <button type="button" className={`pinned__tile${selectedBotId === primary.id ? ' is-selected' : ''}`} onClick={() => selectBot(primary.id)} title={displayName(primary)}>
-              <span className="pinned__avatar">
-                <BotAvatarFor bot={primary} size={collapsed ? 44 : 60} star />
-                {live[primary.id]?.isRunning && <span className="status-dot is-working pinned__dot" />}
-              </span>
-              {!collapsed && <span className="pinned__label">{displayName(primary)}</span>}
-            </button>
-          </div>
+          <ChiefTile bot={primary} selected={selectedBotId === primary.id} collapsed={collapsed} working={!!live[primary.id]?.isRunning} onSelect={selectBot} />
         )}
         <div className="bot-list">
           {groups.map(([key, list]) => (
@@ -124,6 +160,12 @@ export function Sidebar() {
               )}
             </div>
           ))}
+          {!collapsed && archived.length > 0 && (
+            <>
+              <button type="button" className="bot-group__title bot-group__toggle" onClick={() => setShowArchived(!showArchived)}>Archived ({archived.length}) {showArchived ? '▾' : '▸'}</button>
+              {showArchived && archived.map((b) => <BotRow key={b.id} bot={b} selected={selectedBotId === b.id} running={false} awaiting={null} onSelect={selectBot} />)}
+            </>
+          )}
           {!collapsed && others.length === 0 && (
             <button type="button" className="bot-list__empty" onClick={() => setModal('create')}>
               <span className="bot-list__empty-plus"><Icon name="plus" size={14} opacity={0.66} /></span>

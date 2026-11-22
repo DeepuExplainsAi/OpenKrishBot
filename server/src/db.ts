@@ -144,6 +144,7 @@ addColumn('routines', 'seen', 'TEXT');
 addColumn('auth_sessions', 'device', 'TEXT');
 addColumn('auth_sessions', 'last_seen', 'INTEGER');
 addColumn('bots', 'voice', "TEXT NOT NULL DEFAULT 'luna'");
+addColumn('bots', 'archived', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('bots', 'voice_speed', 'REAL NOT NULL DEFAULT 1');
 addColumn('bots', 'voice_language', "TEXT NOT NULL DEFAULT 'auto'");
 // Hermes engine: per-bot model choice, which engine runs the bot ('primary' = the existing agent,

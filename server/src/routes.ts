@@ -193,7 +193,7 @@ api.patch('/bots/:id', async (c) => {
   if (!b) return c.json({ error: 'not found' }, 404);
   const p = await c.req.json().catch(() => null);
   if (!p || typeof p !== 'object') return c.json({ error: 'invalid JSON body' }, 400);
-  const cols: Record<string, string> = { name: 'name', label: 'label', description: 'description', instructions: 'instructions', avatarShape: 'avatar_shape', avatarColor: 'avatar_color', mode: 'mode', effort: 'effort', pinned: 'pinned', voice: 'voice', voiceSpeed: 'voice_speed', voiceLanguage: 'voice_language' };
+  const cols: Record<string, string> = { name: 'name', label: 'label', description: 'description', instructions: 'instructions', avatarShape: 'avatar_shape', avatarColor: 'avatar_color', mode: 'mode', effort: 'effort', pinned: 'pinned', archived: 'archived', unread: 'unread', voice: 'voice', voiceSpeed: 'voice_speed', voiceLanguage: 'voice_language' };
   for (const [k, col] of Object.entries(cols)) {
     if (p[k] !== undefined) db.prepare(`UPDATE bots SET ${col}=?, updated_at=? WHERE id=?`).run(typeof p[k] === 'boolean' ? (p[k] ? 1 : 0) : p[k], now(), b.id);
   }
@@ -221,6 +221,22 @@ api.delete('/bots/:id', async (c) => {
   releaseBotIssues(b.id);
   hub.emit(c.get('user').id, { type: 'roster' });
   return c.json({ ok: true });
+});
+
+/** A copy with the same job and engine settings but an empty conversation. */
+api.post('/bots/:id/duplicate', (c) => {
+  const user = c.get('user');
+  const b = ownBot(user.id, c.req.param('id'));
+  if (!b || b.kind === 'room') return c.json({ error: 'not found' }, 404);
+  try {
+    const copy = createBot(user.id, { name: `${b.name} copy`, label: b.label, description: b.description, instructions: b.instructions, avatarShape: b.avatar_shape, avatarColor: b.avatar_color, mode: b.mode });
+    db.prepare('UPDATE bots SET project_id=?, effort=?, model=?, provider=? WHERE id=?').run(b.project_id ?? null, b.effort, b.model, b.provider, copy.id);
+    emitBot(copy.id);
+    return c.json({ bot: getBot(copy.id) });
+  } catch (e: any) {
+    if (e instanceof UserError) return c.json({ error: e.message }, 409);
+    throw e;
+  }
 });
 
 api.post('/bots/:id/primary', (c) => {

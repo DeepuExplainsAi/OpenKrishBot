@@ -25,6 +25,7 @@ export interface Bot {
   /** 'room' = group chat (members answer instead of the bot itself). */
   kind?: 'agent' | 'room';
   pinned: boolean;
+  archived: boolean;
   effort: 'low' | 'medium' | 'high' | 'xhigh';
   /** Voice chat settings: browser voice id, speed multiplier (0.7–1.5), BCP-47 language or 'auto'. */
   voice: string;

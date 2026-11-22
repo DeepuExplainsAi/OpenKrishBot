@@ -69,3 +69,14 @@
 .account__name { font-size: 14px; font-weight: 500; line-height: 20px; letter-spacing: 0.14px; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .bot-group__title { margin: 10px 8px 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-tertiary, #888); }
+
+.bot-row-wrap { position: relative; }
+.bot-row__more { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); opacity: 0; }
+.bot-row-wrap:hover .bot-row__more, .bot-row__more:focus-visible { opacity: 1; }
+.bot-row-wrap:hover .bot-row__text { padding-right: 24px; }
+.sidebar__add { position: relative; display: inline-flex; }
+.pinned { position: relative; flex-direction: column; align-items: center; }
+.pinned__edit { position: absolute; right: 4px; bottom: 6px; opacity: 0; }
+.pinned:hover .pinned__edit, .pinned__edit:focus-visible { opacity: 1; }
+.pinned__input { width: 140px; margin-top: -2px; padding: 2px 6px; border-radius: 6px; text-align: center; font-size: 13px; color: var(--color-ink); background: var(--color-bg-pane); border: 0.5px solid var(--color-border-secondary); }
+.bot-group__toggle { width: 100%; text-align: left; cursor: pointer; }

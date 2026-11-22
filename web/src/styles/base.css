@@ -122,3 +122,6 @@ button { transition: background-color 120ms var(--ease-out), transform 80ms var(
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+.menu--tall { max-height: min(70vh, 560px); }
+.menu__item.has-divider { margin-top: 4px; border-top: 0.5px solid var(--color-border-tertiary); border-radius: 0 0 8px 8px; padding-top: 8px; }

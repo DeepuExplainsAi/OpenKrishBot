@@ -28,6 +28,7 @@ export function toBot(r: any): Bot {
     projectId: r.project_id ?? null,
     kind: r.kind === 'room' ? 'room' : 'agent',
     pinned: !!r.pinned,
+    archived: !!r.archived,
     effort: r.effort,
     voice: r.voice ?? 'luna',
     voiceSpeed: r.voice_speed ?? 1,
