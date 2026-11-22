@@ -60,8 +60,11 @@ export async function speak(text: string, o: { voice?: string; speed?: number; l
       u.lang = voice?.lang ?? lang;
       if (voice) u.voice = voice;
       u.rate = o.speed ?? 1;
-      u.onend = u.onerror = () => resolve();
-      signal?.addEventListener('abort', () => { s.cancel(); resolve(); }, { once: true });
+      const onAbort = () => { s.cancel(); resolve(); };
+      const done = () => { signal?.removeEventListener('abort', onAbort); resolve(); };
+      u.onend = u.onerror = done;
+      if (signal?.aborted) return resolve();
+      signal?.addEventListener('abort', onAbort, { once: true });
       s.speak(u);
     });
   }

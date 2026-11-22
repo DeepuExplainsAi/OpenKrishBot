@@ -191,6 +191,7 @@ interface Props { bot: Bot; rows: Row[]; live: LiveState | undefined; loaded: bo
 export function Transcript({ bot, rows, live, loaded }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
+  const lastTop = useRef(0);
   const [showJump, setShowJump] = useState(false);
   const items = useMemo(() => buildItems(rows), [rows]);
 
@@ -232,7 +233,10 @@ export function Transcript({ bot, rows, live, loaded }: Props) {
   const onScroll = () => {
     const el = scrollRef.current!;
     const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-    stick.current = dist < 40;
+    // Only the user scrolling up releases the pin; content growing under us must not.
+    if (dist < 40) stick.current = true;
+    else if (el.scrollTop < lastTop.current) stick.current = false;
+    lastTop.current = el.scrollTop;
     setShowJump(dist > 200);
   };
 

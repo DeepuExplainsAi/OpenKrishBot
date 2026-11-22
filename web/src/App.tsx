@@ -4,6 +4,7 @@ import { useStore } from './store';
 import { ChatView } from './components/ChatView';
 import { ComputerViewer } from './components/ComputerViewer';
 import { DetailsPanel } from './components/DetailsPanel';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Sidebar } from './components/Sidebar';
 import { SignIn } from './components/SignIn';
 import { ConnectAppsModal } from './components/modals/ConnectAppsModal';
@@ -21,6 +22,7 @@ function Shell() {
   const collapsed = useStore((s) => s.sidebarCollapsed);
   const hasBot = useStore((s) => !!s.selectedBotId);
   const mobileChat = useStore((s) => s.mobileChat);
+  const botId = useStore((s) => s.selectedBotId);
   const view = useConfigUI((s) => s.view);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ function Shell() {
   return (
     <div className={`app${mobileChat ? ' is-chat-open' : ''}${collapsed ? ' is-sidebar-collapsed' : ''}${detailsOpen && hasBot && view === 'chat' ? ' has-details' : ''}`}>
       <Sidebar />
-      {view === 'tasks' ? <TasksView /> : <ChatView />}
+      <ErrorBoundary resetKey={`${view}:${botId}`}>{view === 'tasks' ? <TasksView /> : <ChatView />}</ErrorBoundary>
       {detailsOpen && hasBot && view === 'chat' && <DetailsPanel />}
       {modal === 'create' && <CreateBotModal />}
       {modal === 'group' && <CreateGroupModal />}

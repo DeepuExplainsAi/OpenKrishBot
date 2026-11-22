@@ -191,3 +191,10 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 - Done: `POST /approvals/:id` accepts only allow/always/deny (400 otherwise; before, a malformed value counted as allow); messages/answers/bot bodies validated (400, text cap 60000 -> 413); mobile.css: `.chat__back` default rule moved BEFORE the media query (it overrode the phone rule, so Back never showed); Tasks view has a Back button on phones; opening Tasks on phones switches to the chat pane.
 - Test: e2e "bad input" (16/16 e2e, 56 unit, typecheck, build pass). Needs `NODE_OPTIONS=--max-old-space-size=400` and swap on a 482 MB VM.
 - Next: P12b error boundary + transcript scroll + voice abort.
+
+## P12b: web robustness (2026-11-22)
+- Checked P12a again before starting: server validation, mobile Back CSS and Tasks Back are all in place; nothing in P0-P11 changed.
+- `ErrorBoundary` around the chat/Tasks pane (resets on view or bot change, "Try again" button): one crashing view no longer blanks the app.
+- Transcript: auto-scroll pin is released only when the USER scrolls up (before, content growing under the viewport could unpin it).
+- Voice `speak()`: abort listener removed after each utterance (no listener pile-up), already-aborted signal returns at once.
+- Tests: typecheck, build, 56 unit, 16 e2e pass. UI behaviour (scroll, boundary) is NOT browser-tested here: no usable Chrome on the 482 MB VM.
