@@ -573,6 +573,7 @@ function WorkflowsSection() {
                   {edit.steps.filter((_, j) => j !== i).map((o) => (
                     <label key={o.id}><input type="checkbox" checked={(s.needs ?? []).includes(o.id)} onChange={(e) => patch(i, { needs: e.target.checked ? [...(s.needs ?? []), o.id] : (s.needs ?? []).filter((n) => n !== o.id) })} /> {o.id}</label>
                   ))}
+                  <label><input type="checkbox" checked={!!s.gate} onChange={(e) => patch(i, { gate: e.target.checked })} /> Ask me first</label>
                   <label style={{ marginLeft: 'auto' }}>Retries <select value={s.retries ?? 0} onChange={(e) => patch(i, { retries: Number(e.target.value) })}>{[0, 1, 2, 3].map((n) => <option key={n}>{n}</option>)}</select></label>
                 </div>
               </div>

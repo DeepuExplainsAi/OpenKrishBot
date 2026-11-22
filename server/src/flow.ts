@@ -4,7 +4,7 @@
  * needs through {{step_id}} and the run's input through {{input}}. A failed step skips everything downstream.
  * Pure scheduling here; the bot call is injected so it can be tested.
  */
-export interface FlowStep { id: string; bot: string; prompt: string; needs?: string[]; retries?: number }
+export interface FlowStep { id: string; bot: string; prompt: string; needs?: string[]; retries?: number; /** Ask the owner before this step runs; a "no" fails the step. */ gate?: boolean }
 export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped';
 export interface StepResult { status: StepStatus; output?: string; error?: string; attempts: number; startedAt?: number; finishedAt?: number }
 export type RunResults = Record<string, StepResult>;
@@ -56,6 +56,8 @@ export interface RunOptions {
   retryBaseMs?: number;
   /** Results of an earlier run of the same steps: finished steps keep their output, everything else starts again. */
   resume?: RunResults;
+  /** Asked before a `gate` step; true = go on. Without it gates are ignored. */
+  approve?: (step: FlowStep, prompt: string) => Promise<boolean>;
   exec: (step: FlowStep, prompt: string) => Promise<string>;
   onUpdate?: (results: RunResults) => void;
 }
@@ -84,6 +86,10 @@ export async function runFlow(steps: FlowStep[], o: RunOptions): Promise<{ statu
         void (async () => {
           const prompt = fill(s.prompt, o.input, results);
           const tries = 1 + Math.max(0, Math.min(s.retries ?? 0, 3));
+          if (s.gate && o.approve) {
+            const yes = await o.approve(s, prompt).catch(() => false);
+            if (!yes) { r.status = 'failed'; r.error = o.signal?.aborted ? 'Stopped.' : 'Not approved.'; r.attempts = 0; r.finishedAt = Date.now(); running--; notify(); pump(); return; }
+          }
           for (let a = 1; a <= tries; a++) {
             r.attempts = a;
             try { r.output = await withTimeout(o.exec(s, prompt), o.stepTimeoutMs ?? STEP_TIMEOUT_MS, `Step "${s.id}"`, o.signal); r.status = 'done'; r.error = undefined; break; }

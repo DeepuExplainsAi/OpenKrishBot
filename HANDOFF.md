@@ -410,9 +410,9 @@ Done:
 8. [x] (done, P24: `recall` tool = keyword search over old chats; per-user memory scope not done) mem0 leftovers: semantic recall (local embeddings or keyword index over past chats) injected into the prompt; per-user vs per-bot memory scopes.
 9. [x] (done, P25: goal+backstory fields, templates sop-software + startup-studio with CEO manager) crewAI / MetaGPT leftovers: role templates with goal + backstory, task context passing, hierarchical "manager" bot that plans and assigns, SOP-style company templates (Product Manager -> Architect -> Engineer -> QA).
 10. [x] (P29 egress guard, P30 fence + webhook rate limit, P31 routine catch-up done. Skipped on purpose: quiet hours (check-in times are user-chosen), routine undo, spend caps, needs-you digest, webhook HMAC) Other repos from the user's first list not mined yet: suparagent (marketplace), openfuse (connectors), munder-difflin (rooms), orgo-teammates. Read each, list ideas, build the useful ones.
-11. [~] (stagehand, langgraph, autogen reviewed: P32, P33 built; open: approval with edited args, room termination conditions, human gate between flow steps, selector cache) Find more popular MIT/Apache repos (e.g. n8n-style workflow nodes, AutoGen, LangGraph ideas, Open Interpreter, Stagehand, Firecrawl OSS parts): ideas or code with notices in `THIRD_PARTY_NOTICES.md`. Never copy PolyForm/AGPL/noncommercial code.
+11. [x] (stagehand, langgraph, autogen reviewed: P32, P33, P35 built. Not built: approval with edited args, selector cache for browser_extract) Find more popular MIT/Apache repos (e.g. n8n-style workflow nodes, AutoGen, LangGraph ideas, Open Interpreter, Stagehand, Firecrawl OSS parts): ideas or code with notices in `THIRD_PARTY_NOTICES.md`. Never copy PolyForm/AGPL/noncommercial code.
 12. [ ] (needs a real PC; cannot be done on this VM) Verify on real machines: Windows installer + hidden launcher, browser tools on macOS.
-13. [x] v1.5.0 = P27-P33.
+13. [x] v1.5.0 = P27-P33; v1.6.0 = P34-P35.
 
 ## P20 — Palette files
 - `web/src/themes/*.json` (`{name, base, vars}`; Midnight, Forest, Sand, Rose) loaded by `web/src/lib/palettes.ts` (`import.meta.glob`); only `--color-*` vars apply. `configStore`: `palette`, `setPalette`; picker under Settings → General → Colours. A palette sets its own light/dark base. Add a palette = add a JSON file.
@@ -467,3 +467,10 @@ Done:
 - "Bolt" in OpenMausBot is only a test bot's name, not a system (checked by search), so nothing was ported for it.
 - Still open: vault in the Hermes/MCP path; screenshots can show a typed password; a bot with `terminal` can read vault.key.
 - Memory note: the VM has ~480 MB, so build/typecheck need `NODE_OPTIONS=--max-old-space-size=700` and not two at once.
+
+## P35 — workflow "Ask me first", webhook signature, room post limit
+- Workflow step option `gate` (checkbox "Ask me first" in Settings -> Workflows): before the step runs, an approval card (`flow_step`) shows in that bot's chat. No/expired = step fails with "Not approved.", downstream skips, and "Continue" (P33) can retry it. `askGate` in `routes-flows.ts`, `approve` option in `flow.ts`. Unit + e2e (waits, deny, continue, allow).
+- Webhooks: an `X-Hub-Signature-256: sha256=<hmac of body, key = secret>` header is checked if sent (wrong = 401). No header = old behaviour (secret in address only). `checkSignature` in `lib/fence.ts`.
+- Rooms: `postToRoom` allows one post per bot per user message (stops bot-to-bot floods). Test in `rooms.test.mts`.
+- Test status at release: typecheck clean, 145 unit, 27/27 e2e (`npm run build` then `node tests/e2e.mjs`).
+- Not built: approval with edited args, selector cache for `browser_extract`, room stop-phrases. Not verified: any UI in a real browser; Windows/Mac installs; Docker build.

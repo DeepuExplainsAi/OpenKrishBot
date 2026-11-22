@@ -238,6 +238,30 @@ try {
     ok(/cats/.test(done.results.m.output) && /facts/.test(done.results.m.output), 'merge lacks inputs');
   });
 
+  await test('workflow: "ask me first" step waits; no fails it and skips the rest; continue + yes finishes it', async () => {
+    const f = (await api('PUT', '/api/flows', { name: 'Gated', steps: [
+      { id: 'a', bot: 'Alpha', prompt: 'draft {{input}}' },
+      { id: 'g', bot: 'Beta', prompt: 'send {{a}}', needs: ['a'], gate: true },
+      { id: 'z', bot: 'Alpha', prompt: 'report {{g}}', needs: ['g'] },
+    ] })).flow;
+    ok(f?.steps[1].gate === true, 'gate not saved');
+    const card = async (n) => until(async () => (await rows(botB)).filter((r) => r.body.card === 'approval' && /flow_step/.test(r.body.tool ?? '') && r.body.status === 'pending')[n - 1] ?? null, 30000, 'gate card');
+    const run = await api('POST', `/api/flows/${f.id}/run`, { input: 'mail' });
+    const c1 = await card(1);
+    const mid = (await api('GET', `/api/flows/runs/${run.runId}`)).run;
+    ok(mid.status === 'running' && mid.results.a.status === 'done' && mid.results.g.status === 'running', `should be waiting: ${JSON.stringify(mid.results)}`);
+    await api('POST', `/api/approvals/${c1.body.approvalId}`, { decision: 'deny' });
+    const bad = await until(async () => { const r = (await api('GET', `/api/flows/runs/${run.runId}`)).run; return r.status !== 'running' ? r : null; }, 30000, 'run end');
+    ok(bad.status === 'failed' && bad.results.g.error === 'Not approved.' && bad.results.z.status === 'skipped', JSON.stringify(bad.results));
+    const again = await api('POST', `/api/flows/runs/${run.runId}/resume`, {});
+    ok(again.runId, JSON.stringify(again));
+    const c2 = await until(async () => (await rows(botB)).filter((r) => r.body.card === 'approval' && /flow_step/.test(r.body.tool ?? '') && r.body.status === 'pending').pop() ?? null, 30000, 'second gate card');
+    await api('POST', `/api/approvals/${c2.body.approvalId}`, { decision: 'allow' });
+    const fin = await until(async () => { const r = (await api('GET', `/api/flows/runs/${again.runId}`)).run; return r.status !== 'running' ? r : null; }, 60000, 'resumed run end');
+    ok(fin.status === 'done' && fin.results.a.status === 'done' && fin.results.z.status === 'done', JSON.stringify(fin.results));
+    await api('DELETE', `/api/flows/${f.id}`);
+  });
+
   await test('workflow: Plan with AI drafts steps from a goal', async () => {
     const p = await api('POST', '/api/flows/plan', { goal: 'launch a blog', bot: 'Alpha' });
     ok(p.steps?.length === 2 && p.steps[1].needs[0] === 'a' && p.steps[1].bot === 'Beta', JSON.stringify(p));
@@ -294,7 +318,7 @@ try {
     ok(!(await assistantTexts(botB)).some((t) => t.includes('SUPER-SECRET')), 'secret in assistant text');
     ok((await assistantTexts(botB)).some((t) => t.includes('[vault secret hidden]')), 'secret not replaced');
     await say(botB, 'RUN echo SUPER-SECRET-VALUE-1');
-    const ap = await until(async () => (await rows(botB)).find((r) => r.body.card === 'approval' && r.body.status !== 'resolved'), 20000, 'approval');
+    const ap = await until(async () => (await rows(botB)).find((r) => r.body.card === 'approval' && r.body.status === 'pending' && /terminal/.test(r.body.tool ?? '')), 20000, 'approval');
     await api('POST', `/api/approvals/${ap.body.approvalId}`, { decision: 'allow' });
     await until(async () => (await assistantTexts(botB)).some((t) => t.includes('RESULT')), 20000, 'tool result');
     const leaks = (await rows(botB)).filter((r) => !(r.body.role === 'user') && JSON.stringify(r.body).includes('SUPER-SECRET')).map((r) => `${r.kind}/${r.body.role ?? r.body.name ?? r.body.type}`);

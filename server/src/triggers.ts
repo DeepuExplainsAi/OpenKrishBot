@@ -6,7 +6,7 @@ import { enqueue } from './agent/loop.js';
 import { appendRow, getBotRow } from './store.js';
 import { allHold, parseConditions, type Condition } from './conditions.js';
 import { fetchFeed } from './feed.js';
-import { fenceUntrusted, rateLimiter } from './lib/fence.js';
+import { checkSignature, fenceUntrusted, rateLimiter } from './lib/fence.js';
 
 /** 30 calls a minute per webhook secret. */
 const hookLimit = rateLimiter(30, 60_000);
@@ -38,7 +38,10 @@ hooks.post('/:secret', async (c) => {
   const row = db.prepare("SELECT * FROM routines WHERE schedule=? AND enabled=1").get(`event:${c.req.param('secret')}`) as any;
   if (!row || !getBotRow(row.bot_id)) return c.json({ error: 'not found' }, 404);
   if (!hookLimit(c.req.param('secret'))) return c.json({ error: 'too many requests' }, 429);
-  const payload = (await c.req.text()).slice(0, 8000);
+  const raw = await c.req.text();
+  // Optional: a sender that signs its body (X-Hub-Signature-256) gets a wrong signature refused.
+  if (checkSignature(c.req.param('secret'), raw, c.req.header('x-hub-signature-256')) === false) return c.json({ error: 'bad signature' }, 401);
+  const payload = raw.slice(0, 8000);
   const conds: Condition[] = row.conditions ? JSON.parse(row.conditions) : [];
   if (conds.length) {
     let data: unknown; try { data = JSON.parse(payload); } catch { data = {}; }

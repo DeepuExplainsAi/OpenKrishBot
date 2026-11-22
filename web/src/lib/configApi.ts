@@ -44,7 +44,7 @@ export interface WhatsAppInfo { status: 'off' | 'starting' | 'qr' | 'connected' 
 
 export interface AuditEntry { t: string; bot: string; tool: string; status: string; danger?: string | null; args?: string }
 
-export interface FlowStep { id: string; bot: string; prompt: string; needs?: string[]; retries?: number }
+export interface FlowStep { id: string; bot: string; prompt: string; needs?: string[]; retries?: number; gate?: boolean }
 export interface Flow { id: string; name: string; steps: FlowStep[]; schedule?: string }
 export interface StepResult { status: 'pending' | 'running' | 'done' | 'failed' | 'skipped'; output?: string; error?: string; attempts: number }
 export interface FlowRun { id: string; flowId: string; input: string; status: 'running' | 'done' | 'failed' | 'stopped'; results: Record<string, StepResult> }

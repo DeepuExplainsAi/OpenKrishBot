@@ -20,3 +20,14 @@ test('rateLimiter allows the limit, then blocks until the window ends', () => {
   assert.ok(ok('other', 2));
   assert.ok(ok('k', 1000));
 });
+
+import crypto from 'node:crypto';
+import { checkSignature } from '../src/lib/fence.ts';
+test('checkSignature: none = null, right = true, wrong or malformed = false', () => {
+  const sig = 'sha256=' + crypto.createHmac('sha256', 'sec').update('{"a":1}').digest('hex');
+  assert.equal(checkSignature('sec', '{"a":1}', undefined), null);
+  assert.equal(checkSignature('sec', '{"a":1}', sig), true);
+  assert.equal(checkSignature('sec', '{"a":2}', sig), false);
+  assert.equal(checkSignature('other', '{"a":1}', sig), false);
+  assert.equal(checkSignature('sec', '{"a":1}', 'sha256=zz'), false);
+});

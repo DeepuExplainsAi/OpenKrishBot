@@ -94,3 +94,17 @@ test('resume keeps finished steps, reruns failed and skipped ones, and feeds old
   assert.equal(prompts.b, 'b sees out-a');
   assert.equal(again.results.a.output, 'out-a');
 });
+
+test('a gated step waits for approval: yes runs it, no fails it and skips what follows', async () => {
+  const steps = [S('a'), S('b', ['a'], { gate: true }), S('c', ['b'])];
+  const asked: string[] = [];
+  const yes = await runFlow(steps, { input: '', approve: async (s) => { asked.push(s.id); return true; }, exec: async (s) => `out-${s.id}` });
+  assert.equal(yes.status, 'done');
+  assert.deepEqual(asked, ['b']);
+  const ran: string[] = [];
+  const no = await runFlow(steps, { input: '', approve: async () => false, exec: async (s) => { ran.push(s.id); return 'x'; } });
+  assert.equal(no.status, 'failed');
+  assert.deepEqual(ran, ['a']);
+  assert.equal(no.results.b.error, 'Not approved.');
+  assert.equal(no.results.c.status, 'skipped');
+});

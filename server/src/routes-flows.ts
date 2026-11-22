@@ -3,7 +3,7 @@ import { Cron } from 'croner';
 import { db, now } from './db.js';
 import { newId } from './lib/ids.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
-import { enqueue, interrupt, runInBotQueue } from './agent/loop.js';
+import { enqueue, interrupt, requestApproval, runInBotQueue } from './agent/loop.js';
 import { appendRow, getBotRow, listRows } from './store.js';
 import { planPrompt, parsePlan } from './flow-plan.js';
 import { runFlow, validate, type FlowStep, type RunResults } from './flow.js';
@@ -29,6 +29,14 @@ const toRun = (r: any) => ({ id: r.id, flowId: r.flow_id, input: r.input, status
 
 function resolveBot(userId: string, name: string) {
   return db.prepare("SELECT id, name FROM bots WHERE user_id=? AND kind!='room' AND (lower(name)=lower(?) OR id=?)").get(userId, name.trim(), name.trim()) as { id: string; name: string } | undefined;
+}
+
+/** A workflow step marked "ask me first": an approval card in that bot's chat; true = allowed. Allow/Always both mean yes. */
+export async function askGate(userId: string, step: FlowStep, prompt: string): Promise<boolean> {
+  const bot = resolveBot(userId, step.bot);
+  if (!bot) return false;
+  const d = await requestApproval({ userId, botId: bot.id }, { key: 'flow_step', title: `Workflow: run step "${step.id}"` }, { step: step.id, instructions: prompt.slice(0, 500) }, null);
+  return d === 'allow';
 }
 
 /** Send the prompt to the bot like a typed message and return what it answered once its queue has drained. */
@@ -58,7 +66,7 @@ flowsApi.put('/', async (c) => {
   const b = await c.req.json<{ id?: string; name?: string; steps?: FlowStep[]; schedule?: string }>().catch(() => ({} as any));
   const name = String(b.name ?? '').trim();
   if (!name) return c.json({ error: 'Give the flow a name.' }, 400);
-  const steps = ((b.steps ?? []) as FlowStep[]).map((s: FlowStep) => ({ id: String(s.id ?? '').trim(), bot: String(s.bot ?? '').trim(), prompt: String(s.prompt ?? '').trim(), needs: (s.needs ?? []).map(String), retries: Math.max(0, Math.min(Number(s.retries ?? 0) || 0, 3)) }));
+  const steps = ((b.steps ?? []) as FlowStep[]).map((s: FlowStep) => ({ id: String(s.id ?? '').trim(), bot: String(s.bot ?? '').trim(), prompt: String(s.prompt ?? '').trim(), needs: (s.needs ?? []).map(String), retries: Math.max(0, Math.min(Number(s.retries ?? 0) || 0, 3)), ...(s.gate ? { gate: true } : {}) }));
   const bad = validate(steps);
   if (bad) return c.json({ error: bad }, 400);
   const userId = c.get('user').id;
@@ -113,7 +121,7 @@ export function startFlowRun(userId: string, flowId: string, input: string, resu
   };
   const initial = Object.fromEntries(steps.map((s) => [s.id, resumeFrom?.[s.id]?.status === 'done' ? resumeFrom[s.id] : { status: 'pending', attempts: 0 }]));
   db.prepare('INSERT INTO flow_runs(id,flow_id,input,status,results,started_at) VALUES (?,?,?,?,?,?)').run(runId, flowId, input, 'running', JSON.stringify(initial), now());
-  void runFlow(steps, { input, signal: ctl.signal, concurrency: 3, resume: resumeFrom, exec: (s, p) => askBot(userId, s.bot, p, ctl.signal), onUpdate: (r) => save('running', r) })
+  void runFlow(steps, { input, signal: ctl.signal, concurrency: 3, resume: resumeFrom, approve: (s, p) => askGate(userId, s, p), exec: (s, p) => askBot(userId, s.bot, p, ctl.signal), onUpdate: (r) => save('running', r) })
     .then((r) => save(r.status, r.results, true))
     .catch((e) => save('failed', { ...last, _run: { status: 'failed', error: String(e?.message ?? e), attempts: 0 } }, true))
     .finally(() => aborts.delete(runId));

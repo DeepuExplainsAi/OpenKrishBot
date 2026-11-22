@@ -86,6 +86,10 @@ export function postToRoom(fromBotId: string, roomName: string, text: string) {
   if (!room) return `No group named "${roomName}".`;
   const members: string[] = room.members ? JSON.parse(room.members) : [];
   if (!members.includes(fromBotId)) return `You're not a member of "${room.name}".`;
+  // One post per bot per user message: a bot that keeps posting cannot flood the room.
+  const lastUser = (db.prepare("SELECT MAX(seq) s FROM rows WHERE bot_id=? AND generation=? AND kind='message' AND json_extract(body,'$.role')='user'").get(room.id, room.generation) as any)?.s ?? 0;
+  const already = db.prepare("SELECT 1 FROM rows WHERE bot_id=? AND generation=? AND seq>? AND kind='message' AND json_extract(body,'$.from.id')=?").get(room.id, room.generation, lastUser, fromBotId);
+  if (already) return `You already replied to the latest message in "${room.name}". Wait for the next one.`;
   appendRow(room.id, 'message', { type: 'message', role: 'assistant', text, from: { kind: 'bot', id: from.id, name: from.name } });
   db.prepare('UPDATE bots SET unread = unread + 1 WHERE id=?').run(room.id);
   return 'Posted to the group.';
