@@ -442,3 +442,7 @@ Done:
 - `lib/egress.ts`: `isPrivateIp`, `assertPublicUrl` (http(s) only, DNS-resolved host must be public). `scrape.ts`: `fetchPage(url, {publicOnly})` re-checks every redirect hop (max 5); `fetchPageCached`, robots/sitemap fetches use it. Escape hatch `OPENKRISHBOT_ALLOW_PRIVATE_FETCH=1`. Test `egress.test.mts`.
 - Not covered: DNS rebinding between check and connect (check resolves, fetch resolves again); `apps.ts` / `vault.ts` fetches (user-configured URLs, left as is); browser tools (can open localhost on purpose).
 - Reference review of suparagent/openfuse/munder-difflin/orgo-teammates done (MIT/Apache); ideas list is in item 10.
+
+## P30 — fence untrusted text, webhook rate limit (suparagent `fence.py` / openfuse rate-limit ideas, from scratch)
+- `lib/fence.ts`: `fenceUntrusted` (webhook body and feed item go into the routine prompt as one JSON string under an "untrusted data" label) and `rateLimiter`. `triggers.ts`: 30 calls/min per webhook secret, else 429. Test `fence.test.mts`.
+- Not done: HMAC/header auth for webhooks (secret in path only), login-attempt limiter (`login_attempts` table unused), scrubbing credential-looking values inside fenced text. A model can still be talked into things by data; the fence lowers the risk, it does not remove it.
