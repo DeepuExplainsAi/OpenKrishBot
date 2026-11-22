@@ -226,6 +226,16 @@ try {
     ok((await api('POST', '/api/flows/plan', { goal: ' ' })).status === 400, 'empty goal accepted');
   });
 
+  await test('skills: import SKILL.md, listed as custom, enabled/removed; built-ins cannot be removed', async () => {
+    const r = await api('POST', '/api/skill-library/import', { markdown: '---\nname: Pirate Talk\ntriggers: arr matey\n---\nSpeak like a pirate.' });
+    ok(r.id === 'pirate-talk', JSON.stringify(r));
+    const l = (await api('GET', '/api/skill-library')).skills;
+    ok(l.find((x) => x.id === 'pirate-talk')?.custom === true, 'not listed as custom');
+    ok((await api('POST', '/api/skill-library/import', { url: 'https://example.com/x' })).status === 400, 'non-GitHub url accepted');
+    ok((await api('DELETE', '/api/skill-library/daily-brief')).status === 404, 'built-in removed');
+    ok((await api('DELETE', '/api/skill-library/pirate-talk')).ok, 'remove failed');
+  });
+
   await test('workflow: cron validated; bad schedule refused, good one saved', async () => {
     const steps = [{ id: 'a', bot: 'Alpha', prompt: 'x' }];
     ok((await api('PUT', '/api/flows', { name: 'Bad', steps, schedule: 'nonsense' })).status === 400, 'bad cron accepted');

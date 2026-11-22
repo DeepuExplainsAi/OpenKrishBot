@@ -13,7 +13,7 @@ import { computerState, readyScreen, resetBotScreen } from './computer.js';
 import { box } from './box.js';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
 import { listMemories } from './engine-memory.js';
-import { isEnabled, loadLibrary, setEnabled } from './skill-library.js';
+import { importFromGithub, installSkill, isEnabled, loadAll, removeSkill, setEnabled } from './skill-library.js';
 import { costOf, getBudget, getPrice, setBudget, setPrice, usageSummary, usageToday } from './usage.js';
 import type { LibraryFile, Skill } from './types.js';
 
@@ -166,14 +166,21 @@ configApi.put('/bots/:id/budget', async (c) => {
   return c.json(budgetInfo(b.id));
 });
 
-configApi.get('/skill-library', (c) => c.json({ skills: loadLibrary().map((s) => ({ id: s.id, name: s.name, description: s.description, triggers: s.triggerTerms.slice(0, 6), enabled: isEnabled(s) })) }));
+configApi.get('/skill-library', (c) => c.json({ skills: loadAll().map((s) => ({ id: s.id, name: s.name, description: s.description, triggers: s.triggerTerms.slice(0, 6), custom: !!s.custom, enabled: isEnabled(s) })) }));
 configApi.put('/skill-library/:id', async (c) => {
-  const s = loadLibrary().find((x) => x.id === c.req.param('id'));
+  const s = loadAll().find((x) => x.id === c.req.param('id'));
   if (!s) return c.json({ error: 'not found' }, 404);
   const { enabled } = await c.req.json<{ enabled?: boolean }>().catch(() => ({} as { enabled?: boolean }));
   setEnabled(s.id, enabled !== false);
   return c.json({ id: s.id, enabled: isEnabled(s) });
 });
+
+configApi.post('/skill-library/import', async (c) => {
+  const { url, markdown } = await c.req.json<{ url?: string; markdown?: string }>().catch(() => ({} as { url?: string; markdown?: string }));
+  try { const s = markdown ? installSkill(String(markdown)) : await importFromGithub(String(url ?? '')); return c.json({ id: s.id, name: s.name }); }
+  catch (e: any) { return c.json({ error: e.message }, 400); }
+});
+configApi.delete('/skill-library/:id', (c) => removeSkill(c.req.param('id')) ? c.json({ ok: true }) : c.json({ error: 'Only skills you added can be removed.' }, 404));
 
 configApi.get('/usage', (c) => c.json({ usage: usageSummary(c.get('user').id, 7) }));
 

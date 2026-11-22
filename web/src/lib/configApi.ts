@@ -58,7 +58,7 @@ export interface Issue { id: string; title: string; body: string; status: IssueS
 export interface Price { inPerM: number; outPerM: number }
 export interface BudgetInfo { dailyTokens: number | null; today: { tokensIn: number; tokensOut: number; calls: number; costUsd: number }; price: Price | null }
 
-export interface LibrarySkill { id: string; name: string; description: string; triggers: string[]; enabled: boolean }
+export interface LibrarySkill { id: string; name: string; description: string; triggers: string[]; enabled: boolean; custom?: boolean }
 
 export interface TelegramInfo { status: 'off' | 'running' | 'error'; bot: string | null; error: string | null; hasToken: boolean; paired: number; pairCode: string | null }
 
@@ -70,6 +70,8 @@ export const configApi = {
   telegramStop: () => req<{ ok: true }>('POST', '/telegram/stop', {}),
   telegramUnlink: () => req<{ ok: true }>('POST', '/telegram/unlink', {}),
   skillLibrary: () => req<{ skills: LibrarySkill[] }>('GET', '/skill-library'),
+  importSkill: (b: { url?: string; markdown?: string }) => req<{ id: string; name: string }>('POST', '/skill-library/import', b),
+  removeLibrarySkill: (id: string) => req<{ ok: true }>('DELETE', `/skill-library/${id}`),
   setLibrarySkill: (id: string, enabled: boolean) => req<{ id: string; enabled: boolean }>('PUT', `/skill-library/${id}`, { enabled }),
   budget: (botId: string) => req<BudgetInfo>('GET', `/bots/${botId}/budget`),
   setPrice: (botId: string, p: Price | null) => req<BudgetInfo>('PUT', `/bots/${botId}/price`, p),

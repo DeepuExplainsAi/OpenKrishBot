@@ -756,7 +756,15 @@ function IssuesSection() {
 
 function SkillsSection() {
   const [skills, setSkills] = useState<LibrarySkill[] | null>(null);
-  useEffect(() => { configApi.skillLibrary().then((r) => setSkills(r.skills)).catch(() => setSkills([])); }, []);
+  const [src, setSrc] = useState('');
+  const [err, setErr] = useState('');
+  const load = useCallback(() => configApi.skillLibrary().then((r) => setSkills(r.skills)).catch(() => setSkills([])), []);
+  useEffect(() => { load(); }, [load]);
+  const add = () => {
+    setErr('');
+    const t = src.trim();
+    configApi.importSkill(/^https?:\/\//.test(t) ? { url: t } : { markdown: t }).then(() => { setSrc(''); load(); }).catch((e) => setErr(e.message));
+  };
   const toggle = (s: LibrarySkill) => {
     setSkills((l) => l && l.map((x) => (x.id === s.id ? { ...x, enabled: !s.enabled } : x)));
     configApi.setLibrarySkill(s.id, !s.enabled).catch(() => setSkills((l) => l && l.map((x) => (x.id === s.id ? { ...x, enabled: s.enabled } : x))));
@@ -765,6 +773,13 @@ function SkillsSection() {
     <>
       <PageHead title="Skills" sub="Built-in know-how your Bots use automatically when your message matches. Switch off any you don't want. Skills you write yourself live in each Bot's settings." />
       <section className="cfg-section">
+        <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
+          <textarea className="text-input" rows={2} placeholder="Add a skill: paste a GitHub link (repo or folder with a SKILL.md), or the SKILL.md text" value={src} onChange={(e) => setSrc(e.target.value)} />
+          {err && <div className="cfg-row__sub" style={{ color: 'crimson' }}>{err}</div>}
+          <button type="button" className="cfg-btn cfg-btn--primary" disabled={!src.trim()} onClick={add}>Add skill</button>
+        </div>
+      </section>
+      <section className="cfg-section">
         <div className="cfg-card">
           {skills === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : skills.length === 0 ? <div className="cfg-empty cfg-empty--flat">No built-in skills found.</div> : skills.map((s) => (
             <div key={s.id} className="cfg-row">
@@ -772,6 +787,7 @@ function SkillsSection() {
                 <div className="cfg-row__title">{s.name}</div>
                 <div className="cfg-row__sub">{s.description} Used when you say: {s.triggers.join(', ')}…</div>
               </div>
+              {s.custom && <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Remove" onConfirm={async () => { await configApi.removeLibrarySkill(s.id); load(); }}>Remove</ConfirmButton>}
               <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => toggle(s)} aria-pressed={s.enabled}>{s.enabled ? 'On' : 'Off'}</button>
             </div>
           ))}

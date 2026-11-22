@@ -32,3 +32,31 @@ test('a blank trigger term never matches every message', async () => {
   const s = { id: 'x', name: 'x', description: '', triggerTerms: [''], defaultEnabled: true, body: 'b' };
   assert.equal(matchSkills('anything', [s], () => true).length, 0);
 });
+
+test('SKILL.md parsing: front matter, default triggers, explicit triggers, junk refused', async () => {
+  const { parseSkillMd, parseGithubUrl } = await import('../src/skill-library.js');
+  const a = parseSkillMd('---\nname: "Code Review"\ndescription: Review diffs\ntriggers: [review, "code review"]\n---\nLook at the diff.');
+  assert.deepEqual([a.id, a.description, a.triggerTerms, a.body], ['code-review', 'Review diffs', ['review', 'code review'], 'Look at the diff.']);
+  assert.deepEqual(parseSkillMd('# Tidy Notes\nDo it.').triggerTerms, ['tidy notes']);
+  assert.throws(() => parseSkillMd('---\nname: x\n---\n'), /no name or no instructions/);
+  assert.deepEqual(parseGithubUrl('https://github.com/o/r/tree/main/skills/pdf/SKILL.md'), { owner: 'o', repo: 'r', ref: 'main', dir: 'skills/pdf' });
+  assert.deepEqual(parseGithubUrl('https://github.com/o/r.git'), { owner: 'o', repo: 'r', ref: undefined, dir: '' });
+  assert.throws(() => parseGithubUrl('https://evil.example/o/r'), /public GitHub link/);
+});
+
+test('install, load as custom, never shadow a shipped skill, remove, import from GitHub', async () => {
+  const { installSkill, removeSkill, loadLibrary, importFromGithub } = await import('../src/skill-library.js');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'usk-'));
+  installSkill('---\nname: Pirate Talk\n---\nSpeak like a pirate.', d);
+  assert.deepEqual(loadLibrary(d).map((s) => s.id), ['pirate-talk']);
+  assert.throws(() => installSkill('---\nname: Daily brief\n---\nx', d), /built-in/);
+  assert.equal(removeSkill('../etc', d), false);
+  assert.equal(removeSkill('pirate-talk', d), true);
+  assert.deepEqual(loadLibrary(d), []);
+  let asked = '';
+  const fake = (async (u: string) => { asked = u; return new Response('---\nname: From Git\n---\nBody here.', { status: 200 }); }) as unknown as typeof fetch;
+  assert.equal((await importFromGithub('https://github.com/o/r/tree/dev/skills/x', fake, d)).id, 'from-git');
+  assert.match(asked, /api\.github\.com\/repos\/o\/r\/contents\/skills\/x\/SKILL\.md\?ref=dev/);
+  assert.equal(removeSkill('from-git', d), true);
+  assert.rejects(importFromGithub('https://github.com/o/r', (async () => new Response('', { status: 404 })) as unknown as typeof fetch), /No SKILL\.md/);
+});

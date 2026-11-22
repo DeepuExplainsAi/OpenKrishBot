@@ -267,3 +267,10 @@ Redone from scratch: the previous agent's version (OpenManus PlanningFlow idea) 
 Tests: flow-plan.test.mts (3), e2e "Plan with AI" (22 total). Unit 83, e2e 22, typecheck clean.
 NOT verified: the UI in a real browser; planner quality with a real model (planner reply is parsed strictly, an unusable reply gives a clear error).
 Planned next, from the OpenMan repo (nickvasilescu/openman, cloned to ~/openman, not committed): its skills, projects with shared instructions, generators (slides/docs/charts), meeting notes, websites, automations. Compare against Krishbot and port what is missing (P13).
+
+## P13a: skills import (2026-11-22), first port from OpenMan (nickvasilescu/openman)
+OpenMan review (read README, ARCHITECTURE, docs/skills.md, src/lib/skills|automations|generators): it is a Next.js + Supabase + Orgo-cloud product, so only ideas port, not code. What Krishbot lacked and OpenMan has: (1) add your own skills + GitHub import + 55-skill official library [this part], (2) automation "only if" conditions on triggers (conditions.ts, small), (3) RSS/HTTP-poll triggers, (4) projects with shared instructions + reference files, (5) generators (slides, docs, charts, audio), (6) meeting-file transcription to notes, (7) websites built and hosted locally, (8) task share/collaboration, (9) skill-from-a-task.
+Done in P13a: `skill-library.ts` loads shipped skills plus `~/.krishbot/skills/<id>/` (user skills never shadow shipped ones). `POST /api/skill-library/import {url|markdown}` (github.com only, repo or folder link, SKILL.md front matter name/description/triggers; no triggers = answers to its own name), `DELETE /api/skill-library/:id` (user skills only). Skills page: "Add skill" box + Remove on custom skills.
+Tests: skills.test (+2), e2e "skills import" (23 total). Unit 85, e2e 23, typecheck clean.
+NOT verified: import against real GitHub (fetch is faked in the unit test), UI in a browser. Only SKILL.md is imported, not scripts shipped beside it. Still not built: the 55-skill official catalog (can now be imported by link), items 2-9 above.
+Next: P13b = trigger "only if" conditions (2) and RSS trigger (3), then (4) projects.
