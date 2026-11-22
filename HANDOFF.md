@@ -540,3 +540,7 @@ Done:
 - Seam: `skill-library.ts` loads folders without manifest.json as catalog skills (CRLF-safe); `skillsPrompt` lists them as a "Skill library" (name + description); new bot tool `read_skill` (name, optional reference file, path-confined). Old trigger-term skills unchanged.
 - Flaky (not ours): `browser-tools` test once failed on Ubuntu with `duplicate column name: last_seen` (db.ts addColumn race between test processes); passes on rerun.
 - NOT copied (nod is Postgres + Fastify, would need a rewrite, not a copy): ledger, proactivity, local-files, keep-out SQL. Next: copy `proactivity` logic only if its pure parts separate; then Q3 Hindi UI, then release.
+
+### v1.9.1 part 8 — Hindi UI strings
+- Maus packs (hi + 16 others, 3680 hi keys) and the DOM translator were already in; they only know Maus's sentences. This app's own screens had 91 untranslated visible strings (Settings, Bots, phone pairing, WhatsApp, workflows...). Filled `web/src/i18n/extra-hi.json` (text only). Other languages still fall back to English for those 91.
+- Reply language is separate (server `language.ts`): Hinglish in -> Hinglish out.
