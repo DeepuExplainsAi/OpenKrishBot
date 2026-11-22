@@ -261,3 +261,9 @@ Still not built: per-step PlanningFlow executor, Slack/Discord, handoff cards, m
 ## P12k: money cost (2026-11-22)
 Optional per-bot price (USD per 1M tokens in/out, kv `price:<bot>`), `PUT /api/bots/:id/price`. No price = free model, cost 0. Cost is computed from the current price x recorded tokens (changing the price re-prices history; shown as "≈"). UI: price inputs + "Cost today" in the bot's Engine budget row; last-7-days usage and total in Settings → Activity log.
 Tests: usage.test (price), e2e "price" (21 total). Unit 80. UI not seen in a browser.
+
+## P12l: Plan with AI (2026-11-22)
+Redone from scratch: the previous agent's version (OpenManus PlanningFlow idea) was never committed. `server/src/flow-plan.ts` (prompt + strict parser: JSON found inside prose, bot names matched, ids normalised, unknown needs dropped, validated by `validate`), `POST /api/flows/plan {goal, bot?}` (planner = given bot or the first bot; saves nothing), Workflows editor has a "Plan with AI" goal box that loads the draft steps into the editor.
+Tests: flow-plan.test.mts (3), e2e "Plan with AI" (22 total). Unit 83, e2e 22, typecheck clean.
+NOT verified: the UI in a real browser; planner quality with a real model (planner reply is parsed strictly, an unusable reply gives a clear error).
+Planned next, from the OpenMan repo (nickvasilescu/openman, cloned to ~/openman, not committed): its skills, projects with shared instructions, generators (slides/docs/charts), meeting notes, websites, automations. Compare against Krishbot and port what is missing (P13).

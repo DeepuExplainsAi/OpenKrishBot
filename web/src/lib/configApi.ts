@@ -87,6 +87,7 @@ export const configApi = {
   deleteIssue: (id: string) => req<{ ok: true }>('DELETE', `/issues/${id}`),
   flows: () => req<{ flows: Flow[] }>('GET', '/flows'),
   saveFlow: (f: { id?: string; name: string; steps: FlowStep[]; schedule?: string }) => req<{ flow: Flow }>('PUT', '/flows', f),
+  planFlow: (goal: string) => req<{ steps: FlowStep[]; planner: string }>('POST', '/flows/plan', { goal }),
   deleteFlow: (id: string) => req<{ ok: true }>('DELETE', `/flows/${id}`),
   runFlow: (id: string, input: string) => req<{ runId: string }>('POST', `/flows/${id}/run`, { input }),
   flowRun: (runId: string) => req<{ run: FlowRun }>('GET', `/flows/runs/${runId}`),

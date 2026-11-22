@@ -57,6 +57,7 @@ const fake = http.createServer((req, res) => {
       res.write(`data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c_x', function: { name: 'terminal', arguments: `{"command":"touch ${process.env.E2E_MARK}2` } }] }, finish_reason: 'length' }] })}\n\n`);
       return res.end();
     }
+    if (/Break this goal into workflow steps/.test(text)) return sseChunks(res, [{ content: '[{"id":"a","bot":"Alpha","prompt":"research {{input}}"},{"id":"b","bot":"Beta","prompt":"write {{a}}","needs":["a"]}]' }]);
     const cmd = text.match(/RUN (.+)$/)?.[1];
     if (cmd) return sseChunks(res, [{ tool_calls: [{ index: 0, id: 'call_1', function: { name: 'terminal', arguments: JSON.stringify({ command: cmd }) } }] }]);
     sseChunks(res, [{ content: `ECHO[${text.replace(/^[\s\S]*?(?=\S)/, '').slice(0, 200)}]` }]);
@@ -217,6 +218,12 @@ try {
     const done = await until(async () => { const r = (await api('GET', `/api/flows/runs/${run.runId}`)).run; return r.status !== 'running' ? r : null; }, 60000, 'flow finish');
     ok(done.status === 'done', `status ${done.status} ${JSON.stringify(done.results)}`);
     ok(/cats/.test(done.results.m.output) && /facts/.test(done.results.m.output), 'merge lacks inputs');
+  });
+
+  await test('workflow: Plan with AI drafts steps from a goal', async () => {
+    const p = await api('POST', '/api/flows/plan', { goal: 'launch a blog', bot: 'Alpha' });
+    ok(p.steps?.length === 2 && p.steps[1].needs[0] === 'a' && p.steps[1].bot === 'Beta', JSON.stringify(p));
+    ok((await api('POST', '/api/flows/plan', { goal: ' ' })).status === 400, 'empty goal accepted');
   });
 
   await test('workflow: cron validated; bad schedule refused, good one saved', async () => {

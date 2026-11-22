@@ -502,6 +502,8 @@ function WorkflowsSection() {
   const [err, setErr] = useState('');
   const [run, setRun] = useState<FlowRun | null>(null);
   const [input, setInput] = useState('');
+  const [goal, setGoal] = useState('');
+  const [planning, setPlanning] = useState(false);
   const load = useCallback(() => configApi.flows().then((r) => setFlows(r.flows)).catch(() => setFlows([])), []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -514,6 +516,10 @@ function WorkflowsSection() {
   const save = async () => {
     if (!edit) return;
     try { await configApi.saveFlow(edit); setEdit(null); setErr(''); load(); } catch (e: any) { setErr(e.message); }
+  };
+  const plan = async () => {
+    setErr(''); setPlanning(true);
+    try { const r = await configApi.planFlow(goal); setEdit((e) => e && { ...e, name: e.name || goal.slice(0, 40), steps: r.steps }); } catch (e: any) { setErr(e.message); } finally { setPlanning(false); }
   };
   const start = async (f: Flow) => {
     setErr('');
@@ -528,6 +534,10 @@ function WorkflowsSection() {
           <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
             <input className="text-input" placeholder="Workflow name" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
             <input className="text-input" placeholder="Run automatically (cron, optional) e.g. 0 9 * * 1-5" value={edit.schedule ?? ''} onChange={(e) => setEdit({ ...edit, schedule: e.target.value })} />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input className="text-input" placeholder="Plan with AI: write a goal" value={goal} onChange={(e) => setGoal(e.target.value)} />
+              <button type="button" className="cfg-btn cfg-btn--secondary" disabled={planning || !goal.trim()} onClick={plan}>{planning ? 'Planning…' : 'Plan with AI'}</button>
+            </div>
             {edit.steps.map((s, i) => (
               <div key={i} style={{ display: 'grid', gap: 6, padding: 8, border: '1px solid var(--border, #ddd)', borderRadius: 8 }}>
                 <div style={{ display: 'flex', gap: 6 }}>

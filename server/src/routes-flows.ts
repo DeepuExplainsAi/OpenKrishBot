@@ -5,6 +5,7 @@ import { newId } from './lib/ids.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
 import { enqueue, interrupt, runInBotQueue } from './agent/loop.js';
 import { appendRow, getBotRow, listRows } from './store.js';
+import { planPrompt, parsePlan } from './flow-plan.js';
 import { runFlow, validate, type FlowStep, type RunResults } from './flow.js';
 
 db.exec(`
@@ -70,6 +71,19 @@ flowsApi.put('/', async (c) => {
     .run(id, userId, name, JSON.stringify(steps), schedule, now(), now());
   scheduleFlow(id, userId, schedule);
   return c.json({ flow: toFlow(own(userId, id)) });
+});
+
+/** Draft steps from a goal: one of the user's bots acts as planner. Nothing is saved; the UI loads the draft into the editor. */
+flowsApi.post('/plan', async (c) => {
+  const b = await c.req.json<{ goal?: string; bot?: string }>().catch(() => ({} as any));
+  const goal = String(b.goal ?? '').trim();
+  if (!goal) return c.json({ error: 'Write the goal first.' }, 400);
+  const userId = c.get('user').id;
+  const bots = (db.prepare("SELECT name FROM bots WHERE user_id=? AND kind!='room' ORDER BY created_at").all(userId) as { name: string }[]).map((r) => r.name);
+  if (!bots.length) return c.json({ error: 'Create a Bot first.' }, 400);
+  const planner = (b.bot && resolveBot(userId, b.bot)?.name) || bots[0];
+  try { return c.json({ steps: parsePlan(await askBot(userId, planner, planPrompt(goal, bots)), bots), planner }); }
+  catch (e: any) { return c.json({ error: e.message }, 502); }
 });
 
 flowsApi.delete('/:id', (c) => {
