@@ -66,3 +66,9 @@ P0, P1, P2, P3 done. Server boots with zero keys (verified). Next: P4 MCP connec
 - computer.ts is a thin local shim (status always 'running'). Settings 'Screens in use' list = running browsers.
 - Verified: bot navigated example.com, answered title+link; WS frames flow.
 - Not a full desktop (no OS-level mouse/keyboard). OS control could be added in P5 if needed.
+
+## Takeover 2026-11-22 (new agent)
+- Read: this handoff, the old Krishbot repo (`DeepuExplainsAi/Krishbot`, branch `full-port`: has local `apps.ts` MCP catalog and `triggers.ts` webhook routines, reused here), owner's video (previous AI stopped in P4 while removing Composio; nothing of that was pushed, Composio code is still in `composio.ts`, `mcp.ts`, `triggers.ts`, `agent/*`, `routes.ts`, web modal).
+- Owner's extra requirements (from docx): WhatsApp integrated; phone remote control; best error handling (provider/API failures: retry, fallback to next provider, clear messages) taken from the reference repos incl. paperclipai/paperclip; model list incl. "gpt-6-luna"-style ids preconfigured; look stays bot-hq/Grok Bot; no cloud; no license text in About (add later).
+- Machine limits: 482 MB RAM, ~900 MB disk. Reference repos cloned under ~/ref (not committed).
+- Order: P4 (local connectors, remove Composio) -> P5 -> ... as listed. Each part: re-check previous part first, push, update this file.
