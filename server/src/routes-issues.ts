@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { db } from './db.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
-import { createIssue, listIssues, setStatus, type IssueStatus } from './issues.js';
+import { addComment, createIssue, listComments, listIssues, setStatus, type IssueStatus } from './issues.js';
 
 /** /api/issues: the user's view of shared work. Users may assign, move and cancel issues; only bots check out and finish them. */
 export const issuesApi = new Hono<AuthVars>();
@@ -34,4 +34,15 @@ issuesApi.patch('/:id', async (c) => {
 issuesApi.delete('/:id', (c) => {
   const r = db.prepare('DELETE FROM issues WHERE id=? AND user_id=?').run(c.req.param('id'), c.get('user').id);
   return r.changes ? c.json({ ok: true }) : c.json({ error: 'not found' }, 404);
+});
+
+const ownIssue = (userId: string, id: string) => db.prepare('SELECT 1 FROM issues WHERE id=? AND user_id=?').get(id, userId);
+
+issuesApi.get('/:id/comments', (c) => ownIssue(c.get('user').id, c.req.param('id')) ? c.json({ comments: listComments(c.get('user').id, c.req.param('id')) }) : c.json({ error: 'not found' }, 404));
+
+issuesApi.post('/:id/comments', async (c) => {
+  if (!ownIssue(c.get('user').id, c.req.param('id'))) return c.json({ error: 'not found' }, 404);
+  const b = await c.req.json<{ text?: string }>().catch(() => ({} as any));
+  const r = addComment(c.get('user').id, c.req.param('id'), null, String(b.text ?? ''));
+  return r.ok ? c.json({ comment: r.comment }) : c.json({ error: r.reason }, 400);
 });

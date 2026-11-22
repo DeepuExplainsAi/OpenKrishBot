@@ -47,9 +47,11 @@ async function toolsFor(botId: string) {
   return list;
 }
 
+/** Yields stream chunks; throws if the body ends without [DONE] or a finish_reason, or if the provider sends an error payload. */
 async function* deltas(res: Response) {
   const dec = new TextDecoder();
   let buf = '';
+  let complete = false;
   for await (const chunk of res.body as any as AsyncIterable<Uint8Array>) {
     buf += dec.decode(chunk, { stream: true });
     let i: number;
@@ -58,10 +60,16 @@ async function* deltas(res: Response) {
       buf = buf.slice(i + 1);
       if (!line.startsWith('data:')) continue;
       const raw = line.slice(5).trim();
-      if (!raw || raw === '[DONE]') continue;
-      try { yield JSON.parse(raw); } catch { /* partial */ }
+      if (raw === '[DONE]') { complete = true; continue; }
+      if (!raw) continue;
+      let j: any;
+      try { j = JSON.parse(raw); } catch { continue; }
+      if (j.error) throw new Error(String(j.error.message ?? j.error));
+      if (j.choices?.some((ch: any) => ch.finish_reason)) complete = true;
+      yield j;
     }
   }
+  if (!complete) throw new Error('stream ended early');
 }
 
 krishApi.post('/v1/responses', async (c) => {
@@ -89,24 +97,37 @@ krishApi.post('/v1/responses', async (c) => {
         for (let step = 0; step < MAX_STEPS; step++) {
           const stop = overBudget(botId);
           if (stop) throw Object.assign(new Error(stop), { name: 'ModelError' });
-          const att = await callModel(botId, { model, stream: true, messages: [{ role: 'system', content: system }, ...history.slice(-MAX_HISTORY)], ...(tools.length ? { tools, tool_choice: 'auto' } : {}), ...(effort && /gpt-5|o\d|gpt-oss/.test(model) ? { reasoning_effort: effort } : {}) }, bot?.provider, c.req.raw.signal, { onRetry: (note) => send('krish.notice', { text: note }) });
-          if (att.switchedFrom) { send('krish.notice', { text: `${att.switchedFrom} failed, so ${att.providerName} answered.` }); }
-          const res = att.res;
           let text = '';
+          let emitted = false;
           let reported: { prompt_tokens?: number; completion_tokens?: number } | null = null;
-          const calls: Record<number, { id: string; name: string; args: string }> = {};
-          for await (const j of deltas(res)) {
-            if (j.usage) reported = j.usage;
-            const d = j.choices?.[0]?.delta;
-            if (!d) continue;
-            const r = d.reasoning ?? d.reasoning_content;
-            if (r) send('response.reasoning_summary_text.delta', { delta: r });
-            if (d.content) { text += d.content; send('response.output_text.delta', { delta: d.content }); }
-            for (const tc of d.tool_calls ?? []) {
-              const k = calls[tc.index ?? 0] ??= { id: tc.id ?? `call_${Date.now()}_${n++}`, name: '', args: '' };
-              if (tc.id) k.id = tc.id;
-              if (tc.function?.name) k.name += tc.function.name;
-              if (tc.function?.arguments) k.args += tc.function.arguments;
+          let calls: Record<number, { id: string; name: string; args: string }> = {};
+          for (let tryNo = 0; ; tryNo++) {
+            text = ''; calls = {}; emitted = false;
+            const att = await callModel(botId, { model, stream: true, messages: [{ role: 'system', content: system }, ...history.slice(-MAX_HISTORY)], ...(tools.length ? { tools, tool_choice: 'auto' } : {}), ...(effort && /gpt-5|o\d|gpt-oss/.test(model) ? { reasoning_effort: effort } : {}) }, bot?.provider, c.req.raw.signal, { onRetry: (note) => send('krish.notice', { text: note }) });
+            if (att.switchedFrom) { send('krish.notice', { text: `${att.switchedFrom} failed, so ${att.providerName} answered.` }); }
+            const res = att.res;
+            try {
+              for await (const j of deltas(res)) {
+                if (j.usage) reported = j.usage;
+                const d = j.choices?.[0]?.delta;
+                if (!d) continue;
+                const r = d.reasoning ?? d.reasoning_content;
+                if (r) { emitted = true; send('response.reasoning_summary_text.delta', { delta: r }); }
+                if (d.content) { text += d.content; send('response.output_text.delta', { delta: d.content }); }
+                for (const tc of d.tool_calls ?? []) {
+                  const k = calls[tc.index ?? 0] ??= { id: tc.id ?? `call_${Date.now()}_${n++}`, name: '', args: '' };
+                  if (tc.id) k.id = tc.id;
+                  if (tc.function?.name) k.name += tc.function.name;
+                  if (tc.function?.arguments) k.args += tc.function.arguments;
+                }
+              }
+              break;
+            } catch (e: any) {
+              if (c.req.raw.signal.aborted) throw e;
+              // nothing shown yet: a replay is invisible, so try once more. Otherwise keep what arrived and say so.
+              if (!emitted && !text && !Object.keys(calls).length && tryNo < 1) { send('krish.notice', { text: 'The model connection dropped, trying again…' }); continue; }
+              if ((text || emitted) && !Object.keys(calls).length) { send('krish.notice', { text: 'The model connection dropped before it finished; this answer may be cut short.' }); break; }
+              throw Object.assign(new Error('The model connection dropped mid-answer. Please send your message again.'), { name: 'ModelError' });
             }
           }
           const list = Object.values(calls).filter((k) => k.name);

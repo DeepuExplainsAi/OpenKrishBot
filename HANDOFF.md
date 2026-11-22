@@ -176,3 +176,12 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 - Bot tools `list_workflows`, `run_workflow` (name or id, optional input; hop-depth guarded). Flows have an optional cron `schedule` (editor field, validated on save, `initFlowSchedules` at boot, overlapping runs skipped).
 - Tests `test/flows-schedule.test.mts` (3). Total 54 pass; typecheck and web build clean. Server boots with `[flows] scheduled 0`.
 - NOT verified live: scheduled run firing on a real clock; run_workflow through a real model (auth wall for curl; unit level only).
+
+## P11h: mid-stream retry, issue comments, e2e suite (2026-11-22)
+- Owner's video (phone recording of the previous AI's chat) checked: it matches P0-P11f; it ended while writing `tests/e2e.mjs`, which was never pushed. That is now done.
+- Mid-stream failure (krish/engine.ts): a stream only counts as complete with `[DONE]` or a `finish_reason`; provider `error` payloads and early EOF throw. Nothing shown yet -> one invisible retry. Partial text -> kept, with a notice. Partial tool call -> error, tool NOT run (never executes a tool from an unfinished stream). Reasoning-only output counts as shown.
+- Issue comments: table `issue_comments`; `addComment/listComments` are scoped by user id (the bot tool `comment_issue` passes ctx.userId); `/api/issues/:id/comments`; Settings -> Issues -> Notes (auto-refreshes every 3s while open). Assignee/creator are woken; bot-to-bot ping-pong stops waking after 6 bot notes in a row (a user note resets it).
+- `npm run test:e2e` (tests/e2e.mjs): real built server on a throwaway HOME and DB, scripted fake model, 15 checks: auto-login + foreign Host, chat, approval allow, danger deny (audit `declined`, marker file not created), mid-stream drop retry, truncated tool stream never runs, tool runs exactly once when the next step drops, budget blocks without a model call, workflow fork/join, cron validation, issues + comments, endpoints, Telegram token refusal.
+- Totals: 56 unit tests + 15 e2e pass. A code review found 3 high issues (cross-user comments via bot tool, unfinished stream treated as success, comment ping-pong) - all fixed with tests.
+- Still needs the owner's machine: real phone, WhatsApp scan, real Telegram token, Windows/Mac launcher, browser voice, real connector with a key, cron firing on a real clock.
+- Still not built: goals tree, money cost tracking, offline Whisper, Slack/Discord, OpenManus per-step PlanningFlow executor, skills marketplace, handoff cards.

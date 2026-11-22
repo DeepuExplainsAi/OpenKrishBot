@@ -631,6 +631,7 @@ function IssuesSection() {
                 {(Object.keys(ISSUE_LABEL) as IssueStatus[]).map((s) => <option key={s} value={s}>{ISSUE_LABEL[s]}</option>)}
               </select>
               <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Delete" onConfirm={() => act(configApi.deleteIssue(i.id))}>Delete</ConfirmButton>
+              <IssueNotes issueId={i.id} nameOf={nameOf} />
             </div>
           ))}
         </div>
@@ -703,5 +704,27 @@ function TelegramSection() {
         </div>
       </section>
     </>
+  );
+}
+
+function IssueNotes({ issueId, nameOf }: { issueId: string; nameOf: (id: string | null) => string }) {
+  const [open, setOpen] = useState(false);
+  const [list, setList] = useState<{ id: string; author: string; text: string }[]>([]);
+  const [text, setText] = useState('');
+  const load = useCallback(() => configApi.issueComments(issueId).then((r) => setList(r.comments)).catch(() => {}), [issueId]);
+  useEffect(() => { if (!open) return; load(); const t = setInterval(load, 3000); return () => clearInterval(t); }, [open, load]);
+  return (
+    <div style={{ flexBasis: '100%' }}>
+      <button type="button" className="cfg-link" onClick={() => setOpen(!open)}>{open ? 'Hide notes' : 'Notes'}</button>
+      {open && (
+        <div style={{ display: 'grid', gap: 6, marginTop: 6 }}>
+          {list.map((c) => <div key={c.id} className="cfg-row__sub" style={{ whiteSpace: 'pre-wrap' }}><b>{c.author === 'user' ? 'You' : nameOf(c.author)}:</b> {c.text}</div>)}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input className="text-input" style={{ flex: 1 }} placeholder="Add a note (the Bot is told)" value={text} onChange={(e) => setText(e.target.value)} />
+            <button type="button" className="cfg-btn cfg-btn--primary" disabled={!text.trim()} onClick={async () => { await configApi.addIssueComment(issueId, text); setText(''); load(); }}>Send</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

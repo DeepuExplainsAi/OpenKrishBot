@@ -1,4 +1,4 @@
-import { checkout, createIssue, finish, issuesFor } from '../issues.js';
+import { addComment, checkout, createIssue, finish, issuesFor, listComments } from '../issues.js';
 import { db, now } from '../db.js';
 import { activePlan, createPlan, markStep, render, saveSteps } from '../plan.js';
 import { newId } from '../lib/ids.js';
@@ -254,6 +254,18 @@ export const TOOLS: ToolDef[] = [
     activity: 'working',
     label: 'Finishing an issue',
     impl: async (a, ctx) => { const r = finish(String(a.issue_id), ctx.botId, 'done', String(a.result)); return { output: r.ok ? 'Done.' : `Cannot complete: ${r.reason}` }; },
+  },
+  {
+    name: 'comment_issue',
+    description: 'Add a note to an issue (a question, progress, a decision). The assignee and creator are told. Without text, returns the existing comments instead.',
+    parameters: obj({ issue_id: { type: 'string' }, text: { type: 'string' } }, ['issue_id']),
+    activity: 'working',
+    label: 'Commenting on an issue',
+    impl: async (a, ctx) => {
+      if (!a.text) return { output: JSON.stringify(listComments(ctx.userId, String(a.issue_id)).map((c) => ({ by: c.author, text: c.text }))) };
+      const r = addComment(ctx.userId, String(a.issue_id), ctx.botId, String(a.text));
+      return { output: r.ok ? 'Added.' : `Cannot comment: ${r.reason}` };
+    },
   },
   {
     name: 'block_issue',

@@ -16,6 +16,35 @@ db.exec(`CREATE TABLE IF NOT EXISTS issues (
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
 )`);
 
+db.exec(`CREATE TABLE IF NOT EXISTS issue_comments (
+  id TEXT PRIMARY KEY, issue_id TEXT NOT NULL REFERENCES issues(id) ON DELETE CASCADE, author TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL
+)`);
+export interface IssueComment { id: string; issueId: string; author: string; text: string; createdAt: number }
+const toComment = (r: any): IssueComment => ({ id: r.id, issueId: r.issue_id, author: r.author, text: r.text, createdAt: r.created_at });
+const ownsIssue = (userId: string, issueId: string) => !!db.prepare('SELECT 1 FROM issues WHERE id=? AND user_id=?').get(issueId, userId);
+export const listComments = (userId: string, issueId: string): IssueComment[] =>
+  ownsIssue(userId, issueId) ? (db.prepare('SELECT * FROM issue_comments WHERE issue_id=? ORDER BY created_at, rowid').all(issueId) as any[]).map(toComment) : [];
+/** Bots answering each other's comments can't loop: after this many bot notes in a row (no user note between), nobody is woken. */
+const MAX_BOT_COMMENT_RUN = 6;
+
+/** A note on an issue, from the user (authorBotId null) or a bot. The assignee and the creator (whoever is not the author) are woken. */
+export function addComment(userId: string, issueId: string, authorBotId: string | null, text: string): { ok: true; comment: IssueComment } | { ok: false; reason: string } {
+  const i = ownsIssue(userId, issueId) ? getIssue(issueId) : null;
+  if (!i) return { ok: false, reason: `No issue ${issueId}.` };
+  const body = text.trim().slice(0, 4000);
+  if (!body) return { ok: false, reason: 'Write something.' };
+  const id = newId('cmt');
+  db.prepare('INSERT INTO issue_comments(id,issue_id,author,text,created_at) VALUES (?,?,?,?,?)').run(id, issueId, authorBotId ?? 'user', body, now());
+  touch(userId);
+  const botRun = authorBotId ? (db.prepare("SELECT COUNT(*) n FROM issue_comments WHERE issue_id=? AND author!='user' AND rowid>COALESCE((SELECT MAX(rowid) FROM issue_comments WHERE issue_id=? AND author='user'),0)").get(issueId, issueId) as any).n : 0;
+  const quiet = botRun > MAX_BOT_COMMENT_RUN;
+  const who = authorBotId ? botName(authorBotId) : 'The user';
+  for (const target of new Set([i.checkoutBotId ?? i.assigneeBotId, i.createdByBotId])) {
+    if (!quiet && target && target !== authorBotId && !['done', 'cancelled'].includes(i.status)) wake(target, `${who} commented on issue ${issueId} "${i.title}": ${body}`);
+  }
+  return { ok: true, comment: toComment(db.prepare('SELECT * FROM issue_comments WHERE id=?').get(id)) };
+}
+
 const to = (r: any): Issue => ({ id: r.id, title: r.title, body: r.body, status: r.status, assigneeBotId: r.assignee_bot, createdByBotId: r.created_by_bot, parentId: r.parent_id, checkoutBotId: r.checkout_bot, result: r.result, updatedAt: r.updated_at });
 const touch = (userId: string) => hub.emit(userId, { type: 'issues' });
 const botName = (id: string | null) => (id ? (db.prepare('SELECT name FROM bots WHERE id=?').get(id) as any)?.name ?? id : 'nobody');

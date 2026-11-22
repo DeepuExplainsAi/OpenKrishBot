@@ -82,3 +82,33 @@ test('bad input: empty title, unknown parent', () => {
   assert.throws(() => mk({ title: '  ' }), /title/);
   assert.throws(() => mk({ parentId: 'nope' }), /No issue/);
 });
+
+test('comments: bot note wakes creator and assignee (not the author); user note wakes holder; closed issues stay quiet', () => {
+  const i = mk({ assigneeBotId: 'b1', createdByBotId: 'b3' });
+  woken.length = 0;
+  const r = I.addComment('u', i.id, 'b1', 'need the API key');
+  assert.equal(r.ok, true);
+  assert.deepEqual(woken.map((w) => w[0]), ['b3']);
+  woken.length = 0;
+  I.addComment('u', i.id, null, 'use the staging one');
+  assert.deepEqual(woken.map((w) => w[0]).sort(), ['b1', 'b3']);
+  assert.equal(I.listComments('u', i.id).length, 2);
+  assert.equal(I.addComment('u', i.id, null, '  ').ok, false);
+  assert.equal(I.addComment('intruder', i.id, null, 'hi').ok, false);
+  assert.deepEqual(I.listComments('intruder', i.id), []);
+  assert.equal(I.addComment('u', 'nope', null, 'x').ok, false);
+  I.setStatus('u', i.id, { status: 'cancelled' });
+  woken.length = 0;
+  I.addComment('u', i.id, null, 'late');
+  assert.equal(woken.length, 0);
+});
+
+test('bot-to-bot comment ping-pong stops waking after a run of 6; a user note resets it', () => {
+  const i = mk({ assigneeBotId: 'b1', createdByBotId: 'b2' });
+  woken.length = 0;
+  for (let n = 0; n < 12; n++) I.addComment('u', i.id, n % 2 ? 'b2' : 'b1', `m${n}`);
+  assert.ok(woken.length <= 7, `woken ${woken.length}`);
+  woken.length = 0;
+  I.addComment('u', i.id, null, 'carry on');
+  assert.ok(woken.length >= 1);
+});
