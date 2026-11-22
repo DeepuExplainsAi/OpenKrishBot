@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { db } from './db.js';
 
 /** Commands that can destroy data or leak the machine. These ask every time, even after "Always allow". */
 const RULES: [RegExp, string][] = [
@@ -52,3 +53,8 @@ export function readAudit(limit = 200): Record<string, unknown>[] {
     return fs.readFileSync(auditFile, 'utf8').trim().split('\n').slice(-limit).reverse().flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
   } catch { return []; }
 }
+
+/** 'ask' (default): dangerous actions ask every time, even after "Always allow". 'follow': "Always allow" is respected for everything. */
+export type DangerMode = 'ask' | 'follow';
+export const getDangerMode = (): DangerMode => ((db.prepare("SELECT value FROM kv WHERE key='danger_mode'").get() as any)?.value === 'follow' ? 'follow' : 'ask');
+export const setDangerMode = (m: DangerMode) => { db.prepare("INSERT OR REPLACE INTO kv(key,value) VALUES ('danger_mode',?)").run(m === 'follow' ? 'follow' : 'ask'); };

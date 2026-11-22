@@ -45,6 +45,8 @@ export interface WhatsAppInfo { status: 'off' | 'starting' | 'qr' | 'connected' 
 export interface AuditEntry { t: string; bot: string; tool: string; status: string; danger?: string | null; args?: string }
 
 export const configApi = {
+  dangerMode: () => req<{ mode: 'ask' | 'follow' }>('GET', '/audit/danger-mode'),
+  setDangerMode: (mode: 'ask' | 'follow') => req<{ mode: 'ask' | 'follow' }>('PUT', '/audit/danger-mode', { mode }),
   audit: () => req<{ entries: AuditEntry[] }>('GET', '/audit'),
   whatsapp: () => req<WhatsAppInfo>('GET', '/whatsapp'),
   whatsappStart: () => req<{ ok: true }>('POST', '/whatsapp/start', {}),

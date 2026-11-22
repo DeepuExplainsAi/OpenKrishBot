@@ -225,9 +225,24 @@ function PermissionsSection() {
   const [policies, setPolicies] = useState<{ tool: string; mode: string }[] | null>(null);
   const load = useCallback(() => { configApi.policies().then((r) => setPolicies(r.policies)).catch(() => setPolicies([])); }, []);
   useEffect(() => { load(); }, [load]);
+  const [mode, setMode] = useState<'ask' | 'follow'>('ask');
+  useEffect(() => { configApi.dangerMode().then((r) => setMode(r.mode)).catch(() => {}); }, []);
+  const pick = (m: 'ask' | 'follow') => { setMode(m); configApi.setDangerMode(m).catch(() => configApi.dangerMode().then((r) => setMode(r.mode)).catch(() => {})); };
   return (
     <>
       <PageHead title="Permissions" sub="Actions your Bots can take without asking first. Remove one and they’ll ask again next time." />
+      <section className="cfg-section">
+        <div className="cfg-section__label">Risky actions (delete everything, run downloaded scripts, force-push…)</div>
+        <div className="cfg-card">
+          <div className="cfg-row">
+            <div className="cfg-row__text">
+              <div className="cfg-row__title">{mode === 'ask' ? 'Always ask me' : 'Follow “Always allow”'}</div>
+              <div className="cfg-row__sub">{mode === 'ask' ? 'Risky actions ask every time, even if you chose “Always allow”.' : 'Risky actions run without asking if you chose “Always allow” for that tool.'}</div>
+            </div>
+            <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => pick(mode === 'ask' ? 'follow' : 'ask')}>{mode === 'ask' ? 'Follow “Always allow”' : 'Always ask me'}</button>
+          </div>
+        </div>
+      </section>
       <section className="cfg-section">
         <div className="cfg-card">
           {policies === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : policies.length === 0 ? (

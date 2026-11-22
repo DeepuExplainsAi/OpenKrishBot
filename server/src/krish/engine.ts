@@ -11,7 +11,7 @@ import { botHome, localToolMap, LOCAL_TOOLS } from './tools.js';
 import { TOOLS, policyFor, toolMap } from '../agent/tools.js';
 import { callTool as callHqTool, listTools as listHqTools } from '../mcp.js';
 import { claimToolRow, noteToolOutcome, requestApproval } from '../agent/loop.js';
-import { audit, dangerReason, redact } from '../danger.js';
+import { audit, dangerReason, getDangerMode, redact } from '../danger.js';
 import { extraTools, callExtraTool } from './mcp-client.js';
 
 /**
@@ -146,11 +146,12 @@ async function runToolOnce(botId: string, name: string, rawArgs: string, home: s
       const userId = (db.prepare('SELECT user_id FROM bots WHERE id=?').get(botId) as any).user_id as string;
       const seq = await claimToolRow(botId, name);
       const danger = dangerReason(name, args);
-      if (local.ask || danger) {
+      const forceAsk = !!danger && getDangerMode() === 'ask';
+      if (local.ask || forceAsk) {
         const key = `local:${name}`;
         const mode = (db.prepare('SELECT mode FROM policies WHERE user_id=? AND tool=?').get(userId, key) as any)?.mode ?? 'needs_approval';
         if (mode === 'blocked') { noteToolOutcome(botId, seq, { status: 'denied', summary: 'Not allowed' }); return DECLINED; }
-        if (danger || mode !== 'always_allow') {
+        if (forceAsk || mode !== 'always_allow') {
           const a = await requestApproval({ userId, botId }, { key, title: `Local: ${local.ask ?? name}${danger ? ` (careful, it ${danger})` : ''}` }, args, seq);
           if (a !== 'allow') return a === 'deny' ? DECLINED : SKIPPED;
         }
