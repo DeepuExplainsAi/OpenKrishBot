@@ -171,3 +171,8 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 - `server/src/telegram.ts`: plain HTTPS long-polling of the Bot API (no library, no webhook, nothing hosted), reuses `whatsapp-relay` (replies, approval cards 1/2/3, errors, stop). Access: a chat is allowed only after `/pair <one-time code>` from Settings -> Telegram; groups ignored; strangers get nothing. Token in local kv (`tg_token`). API `/api/telegram` (status, token, pair-code, start, stop, unlink). Backoff on network errors, 401 -> clear message.
 - Tests `test/telegram.test.mts` (3). Live against a fake Telegram server (`KRISH_TELEGRAM_API` overrides the URL): bad token format rejected, wrong token -> 'rejected', good token -> running, stranger ignored, wrong code refused, right code paired, then the bot answered.
 - NOT VERIFIED: real Telegram servers / a real BotFather token. Slack/Discord not done (OpenMausBot's Slack is hosted-admin based, not portable).
+
+## P11g: workflows from chat + cron (2026-11-22)
+- Bot tools `list_workflows`, `run_workflow` (name or id, optional input; hop-depth guarded). Flows have an optional cron `schedule` (editor field, validated on save, `initFlowSchedules` at boot, overlapping runs skipped).
+- Tests `test/flows-schedule.test.mts` (3). Total 54 pass; typecheck and web build clean. Server boots with `[flows] scheduled 0`.
+- NOT verified live: scheduled run firing on a real clock; run_workflow through a real model (auth wall for curl; unit level only).

@@ -45,7 +45,7 @@ export interface WhatsAppInfo { status: 'off' | 'starting' | 'qr' | 'connected' 
 export interface AuditEntry { t: string; bot: string; tool: string; status: string; danger?: string | null; args?: string }
 
 export interface FlowStep { id: string; bot: string; prompt: string; needs?: string[]; retries?: number }
-export interface Flow { id: string; name: string; steps: FlowStep[] }
+export interface Flow { id: string; name: string; steps: FlowStep[]; schedule?: string }
 export interface StepResult { status: 'pending' | 'running' | 'done' | 'failed' | 'skipped'; output?: string; error?: string; attempts: number }
 export interface FlowRun { id: string; flowId: string; input: string; status: 'running' | 'done' | 'failed' | 'stopped'; results: Record<string, StepResult> }
 
@@ -74,7 +74,7 @@ export const configApi = {
   patchIssue: (id: string, p: { status?: IssueStatus; assigneeBotId?: string | null }) => req<{ issue: Issue }>('PATCH', `/issues/${id}`, p),
   deleteIssue: (id: string) => req<{ ok: true }>('DELETE', `/issues/${id}`),
   flows: () => req<{ flows: Flow[] }>('GET', '/flows'),
-  saveFlow: (f: { id?: string; name: string; steps: FlowStep[] }) => req<{ flow: Flow }>('PUT', '/flows', f),
+  saveFlow: (f: { id?: string; name: string; steps: FlowStep[]; schedule?: string }) => req<{ flow: Flow }>('PUT', '/flows', f),
   deleteFlow: (id: string) => req<{ ok: true }>('DELETE', `/flows/${id}`),
   runFlow: (id: string, input: string) => req<{ runId: string }>('POST', `/flows/${id}/run`, { input }),
   flowRun: (runId: string) => req<{ run: FlowRun }>('GET', `/flows/runs/${runId}`),

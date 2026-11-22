@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { Cron } from 'croner';
 import { db, now } from './db.js';
 import { newId } from './lib/ids.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
@@ -14,13 +15,14 @@ CREATE TABLE IF NOT EXISTS flow_runs (
   id TEXT PRIMARY KEY, flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE, input TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL, results TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER
 );`);
+try { db.exec("ALTER TABLE flows ADD COLUMN schedule TEXT NOT NULL DEFAULT ''"); } catch { /* column exists */ }
 
 /** Multi-agent workflows: /api/flows. Each step is a message to one of the user's bots; independent steps run in parallel. */
 export const flowsApi = new Hono<AuthVars>();
 flowsApi.use('*', requireUser);
 
 const aborts = new Map<string, AbortController>();
-const toFlow = (r: any) => ({ id: r.id, name: r.name, steps: JSON.parse(r.steps) as FlowStep[], updatedAt: r.updated_at });
+const toFlow = (r: any) => ({ id: r.id, name: r.name, steps: JSON.parse(r.steps) as FlowStep[], schedule: (r.schedule ?? '') as string, updatedAt: r.updated_at });
 const own = (userId: string, id: string) => db.prepare('SELECT * FROM flows WHERE id=? AND user_id=?').get(id, userId) as any;
 const toRun = (r: any) => ({ id: r.id, flowId: r.flow_id, input: r.input, status: r.status, results: JSON.parse(r.results) as RunResults, startedAt: r.started_at, finishedAt: r.finished_at });
 
@@ -46,7 +48,7 @@ export async function askBot(userId: string, botName: string, prompt: string): P
 flowsApi.get('/', (c) => c.json({ flows: (db.prepare('SELECT * FROM flows WHERE user_id=? ORDER BY updated_at DESC').all(c.get('user').id) as any[]).map(toFlow) }));
 
 flowsApi.put('/', async (c) => {
-  const b = await c.req.json<{ id?: string; name?: string; steps?: FlowStep[] }>().catch(() => ({} as any));
+  const b = await c.req.json<{ id?: string; name?: string; steps?: FlowStep[]; schedule?: string }>().catch(() => ({} as any));
   const name = String(b.name ?? '').trim();
   if (!name) return c.json({ error: 'Give the flow a name.' }, 400);
   const steps = ((b.steps ?? []) as FlowStep[]).map((s: FlowStep) => ({ id: String(s.id ?? '').trim(), bot: String(s.bot ?? '').trim(), prompt: String(s.prompt ?? '').trim(), needs: (s.needs ?? []).map(String), retries: Math.max(0, Math.min(Number(s.retries ?? 0) || 0, 3)) }));
@@ -55,14 +57,18 @@ flowsApi.put('/', async (c) => {
   const userId = c.get('user').id;
   const unknown = steps.find((s: FlowStep) => !resolveBot(userId, s.bot));
   if (unknown) return c.json({ error: `Step "${unknown.id}": no bot called "${unknown.bot}".` }, 400);
+  const schedule = String(b.schedule ?? '').trim();
+  if (schedule) { try { new Cron(schedule, { paused: true }); } catch { return c.json({ error: `"${schedule}" is not a valid cron schedule (example: 0 9 * * 1-5).` }, 400); } }
   const id = b.id && own(userId, b.id) ? b.id : newId('flw');
-  db.prepare('INSERT INTO flows(id,user_id,name,steps,created_at,updated_at) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, steps=excluded.steps, updated_at=excluded.updated_at')
-    .run(id, userId, name, JSON.stringify(steps), now(), now());
+  db.prepare('INSERT INTO flows(id,user_id,name,steps,schedule,created_at,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, steps=excluded.steps, schedule=excluded.schedule, updated_at=excluded.updated_at')
+    .run(id, userId, name, JSON.stringify(steps), schedule, now(), now());
+  scheduleFlow(id, userId, schedule);
   return c.json({ flow: toFlow(own(userId, id)) });
 });
 
 flowsApi.delete('/:id', (c) => {
   if (!own(c.get('user').id, c.req.param('id'))) return c.json({ error: 'not found' }, 404);
+  scheduleFlow(c.req.param('id'), '', '');
   db.prepare('DELETE FROM flows WHERE id=?').run(c.req.param('id'));
   return c.json({ ok: true });
 });
@@ -107,3 +113,25 @@ flowsApi.post('/runs/:runId/stop', (c) => {
   aborts.get(r.id)?.abort();
   return c.json({ ok: true });
 });
+
+const crons = new Map<string, Cron>();
+/** Cron-triggered flows: an empty schedule removes the job. A run is skipped while the previous one of the same flow is still going. */
+export function scheduleFlow(flowId: string, userId: string, schedule: string) {
+  crons.get(flowId)?.stop();
+  crons.delete(flowId);
+  if (!schedule) return;
+  crons.set(flowId, new Cron(schedule, { protect: true }, () => {
+    try { startFlowRun(userId, flowId, ''); } catch (e) { console.warn('[flows] scheduled run failed', flowId, (e as Error).message); }
+  }));
+}
+
+export function initFlowSchedules() {
+  for (const f of db.prepare("SELECT id, user_id, schedule FROM flows WHERE schedule!=''").all() as any[]) {
+    try { scheduleFlow(f.id, f.user_id, f.schedule); } catch (e) { console.warn('[flows] bad schedule', f.id, (e as Error).message); }
+  }
+  console.log(`[flows] scheduled ${crons.size}`);
+}
+
+export const listFlows = (userId: string) => (db.prepare('SELECT * FROM flows WHERE user_id=? ORDER BY name').all(userId) as any[]).map(toFlow);
+export const findFlow = (userId: string, ref: string) =>
+  db.prepare('SELECT * FROM flows WHERE user_id=? AND (id=? OR lower(name)=lower(?))').get(userId, ref.trim(), ref.trim()) as any;

@@ -479,7 +479,7 @@ const blankStep = (n: number): FlowStep => ({ id: `step${n}`, bot: '', prompt: '
 function WorkflowsSection() {
   const bots = useStore((s) => s.bots).filter((b) => b.kind !== 'room');
   const [flows, setFlows] = useState<Flow[] | null>(null);
-  const [edit, setEdit] = useState<{ id?: string; name: string; steps: FlowStep[] } | null>(null);
+  const [edit, setEdit] = useState<{ id?: string; name: string; steps: FlowStep[]; schedule?: string } | null>(null);
   const [err, setErr] = useState('');
   const [run, setRun] = useState<FlowRun | null>(null);
   const [input, setInput] = useState('');
@@ -508,6 +508,7 @@ function WorkflowsSection() {
         <section className="cfg-section">
           <div className="cfg-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
             <input className="text-input" placeholder="Workflow name" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+            <input className="text-input" placeholder="Run automatically (cron, optional) e.g. 0 9 * * 1-5" value={edit.schedule ?? ''} onChange={(e) => setEdit({ ...edit, schedule: e.target.value })} />
             {edit.steps.map((s, i) => (
               <div key={i} style={{ display: 'grid', gap: 6, padding: 8, border: '1px solid var(--border, #ddd)', borderRadius: 8 }}>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -550,10 +551,10 @@ function WorkflowsSection() {
             <div key={f.id} className="cfg-row">
               <div className="cfg-row__text">
                 <div className="cfg-row__title">{f.name}</div>
-                <div className="cfg-row__sub">{f.steps.length} step{f.steps.length === 1 ? '' : 's'} · {[...new Set(f.steps.map((s) => s.bot))].join(', ')}</div>
+                <div className="cfg-row__sub">{f.steps.length} step{f.steps.length === 1 ? '' : 's'} · {[...new Set(f.steps.map((s) => s.bot))].join(', ')}{f.schedule ? ` · cron ${f.schedule}` : ''}</div>
               </div>
               <button type="button" className="cfg-btn cfg-btn--primary" onClick={() => start(f)}>Run</button>
-              <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => setEdit({ id: f.id, name: f.name, steps: f.steps })}>Edit</button>
+              <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => setEdit({ id: f.id, name: f.name, steps: f.steps, schedule: f.schedule })}>Edit</button>
               <ConfirmButton className="cfg-btn cfg-btn--secondary" confirmLabel="Delete" onConfirm={async () => { await configApi.deleteFlow(f.id); load(); }}>Delete</ConfirmButton>
             </div>
           ))}

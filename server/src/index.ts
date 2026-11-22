@@ -1,5 +1,5 @@
 import { auditApi } from './audit.js';
-import { flowsApi } from './routes-flows.js';
+import { flowsApi, initFlowSchedules } from './routes-flows.js';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
@@ -70,6 +70,7 @@ if (compatEnv('NO_SCHEDULER') !== '1') {
   initProactive(enqueue);
   initIssues((botId, text) => enqueue(botId, { type: 'system', text }));
   startHeartbeat(isBotBusy);
+  initFlowSchedules();
 } else console.log('[bothq] scheduler disabled (BOTHQ_NO_SCHEDULER=1)');
 initEngines();
 initWhatsApp();

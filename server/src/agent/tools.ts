@@ -264,6 +264,32 @@ export const TOOLS: ToolDef[] = [
     impl: async (a, ctx) => { const r = finish(String(a.issue_id), ctx.botId, 'blocked', String(a.reason)); return { output: r.ok ? 'Marked blocked.' : `Cannot block: ${r.reason}` }; },
   },
   {
+    name: 'list_workflows',
+    description: "List the user's saved multi-agent workflows (name, steps, which Bot runs each).",
+    parameters: obj({}),
+    activity: 'working',
+    label: 'Looking at workflows',
+    impl: async (_a, ctx) => {
+      const { listFlows } = await import('../routes-flows.js');
+      return { output: JSON.stringify(listFlows(ctx.userId).map((f) => ({ id: f.id, name: f.name, schedule: f.schedule || null, steps: f.steps.map((s) => ({ id: s.id, bot: s.bot, needs: s.needs ?? [] })) }))) };
+    },
+  },
+  {
+    name: 'run_workflow',
+    description: 'Start a saved workflow by name or id, with optional input text ({{input}} in its steps). It runs in the background; steps run on their Bots in parallel where possible. Returns a run id.',
+    parameters: obj({ workflow: { type: 'string' }, input: { type: 'string' } }, ['workflow']),
+    activity: 'messaging_named',
+    label: 'Starting a workflow',
+    impl: async (a, ctx) => {
+      if (ctx.depth >= 3) return { output: 'Too many hops between bots; answer the user directly instead.' };
+      const { findFlow, startFlowRun } = await import('../routes-flows.js');
+      const f = findFlow(ctx.userId, String(a.workflow));
+      if (!f) return { output: `No workflow "${a.workflow}". Use list_workflows.` };
+      try { return { output: JSON.stringify({ run_id: startFlowRun(ctx.userId, f.id, String(a.input ?? '')) }), summary: `Started workflow ${f.name}` }; }
+      catch (e: any) { return { output: e.message }; }
+    },
+  },
+  {
     name: 'send_to_bot',
     description: "Send a message to another Bot on the user's team (by name) to delegate work or ask a question. Their reply will arrive later as a new message to you.",
     parameters: obj({ bot_name: { type: 'string' }, message: { type: 'string' } }, ['bot_name', 'message']),
