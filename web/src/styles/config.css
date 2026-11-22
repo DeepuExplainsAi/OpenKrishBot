@@ -224,3 +224,7 @@
 .app-row__form { flex-basis: 100%; padding-top: 8px; }
 .custom-app { padding: 4px 0 12px; align-items: flex-start; }
 .custom-app .text-input { width: 100%; }
+
+/* phone pairing */
+.phone-qr { align-items: center; gap: 16px; }
+.phone-qr img { border-radius: 12px; background: #fff; padding: 6px; }

@@ -9,6 +9,7 @@ import { api } from './routes.js';
 import { attachScreenRelay } from './screen/relay.js';
 import { initRoutines } from './routines.js';
 import { hooks } from './triggers.js';
+import { pairRoute, phoneApi } from './phone.js';
 import { initProactive } from './proactive.js';
 import { initSubagents } from './agent/subagents.js';
 import { initRooms } from './agent/rooms.js';
@@ -33,6 +34,8 @@ app.get('/api/health', (c) => c.json({ ok: true, engine: 'krishbot' }));
 // The app's tools for the agent engines (MCP).
 app.route('/mcp', mcpApi);
 app.route('/hooks', hooks);
+app.route('/pair', pairRoute);
+app.route('/api/phone', phoneApi);
 app.route('/krish', krishApi);
 app.route('/api/krish', providersApi);
 app.route('/api/checkins', checkinsApi);

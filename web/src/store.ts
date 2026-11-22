@@ -24,6 +24,8 @@ interface State {
 
   detailsOpen: boolean;
   sidebarCollapsed: boolean;
+  /** Phone layout: true while a chat (not the Bot list) is on screen. */
+  mobileChat: boolean;
   modal: ModalKind;
   viewerOpen: boolean;
   /** How the large computer view opens, and the mode it is in while open. */
@@ -61,6 +63,7 @@ export const useStore = create<State>((set, get) => ({
   sseConnected: false,
   detailsOpen: lsGet(LS_DETAILS) !== '0',
   sidebarCollapsed: lsGet(LS_SIDEBAR) === '1',
+  mobileChat: false,
   modal: null,
   viewerOpen: false,
   viewerMode: 'watch',
@@ -88,7 +91,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   selectBot(id) {
-    set({ selectedBotId: id });
+    set({ selectedBotId: id, mobileChat: true });
     lsSet(LS_SELECTED, id);
     const t = get().transcripts[id];
     if (!t?.loaded) get().loadRows(id).catch(console.error);

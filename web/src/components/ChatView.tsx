@@ -36,6 +36,9 @@ export function ChatView() {
       <VoiceCallBar />
       <Composer bot={bot} running={!!live?.isRunning} />
       <header className="chat__header">
+        <button type="button" className="icon-btn icon-btn--bordered chat__back" onClick={() => set({ mobileChat: false })} aria-label="Back to Bots" title="Back to Bots">
+          <Icon name="chev_down" opacity={0.7} style={{ transform: 'rotate(90deg)' }} />
+        </button>
         <span className="chat__pill-anchor">
           <button type="button" className="chat__pill" onClick={() => setMenu(!menu)} aria-haspopup="menu" aria-expanded={menu}>
             <BotAvatarFor bot={bot} size={24} />

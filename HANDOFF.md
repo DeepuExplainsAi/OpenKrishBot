@@ -40,14 +40,14 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P2 (DONE, verified e2e: free model -> terminal tool -> approval card -> result 'krish-42') Local engine: Ollama + OpenAI-compatible (LM Studio, llama.cpp) + free providers; model picker with many models; no key needed to start
 - [x] P3 (DONE) Local computer/screen per bot (replace Orgo): local browser (Playwright/CDP) + shell, watch / take control
 - [x] P4 (DONE, verified e2e) Local connectors: MCP client (stdio + HTTP) in server/src/apps.ts, 39-app catalog, custom MCP / web-API apps, per-tool approvals, webhook routines; Composio removed
-- [ ] P5 Phone remote control of the laptop (LAN/PWA + QR pairing, optional free tunnel); laptop does the work
+- [x] P5 (DONE, verified) Phone remote control: QR pairing, LAN + free cloudflared tunnel, installable PWA, phone layout, device list/revoke
 - [ ] P6 OpenMausBot features: rooms/groups, handoff cards, skills, routines UI, bot memory
 - [ ] P7 OpenManus features: planning flow, browser/python/file tools, multi-agent flow
 - [ ] P8 OpenBot features: AG-UI style approvals/interactive results, extra tools
 - [ ] P9 Voice (local STT/TTS), polish, packaging (desktop launcher), final audit
 
 ## Status
-P0-P4 done. Server boots with zero keys (verified). Next: P5 phone remote control.
+P0-P5 done. Server boots with zero keys (verified). Next: P6 OpenMausBot features, WhatsApp, error handling / provider fallback.
 
 ## P2 notes (for next agent)
 - server/src/engine.ts is now a slim replacement (old Hermes engine deleted). Every bot -> in-process engine at /krish/v1/responses (server/src/krish/engine.ts), guarded by engineKey().
@@ -82,3 +82,11 @@ P0-P4 done. Server boots with zero keys (verified). Next: P5 phone remote contro
 - NOT verified: real third-party apps with real keys; `mcp-remote` browser sign-in; npm package names were checked to exist, not run (only `memory` was run).
 - Catalog is 39 apps, not 180-1000+. Easy to extend: add a line in CATALOG. Idea for later: a "search npm / MCP registry" box that fills the custom form.
 - Machine note: never run many `npm view` in parallel on this 482 MB VM (it froze the box).
+
+## P5 notes
+- `server/src/phone.ts`: `/api/phone` (laptop only: Host must be localhost AND peer loopback) -> pair (one-time 5-min code -> QR via `qrcode`), tunnel on/off (`cloudflared tunnel --protocol http2`, no account; QUIC is blocked on many networks), device list, revoke. `/pair/<code>` signs the phone in (cookie session with `device` + `last_seen` columns on auth_sessions).
+- Security: auto local login now needs Host=localhost too (tunnel traffic arrives from 127.0.0.1 but with a trycloudflare Host, so it is NOT auto-logged-in; verified). `isSameOriginRequest` accepts Origin==Host for plain-http LAN (browsers send no Sec-Fetch-Site there). A paired phone cannot pair others.
+- Web: Settings -> Phone (QR, tunnel, devices), `mobile.css` (<=760px: Bot list OR chat, back button, `mobileChat` in store), manifest + icons (PWA, "Add to Home screen").
+- Verified with curl: LAN peer not auto-logged-in; pair -> cookie -> /api/bots; link single-use (410); revoke -> 401; forged Origin -> 403; tunnel end-to-end (pair + send chat over https trycloudflare URL).
+- NOT verified: real phone browser rendering of mobile.css (no device here), push notifications, PWA install prompt, screen WebSocket from a phone, wake/sleep of the laptop (the laptop app must be open).
+- Reference: ~/KRISH (separate Android app + relay) not merged; this web-PWA path needs no APK.

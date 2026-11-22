@@ -9,6 +9,7 @@ import './styles/cards.css';
 import './styles/details.css';
 import './styles/modals.css';
 import './styles/viewer.css';
+import './styles/mobile.css';
 import './styles/voice.css';
 
 createRoot(document.getElementById('root')!).render(

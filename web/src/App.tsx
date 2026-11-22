@@ -20,6 +20,7 @@ function Shell() {
   const viewerOpen = useStore((s) => s.viewerOpen);
   const collapsed = useStore((s) => s.sidebarCollapsed);
   const hasBot = useStore((s) => !!s.selectedBotId);
+  const mobileChat = useStore((s) => s.mobileChat);
   const view = useConfigUI((s) => s.view);
 
   useEffect(() => {
@@ -47,7 +48,7 @@ function Shell() {
   }, []);
 
   return (
-    <div className={`app${collapsed ? ' is-sidebar-collapsed' : ''}${detailsOpen && hasBot && view === 'chat' ? ' has-details' : ''}`}>
+    <div className={`app${mobileChat ? ' is-chat-open' : ''}${collapsed ? ' is-sidebar-collapsed' : ''}${detailsOpen && hasBot && view === 'chat' ? ' has-details' : ''}`}>
       <Sidebar />
       {view === 'tasks' ? <TasksView /> : <ChatView />}
       {detailsOpen && hasBot && view === 'chat' && <DetailsPanel />}

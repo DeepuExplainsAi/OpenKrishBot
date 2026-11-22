@@ -6,7 +6,7 @@ import { env } from './env.js';
 import { newId } from './lib/ids.js';
 import { hub } from './lib/hub.js';
 import { getConnInfo } from '@hono/node-server/conninfo';
-import { createSession, destroySession, isLoopbackAddress, isOwnerKey, requireUser, userFromCookieHeader, type AuthVars } from './lib/auth.js';
+import { createSession, destroySession, isLocalHost, isLoopbackAddress, isOwnerKey, requireUser, userFromCookieHeader, type AuthVars } from './lib/auth.js';
 import { allLive, appendRow, clearConversation, emitBot, getBot, getBotRow, getRow, listBots, listRoutines, listRows, listTasks, toRoutine, updateRow } from './store.js';
 import { enqueue, interrupt, resolveApproval } from './agent/loop.js';
 import { computerState, ensureComputer, forgetBotFiles, refreshComputer, releaseScreen, suspendComputer } from './computer.js';
@@ -81,7 +81,7 @@ function findOrCreateUser(email: string, name?: string, preferId?: string, opts:
 api.get('/auth/me', (c) => {
   let user = userFromCookieHeader(c.req.header('cookie'));
   // Local app: a request from this machine is the owner. No sign-in screen, no cloud account.
-  if (!user && env.autoLocalLogin && isLoopbackAddress(getConnInfo(c).remote.address)) {
+  if (!user && env.autoLocalLogin && isLocalHost(c.req.header('host')) && isLoopbackAddress(getConnInfo(c).remote.address)) {
     const { id } = findOrCreateUser(env.ownerEmail, env.ownerName, undefined, { owner: true });
     createSession(c, id);
     user = { id, email: env.ownerEmail, name: env.ownerName, avatarUrl: null } as any;

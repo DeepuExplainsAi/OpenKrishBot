@@ -14,7 +14,7 @@ export function attachScreenRelay(server: Server) {
     const url = new URL(req.url ?? '/', 'http://x');
     const m = url.pathname.match(/^\/api\/bots\/([^/]+)\/screen$/);
     if (!m) return;
-    if (!isSameOriginRequest(header(req.headers.origin), header(req.headers['sec-fetch-site']))) { socket.write('HTTP/1.1 403 Forbidden\r\n\r\n'); socket.destroy(); return; }
+    if (!isSameOriginRequest(header(req.headers.origin), header(req.headers['sec-fetch-site']), header(req.headers.host))) { socket.write('HTTP/1.1 403 Forbidden\r\n\r\n'); socket.destroy(); return; }
     const user = userFromCookieHeader(req.headers.cookie);
     const bot = user ? db.prepare('SELECT id FROM bots WHERE id=? AND user_id=?').get(m[1], user.id) as { id: string } | undefined : undefined;
     if (!user || !bot) { socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return; }

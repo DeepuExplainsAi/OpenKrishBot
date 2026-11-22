@@ -13,9 +13,9 @@ const TTL_MS = 30 * 24 * 3600 * 1000;
 
 export type AuthVars = { Variables: { user: User } };
 
-export function createSession(c: Context, userId: string) {
+export function createSession(c: Context, userId: string, device?: string) {
   const t = token();
-  db.prepare('INSERT INTO auth_sessions(token,user_id,created_at,expires_at) VALUES (?,?,?,?)').run(t, userId, now(), now() + TTL_MS);
+  db.prepare('INSERT INTO auth_sessions(token,user_id,created_at,expires_at,device,last_seen) VALUES (?,?,?,?,?,?)').run(t, userId, now(), now() + TTL_MS, device ?? null, now());
   setCookie(c, COOKIE, t, { httpOnly: true, sameSite: 'Lax', secure: env.appUrl.startsWith('https:'), path: '/', maxAge: TTL_MS / 1000 });
 }
 
@@ -30,8 +30,10 @@ export function destroySession(c: Context) {
 export function userFromToken(t: string | undefined): User | null {
   if (!t) return null;
   const r = db
-    .prepare('SELECT u.* FROM auth_sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires_at>?')
+    .prepare('SELECT u.*, s.device, s.last_seen FROM auth_sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires_at>?')
     .get(t, now()) as any;
+  // Paired phones: remember when they were last seen (at most once a minute).
+  if (r?.device && now() - (r.last_seen ?? 0) > 60_000) db.prepare('UPDATE auth_sessions SET last_seen=? WHERE token=?').run(now(), t);
   return r ? { id: r.id, email: r.email, name: r.name, avatarUrl: r.avatar_url } : null;
 }
 
@@ -63,15 +65,22 @@ const appOrigins = new Set([originOf(env.appUrl), originOf(env.serverUrl)].filte
  * the signed-in user. Requests without those headers come from scripts, not browsers, and carry no
  * ambient cookie.
  */
-export function isSameOriginRequest(origin: string | undefined, fetchSite: string | undefined): boolean {
+export function isSameOriginRequest(origin: string | undefined, fetchSite: string | undefined, host?: string): boolean {
   if (fetchSite) return fetchSite === 'same-origin' || fetchSite === 'none';
-  if (origin) return appOrigins.has(origin);
+  if (origin) {
+    if (appOrigins.has(origin)) return true;
+    // Over plain http on the home network browsers send no Sec-Fetch-Site: the page is the app's own when it was served from the host it posts to.
+    try { return !!host && new URL(origin).host === host; } catch { return false; }
+  }
   return true;
 }
 
+/** `localhost`, `127.x` or `[::1]`: the only Host values that may sign in automatically (stops DNS rebinding from a web page). */
+export const isLocalHost = (host: string | undefined) => /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])(:\d+)?$/i.test(host ?? '');
+
 /** Refuses cross-site requests that could change something (anything but GET/HEAD/OPTIONS). */
 export const sameOriginWrites: MiddlewareHandler = async (c, next) => {
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) && !isSameOriginRequest(c.req.header('origin'), c.req.header('sec-fetch-site'))) {
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) && !isSameOriginRequest(c.req.header('origin'), c.req.header('sec-fetch-site'), c.req.header('host'))) {
     return c.json({ error: 'cross-site request refused' }, 403);
   }
   await next();

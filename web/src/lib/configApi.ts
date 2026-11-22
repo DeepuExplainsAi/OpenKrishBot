@@ -34,7 +34,17 @@ export interface ComputerDetails {
 
 export type BotPatch = Partial<Pick<Bot, 'name' | 'label' | 'description' | 'instructions' | 'avatarShape' | 'avatarColor' | 'effort' | 'mode'>>;
 
+export interface PhoneInfo {
+  lan: { label: string; url: string }[];
+  tunnel: { on: boolean; url: string | null; error: string | null };
+  devices: { id: string; name: string; pairedAt: number; lastSeen: number | null }[];
+}
+
 export const configApi = {
+  phone: () => req<PhoneInfo>('GET', '/phone'),
+  phonePair: (via: 'lan' | 'tunnel') => req<{ url: string; qr: string; expiresInSec: number }>('POST', '/phone/pair', { via }),
+  phoneTunnel: (on: boolean) => req<{ ok: true; url: string | null }>('POST', '/phone/tunnel', { on }),
+  phoneRemove: (id: string) => req<{ ok: true }>('DELETE', `/phone/devices/${id}`),
   settings: (botId: string) => req<BotSettingsBundle>('GET', `/bots/${botId}/settings`),
   updateBot: (botId: string, p: BotPatch) => req<{ bot: Bot }>('PATCH', `/bots/${botId}`, p),
   deleteBot: (botId: string) => req<{ ok: true }>('DELETE', `/bots/${botId}`),

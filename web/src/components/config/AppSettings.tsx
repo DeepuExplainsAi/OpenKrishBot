@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type ComputerDetails } from '../../lib/configApi';
+import { configApi, type ComputerDetails, type PhoneInfo } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -17,6 +17,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'computer', label: 'Computer' },
   { id: 'permissions', label: 'Permissions' },
   { id: 'apps', label: 'Connected apps' },
+  { id: 'phone', label: 'Phone' },
   { id: 'account', label: 'Account' },
 ];
 
@@ -49,6 +50,7 @@ export function AppSettings() {
           {section === 'computer' && <ComputerSection />}
           {section === 'permissions' && <PermissionsSection />}
           {section === 'apps' && <AppsSection />}
+          {section === 'phone' && <PhoneSection />}
           {section === 'account' && <AccountSection />}
         </div>
       </div>
@@ -276,6 +278,80 @@ function AccountSection() {
               {busy ? 'Signing out…' : 'Sign out'}
             </button>
           </div>
+        </div>
+      </section>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function PhoneSection() {
+  const [info, setInfo] = useState<PhoneInfo | null>(null);
+  const [pair, setPair] = useState<{ url: string; qr: string; via: 'lan' | 'tunnel' } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(() => { configApi.phone().then(setInfo).catch((e) => setError((e as Error).message)); }, []);
+  useEffect(() => { load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [load]);
+  const run = async (what: string, fn: () => Promise<void>) => {
+    setBusy(what); setError(null);
+    try { await fn(); load(); } catch (e) { setError((e as Error).message); } finally { setBusy(null); }
+  };
+  const startPair = (via: 'lan' | 'tunnel') => run(`pair-${via}`, async () => { const r = await configApi.phonePair(via); setPair({ ...r, via }); });
+  // The code is used once and then gone: leave the QR view as soon as a new phone shows up.
+  const count = info?.devices.length ?? 0;
+  useEffect(() => { setPair(null); }, [count]);
+  return (
+    <>
+      <PageHead title="Phone" sub="Control Krishbot on this laptop from your phone. The laptop does the work; keep Krishbot open on it." />
+      <section className="cfg-section">
+        <div className="cfg-card">
+          <div className="cfg-row">
+            <div className="cfg-row__text">
+              <div className="cfg-row__title">Pair a phone on your home Wi-Fi</div>
+              <div className="cfg-row__sub">{info?.lan.length ? `Phone and laptop must be on the same Wi-Fi (${info.lan[0].url}).` : 'No home network found. Connect this laptop to Wi-Fi.'}</div>
+            </div>
+            <button type="button" className="cfg-btn cfg-btn--primary" disabled={!info?.lan.length || !!busy} onClick={() => startPair('lan')}>Show QR code</button>
+          </div>
+          <div className="cfg-row">
+            <div className="cfg-row__text">
+              <div className="cfg-row__title">Away from home (free tunnel)</div>
+              <div className="cfg-row__sub">{info?.tunnel.on ? info.tunnel.url : 'Uses a free Cloudflare quick tunnel, no account. Needs cloudflared installed. The address changes each time.'}</div>
+            </div>
+            {info?.tunnel.on ? (
+              <>
+                <button type="button" className="cfg-btn cfg-btn--primary" disabled={!!busy} onClick={() => startPair('tunnel')}>Show QR code</button>
+                <button type="button" className="cfg-btn cfg-btn--secondary" disabled={!!busy} onClick={() => run('off', async () => { await configApi.phoneTunnel(false); setPair(null); })}>Turn off</button>
+              </>
+            ) : (
+              <button type="button" className="cfg-btn cfg-btn--secondary" disabled={!!busy} onClick={() => run('on', async () => { await configApi.phoneTunnel(true); })}>{busy === 'on' ? 'Starting…' : 'Turn on'}</button>
+            )}
+          </div>
+          {pair && (
+            <div className="cfg-row phone-qr">
+              <img src={pair.qr} alt="Pairing QR code" width={180} height={180} />
+              <div className="cfg-row__text">
+                <div className="cfg-row__title">Scan with your phone's camera</div>
+                <div className="cfg-row__sub">Works once, for 5 minutes. On the phone, use “Add to Home screen” to install it like an app.</div>
+              </div>
+            </div>
+          )}
+          {error && <div className="card__error" style={{ margin: '0 16px 12px' }}>{error}</div>}
+        </div>
+      </section>
+      <section className="cfg-section">
+        <div className="cfg-section__label">Paired phones</div>
+        <div className="cfg-card">
+          {!info?.devices.length && <div className="cfg-row"><div className="cfg-row__sub">No phones paired yet.</div></div>}
+          {info?.devices.map((d) => (
+            <div key={d.id} className="cfg-row">
+              <div className="cfg-row__text">
+                <div className="cfg-row__title">{d.name}</div>
+                <div className="cfg-row__sub">Paired {relativeShort(d.pairedAt)}{d.lastSeen ? ` · last seen ${relativeShort(d.lastSeen)}` : ''}</div>
+              </div>
+              <button type="button" className="cfg-btn cfg-btn--secondary" disabled={!!busy} onClick={() => run('rm', async () => { await configApi.phoneRemove(d.id); })}>Remove</button>
+            </div>
+          ))}
         </div>
       </section>
     </>
