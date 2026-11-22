@@ -9,13 +9,13 @@ let server = null;
 let win = null;
 
 const freePort = (port) => new Promise((resolve) => {
-  const t = net.createServer().once('error', () => net.createServer().once('listening', function () { const p = this.address().port; this.close(() => resolve(p)); }).listen(0))
+  const t = net.createServer().once('error', () => net.createServer().once('listening', function () { const p = this.address().port; this.close(() => resolve(p)); }).listen(0, '127.0.0.1'))
     .once('listening', () => t.close(() => resolve(port)));
-  t.listen(port);
+  t.listen(port, '127.0.0.1');
 });
 
 async function healthy(port) {
-  try { return (await fetch(`http://localhost:${port}/api/health`, { signal: AbortSignal.timeout(1500) })).ok; } catch { return false; }
+  try { return (await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(1500) })).ok; } catch { return false; }
 }
 
 async function start() {
@@ -24,7 +24,7 @@ async function start() {
   const port = await freePort(PREFERRED_PORT);
   server = spawn(process.execPath, [path.join(__dirname, 'server', 'dist', 'index.js')], {
     cwd: path.join(__dirname, 'server'),
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: String(port) },
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: String(port), HOST: process.env.HOST || '127.0.0.1' },
     stdio: 'inherit',
     windowsHide: true,
   });
@@ -43,9 +43,9 @@ async function open() {
   win.once('ready-to-show', () => win.show());
   // links to other sites open in the normal browser, never inside the app
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(`http://localhost:${port}`)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });
+  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(`http://127.0.0.1:${port}`)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });
   win.webContents.session.setPermissionRequestHandler((_wc, permission, cb) => cb(['media', 'clipboard-sanitized-write', 'notifications', 'fullscreen'].includes(permission)));
-  await win.loadURL(`http://localhost:${port}`);
+  await win.loadURL(`http://127.0.0.1:${port}`);
   win.on('closed', () => { win = null; });
 }
 
