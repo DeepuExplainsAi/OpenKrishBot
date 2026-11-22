@@ -13,25 +13,25 @@ Rule: finish one part fully, ask you, update HANDOFF.md, then go on. Earlier par
   - API-key provider section as in OpenMausBot
 - [ ] **P23 Connectors (copy OpenMausBot's)**
   - Replace the Connect Apps screen: real icons, readable text, the same connector catalog and flow
-- [ ] **P24 Computer and Settings black screen**
+- [x] **P24 Computer and Settings black screen**
   - Find why the Computer view and its Settings are empty and black, and fix it
   - Add the missing option (the one you said was absent)
-- [ ] **P24b Computer view** (add to P24)
+- [x] **P24b Computer view** (add to P24)
   - Computer view is always black: show the live screen, plus a history of what the bot did (copy OpenMausBot's)
-- [ ] **P29 Bot menus (copy OpenMausBot's)**
+- [x] **P29 Bot menus (copy OpenMausBot's)**
   - Bot right-click / "..." menu: New thread, New thread in a working folder, New folder, Delete all threads, Pin, Make Chief of Staff, Move to department, Mark as unread, Mark all as read, Edit Profile, Duplicate, Pause bot, Pause every bot, Copy conversation ID, Archive, Delete
   - "+" menu: New chat, New bot (Ctrl N), New group chat, Add department, Templates, Import
   - Pencil icon next to the Chief of Staff name to rename it
 - [ ] **Reference repos for P26/P29:** elie222/rakazo, paperclipai/paperclip, nickvasilescu/orgo-teammates, nickvasilescu/bot-hq, CopilotKit/OpenBot, FoundationAgents/OpenManus, nickvasilescu/openman, CopilotKit/openfuse, HarnessMD/munder-difflin, Anil-matcha/superagent
-- [ ] **P25 Chat box and language**
+- [x] **P25 Chat box and language**
   - Placeholder: "Hi, I am OpenKrishBot" (not "Hey Krish")
   - Hinglish stays Hinglish: reply in the language you write in
   - Settings > Language: app language switch, many languages
-- [ ] **P26 Bot icons**
+- [x] **P26 Bot icons**
   - Change the icon of any bot (upload / pick), using what the HQBot and Ektimate repos have
-- [ ] **P27 Earlier open items**
+- [x] **P27 Earlier open items**
   - Check GrokBot's latest updates (local use only, no cloud) and port what's missing
   - Memory option in Settings (bots remember past chats)
   - Start a new project or continue an old one, as in GrokBot
-- [ ] **P28 Final**
+- [x] **P28 Final**
   - Re-check P21-P27 together, fix leftovers, CI green on Windows/Mac/Linux, release v1.9.0, send you the release link

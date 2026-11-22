@@ -1,6 +1,8 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { stripVTControlCharacters } from 'node:util';
 import os from 'node:os';
+import fs from 'node:fs';
+import path from 'node:path';
 import { launchEnv } from '../lib/launch.js';
 import type { Preset } from './providers.js';
 
@@ -63,9 +65,25 @@ function openTerminal(command: string) {
 /** Claude and Codex sign in through the browser by themselves; the rest need a terminal. */
 const BROWSER_LOGIN = /^(claude|codex)\b/;
 
+/** Gemini CLI opens Google's sign-in in the browser on its own once "Login with Google" is the chosen method, so no terminal menu is needed. */
+function startGeminiLogin(): Promise<{ mode: 'browser' }> {
+  const file = path.join(os.homedir(), '.gemini', 'settings.json');
+  try {
+    const cur = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+    cur.security = { ...cur.security, auth: { ...cur.security?.auth, selectedType: 'oauth-personal' } };
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(cur, null, 2));
+  } catch { /* an unreadable settings file is left alone; the CLI then asks in its own way */ }
+  const child = spawn('gemini -p "Say hi"', { shell: true, cwd: os.homedir(), env: { ...process.env, ...launchEnv({ GEMINI_CLI_TRUST_WORKSPACE: 'true', NO_COLOR: '1' }) }, windowsHide: true, stdio: 'ignore' });
+  child.on('error', () => {});
+  setTimeout(() => child.kill(), 10 * 60_000).unref();
+  return Promise.resolve({ mode: 'browser' });
+}
+
 /** Starts the sign-in. Returns what the user should see: the link that was opened, or a note that a terminal opened. */
 export function startLogin(p: Preset): Promise<{ mode: 'browser' | 'terminal'; url?: string }> {
   const login = p.cli!.login!;
+  if (/^gemini\b/.test(login)) return startGeminiLogin();
   if (!BROWSER_LOGIN.test(login)) { openTerminal(login); return Promise.resolve({ mode: 'terminal' }); }
   const cmd = /^claude\b/.test(login) ? 'claude auth login' : login;
   return new Promise((resolve) => {
