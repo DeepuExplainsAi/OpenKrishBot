@@ -185,3 +185,9 @@ P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 no
 - Totals: 56 unit tests + 15 e2e pass. A code review found 3 high issues (cross-user comments via bot tool, unfinished stream treated as success, comment ping-pong) - all fixed with tests.
 - Still needs the owner's machine: real phone, WhatsApp scan, real Telegram token, Windows/Mac launcher, browser voice, real connector with a key, cron firing on a real clock.
 - Still not built: goals tree, money cost tracking, offline Whisper, Slack/Discord, OpenManus per-step PlanningFlow executor, skills marketplace, handoff cards.
+
+## P12a: robustness pass (2026-11-22, continues the video's last review)
+- Video (phone recording, 25s) re-checked: it ends in a review listing: approval decision not validated, mobile Back button, Tasks view has no Back on phones, view switch without error boundary, voice cancel on abort, transcript scroll jump. None of those were in the repo.
+- Done: `POST /approvals/:id` accepts only allow/always/deny (400 otherwise; before, a malformed value counted as allow); messages/answers/bot bodies validated (400, text cap 60000 -> 413); mobile.css: `.chat__back` default rule moved BEFORE the media query (it overrode the phone rule, so Back never showed); Tasks view has a Back button on phones; opening Tasks on phones switches to the chat pane.
+- Test: e2e "bad input" (16/16 e2e, 56 unit, typecheck, build pass). Needs `NODE_OPTIONS=--max-old-space-size=400` and swap on a 482 MB VM.
+- Next: P12b error boundary + transcript scroll + voice abort.

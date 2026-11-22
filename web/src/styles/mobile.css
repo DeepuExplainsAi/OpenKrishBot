@@ -1,3 +1,5 @@
+/* back button: default hidden, shown on phones (must come before the media query) */
+.chat__back { display: none; position: absolute; left: 10px; top: 12px; pointer-events: auto; }
 /* ---------- phone layout: one pane at a time, same look as the desktop app ---------- */
 @media (max-width: 760px) {
   .app { position: relative; }
@@ -13,9 +15,8 @@
   .traffic-lights { display: none; }
   .modal { width: 100vw; max-width: 100vw; border-radius: 16px 16px 0 0; }
   .chat__back { display: inline-flex; }
-  .chat__header { padding-left: 52px; }
+  .chat__header, .tasks-view__header { padding-left: 52px; }
 }
-.chat__back { display: none; position: absolute; left: 10px; top: 12px; pointer-events: auto; }
 @supports (padding: env(safe-area-inset-bottom)) {
   .composer-area { padding-bottom: calc(env(safe-area-inset-bottom) + 12px); }
 }

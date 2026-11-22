@@ -176,7 +176,8 @@ const ownBot = (userId: string, id: string) => {
 api.get('/bots', (c) => c.json({ bots: listBots(c.get('user').id), live: allLive(c.get('user').id) }));
 
 api.post('/bots', async (c) => {
-  const body = await c.req.json();
+  const body = await c.req.json().catch(() => null);
+  if (!body || typeof body !== 'object') return c.json({ error: 'invalid JSON body' }, 400);
   try {
     return c.json({ bot: createBot(c.get('user').id, body) });
   } catch (e: any) {
@@ -188,7 +189,8 @@ api.post('/bots', async (c) => {
 api.patch('/bots/:id', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  const p = await c.req.json();
+  const p = await c.req.json().catch(() => null);
+  if (!p || typeof p !== 'object') return c.json({ error: 'invalid JSON body' }, 400);
   const cols: Record<string, string> = { name: 'name', label: 'label', description: 'description', instructions: 'instructions', avatarShape: 'avatar_shape', avatarColor: 'avatar_color', mode: 'mode', effort: 'effort', pinned: 'pinned', voice: 'voice', voiceSpeed: 'voice_speed', voiceLanguage: 'voice_language' };
   for (const [k, col] of Object.entries(cols)) {
     if (p[k] !== undefined) db.prepare(`UPDATE bots SET ${col}=?, updated_at=? WHERE id=?`).run(typeof p[k] === 'boolean' ? (p[k] ? 1 : 0) : p[k], now(), b.id);
@@ -247,8 +249,9 @@ api.get('/bots/:id/rows', (c) => {
 api.post('/bots/:id/messages', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  const { text } = await c.req.json<{ text: string }>();
-  if (!text?.trim()) return c.json({ error: 'empty' }, 400);
+  const { text } = await c.req.json<{ text?: unknown }>().catch(() => ({ text: undefined }));
+  if (typeof text !== 'string' || !text.trim()) return c.json({ error: 'empty' }, 400);
+  if (text.length > 60_000) return c.json({ error: 'message too long (max 60000 characters)' }, 413);
   const row = appendRow(b.id, 'message', { type: 'message', role: 'user', text: text.trim() });
   // Group chats dispatch to their member Bots instead of running their own loop.
   if (b.kind === 'room') dispatchRoomMessage(b.id, text.trim(), enqueue);
@@ -274,7 +277,8 @@ api.post('/bots/:id/fresh', (c) => {
 });
 
 api.post('/approvals/:id', async (c) => {
-  const { decision } = await c.req.json<{ decision: 'allow' | 'always' | 'deny' }>();
+  const { decision } = await c.req.json<{ decision: unknown }>().catch(() => ({ decision: undefined }));
+  if (decision !== 'allow' && decision !== 'always' && decision !== 'deny') return c.json({ error: 'decision must be allow, always or deny' }, 400);
   try { resolveApproval(c.get('user').id, c.req.param('id'), decision); } catch { return c.json({ error: 'not found' }, 404); }
   return c.json({ ok: true });
 });
@@ -283,7 +287,8 @@ api.post('/bots/:id/cards/:seq/answer', async (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
   const row = getRow(b.id, Number(c.req.param('seq')));
-  const { answer } = await c.req.json<{ answer: string }>();
+  const { answer } = await c.req.json<{ answer?: unknown }>().catch(() => ({ answer: undefined }));
+  if (typeof answer !== 'string' || !answer.trim() || answer.length > 60_000) return c.json({ error: 'invalid answer' }, 400);
   if (!row || row.body.type !== 'card' || row.body.card !== 'question') return c.json({ error: 'not a question' }, 400);
   updateRow(b.id, row.seq, { ...row.body, status: 'answered', answer });
   appendRow(b.id, 'message', { type: 'message', role: 'user', text: answer });

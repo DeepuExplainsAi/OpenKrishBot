@@ -5,6 +5,7 @@ import { configApi } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, useVersion } from '../../configStore';
 import { useStore } from '../../store';
+import { Icon } from '../Icon';
 import { Glyph } from './glyphs';
 import './ui';
 
@@ -69,6 +70,9 @@ export function TasksView() {
   return (
     <main className="chat tasks-view">
       <header className="tasks-view__header">
+        <button type="button" className="icon-btn icon-btn--bordered chat__back" onClick={() => { useConfigUI.getState().setView('chat'); useStore.setState({ mobileChat: false }); }} aria-label="Back to Bots" title="Back to Bots">
+          <Icon name="chev_down" opacity={0.7} style={{ transform: 'rotate(90deg)' }} />
+        </button>
         <div className="tasks-view__title">Tasks</div>
         <div className="segmented" role="tablist" aria-label="Filter tasks">
           {([['open', `In progress${counts.open ? ` ${counts.open}` : ''}`], ['done', 'Done'], ['all', 'All']] as [Filter, string][]).map(([f, label]) => (
@@ -99,7 +103,7 @@ export function TasksIsland() {
   const tasks = useTasks();
   const waiting = tasks?.filter((t) => t.state === 'needs_input').length ?? 0;
   return (
-    <button type="button" className={`sidebar-island${view === 'tasks' ? ' is-active' : ''}`} onClick={() => useConfigUI.getState().setView(view === 'tasks' ? 'chat' : 'tasks')} title="Tasks" aria-pressed={view === 'tasks'}>
+    <button type="button" className={`sidebar-island${view === 'tasks' ? ' is-active' : ''}`} onClick={() => { useConfigUI.getState().setView(view === 'tasks' ? 'chat' : 'tasks'); if (view !== 'tasks') useStore.setState({ mobileChat: true }); }} title="Tasks" aria-pressed={view === 'tasks'}>
       <span className="sidebar-island__icon"><Glyph name="tasks" size={18} /></span>
       <span className="sidebar-island__label">Tasks</span>
       {waiting > 0 && <span className="sidebar-island__count" aria-label={`${waiting} waiting on you`}>{waiting}</span>}

@@ -156,6 +156,15 @@ try {
     await until(async () => (await assistantTexts(botB)).some((t) => t.includes('ECHO[back again')), 20000, 'reply after budget removed');
   });
 
+  await test('bad input: malformed approval/message/bot bodies get 400/413, not a crash or a decision', async () => {
+    ok((await api('POST', '/api/approvals/nope', { decision: 'maybe' })).status === 400, 'odd decision accepted');
+    ok((await api('POST', '/api/approvals/nope', {})).status === 400, 'missing decision accepted');
+    ok((await api('POST', `/api/bots/${botA}/messages`, { text: 5 })).status === 400, 'non-string text accepted');
+    ok((await api('POST', `/api/bots/${botA}/messages`, { text: 'x'.repeat(60001) })).status === 413, 'huge text accepted');
+    ok((await api('POST', '/api/bots', undefined)).status === 400, 'empty bot body accepted');
+    ok((await api('GET', '/api/health')).ok, 'server down after bad input');
+  });
+
   await test('workflow: fork/join runs and merges', async () => {
     const f = await api('PUT', '/api/flows', { name: 'Fork', steps: [
       { id: 'a', bot: 'Alpha', prompt: 'facts on {{input}}' },
