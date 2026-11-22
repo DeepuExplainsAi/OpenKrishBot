@@ -47,10 +47,10 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P9a free browser voice
 - [x] P9b MCP registry search (thousands of connectors, all local)
 - [x] P9c polish: breaker, audit viewer, launcher, README, Windows path fix
-- [ ] P10 final cross-check of P1-P9 (re-test each part), docs cleanup, remaining gaps
+- [x] P10 cross-check done (see P10 notes)
 
 ## Status
-P0-P8 done. Server boots with zero keys (verified). Next: P9 polish/About/packaging/final audit.
+P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 notes.
 
 ## P2 notes (for next agent)
 - server/src/engine.ts is now a slim replacement (old Hermes engine deleted). Every bot -> in-process engine at /krish/v1/responses (server/src/krish/engine.ts), guarded by engineKey().
@@ -129,3 +129,10 @@ P0-P8 done. Server boots with zero keys (verified). Next: P9 polish/About/packag
 - Launcher: `Krishbot.bat` / `Krishbot.command` / `krishbot.sh` -> `scripts/launch.mjs` (install, build, start, open browser). Verified on Linux with curl; not run on Windows/Mac.
 - Fixed `import.meta.url.pathname` (broke on Windows paths) with `fileURLToPath`.
 - Deleted the Orgo/Hermes install scripts and docs. `docs/ARCHITECTURE.md` still describes the old design: rewrite in P10.
+
+## P10 notes (final cross-check, 2026-11-22)
+- Re-tested with a real server + scripted fake model (HOME=/tmp): chat on keyless Pollinations -> reply; custom provider -> tool call -> approval card -> allow -> result with key redacted; "Always allow" then safe command runs silently; `rm -rf /` still asks (card says why); deny -> declined in audit log. Launcher: build + start + /api/health + /api/audit OK. 27 server tests pass; server + web typecheck clean.
+- Docs rewritten for the local design (README, ARCHITECTURE, SECURITY). Old Orgo/Hermes scripts, docs and e2e scripts deleted.
+- No third-party licence text anywhere in the UI (as requested); LICENSE + THIRD_PARTY_NOTICES.md stay in the repo root only.
+- STILL NOT VERIFIED (needs the owner's machine): real phone browser, WhatsApp link with a real number, Windows/Mac launcher, voice in a real browser (Web Speech), real third-party connector with real key, `uvx`-based registry servers, visual check of the UI (build VM too small for Chrome).
+- NOT DONE (honest list): offline speech (local Whisper); multi-agent PlanningFlow from OpenManus; Slack/Telegram chat apps (only WhatsApp); skills marketplace and handoff cards from OpenMausBot; Paperclip org-chart/budget features; mid-stream failure retry. "ChatGPT 6 Luna" is not free (OpenRouter credit), only listed in the OpenRouter preset.
