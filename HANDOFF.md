@@ -57,6 +57,7 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P16 notices for new libraries, version 1.2.0 (release workflow builds Windows, Mac, Linux on tag v*)
 
 - [x] P17 ideas from nightly-labs/openbot (PolyForm NONCOMMERCIAL: never copy its code; ideas only, written from scratch): (a) long-chat auto-summary `krish/compact.ts` (history over ~20k tokens: old part summarised by the bot's model; window always starts at a user message; env OPENKRISHBOT_COMPACT_TOKENS); (b) Local scripts API `scripts-api.ts`: off by default, per-bot token (hashed), loopback + localhost Host only, `POST /script/messages {text, wait}`, `GET /script/status`; toggle in the bot's Engine panel. Verified over HTTP on a real server. Other ideas not done yet: FIFO message queue with pause/cancel, theme palette files, Docker image, remote server mode.
+- [x] release v1.3.0 includes P17 (CI green on Windows, Mac, Linux before tagging)
 
 ## Status
 P0-P10 done. Server boots with zero keys (verified). Remaining ideas: see P10 notes.
