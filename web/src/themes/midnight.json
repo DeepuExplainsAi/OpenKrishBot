@@ -1,0 +1,1 @@
+{ "name": "Midnight", "base": "dark", "vars": { "--color-bg-chrome": "#0B1020", "--color-bg-sidebar": "#080C18", "--color-bg-pane": "#0F1630", "--color-primary": "#7AA2FF" } }

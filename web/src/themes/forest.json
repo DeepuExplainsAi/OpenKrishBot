@@ -1,0 +1,1 @@
+{ "name": "Forest", "base": "dark", "vars": { "--color-bg-chrome": "#0E1A14", "--color-bg-sidebar": "#0A130E", "--color-bg-pane": "#122119", "--color-primary": "#6FD39A" } }

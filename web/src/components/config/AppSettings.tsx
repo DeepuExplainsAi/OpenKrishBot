@@ -1,3 +1,4 @@
+import { PALETTES } from '../../lib/palettes';
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
@@ -106,6 +107,8 @@ function ThemeTile({ value, label, current, onPick }: { value: Theme; label: str
 function GeneralSection() {
   const theme = useConfigUI((s) => s.theme);
   const setTheme = useConfigUI((s) => s.setTheme);
+  const palette = useConfigUI((s) => s.palette);
+  const setPalette = useConfigUI((s) => s.setPalette);
   return (
     <>
       <PageHead title="General" />
@@ -117,6 +120,15 @@ function GeneralSection() {
           <ThemeTile value="dark" label="Dark" current={theme} onPick={setTheme} />
         </div>
         <div className="cfg-field__hint">System follows your device’s light or dark setting.</div>
+        <div className="cfg-section__label" style={{ marginTop: 16 }}>Colours</div>
+        <div className="theme-tiles" role="radiogroup" aria-label="Colours">
+          <button type="button" role="radio" aria-checked={!palette} className={`cfg-btn ${!palette ? 'cfg-btn--secondary' : 'cfg-btn--ghost'}`} onClick={() => setPalette(null)}>Default</button>
+          {PALETTES.map((p) => (
+            <button key={p.id} type="button" role="radio" aria-checked={palette === p.id} className={`cfg-btn ${palette === p.id ? 'cfg-btn--secondary' : 'cfg-btn--ghost'}`} onClick={() => setPalette(p.id)}>
+              <span aria-hidden style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 5, marginRight: 6, background: p.vars['--color-primary'] }} />{p.name}
+            </button>
+          ))}
+        </div>
       </section>
     </>
   );

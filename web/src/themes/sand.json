@@ -1,0 +1,1 @@
+{ "name": "Sand", "base": "light", "vars": { "--color-bg-chrome": "#FAF6EE", "--color-bg-sidebar": "#F1EADB", "--color-bg-pane": "#FFFCF6", "--color-primary": "#8A5A12" } }

@@ -1,0 +1,1 @@
+{ "name": "Rose", "base": "light", "vars": { "--color-bg-chrome": "#FFF7F9", "--color-bg-sidebar": "#FCEBF0", "--color-bg-pane": "#FFFFFF", "--color-primary": "#C82779" } }

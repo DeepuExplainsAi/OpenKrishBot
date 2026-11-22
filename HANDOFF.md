@@ -403,7 +403,7 @@ Done:
 1. [ ] Merge p18-queue to main after CI green; tag v1.4.0 and publish release (wait for `desktop` workflow, 8 assets).
 2. [ ] Docker: add a CI job that runs `docker build .` (needs `workflow` scope, which we lack: ask user to add it, or run build elsewhere). Document in README (run, sign-in link, reverse proxy + TLS, APP_URL).
 3. [ ] Remote server mode: bind/URL docs, `APP_URL` public, sign-in via link; optional access token for `/script`.
-4. [ ] Theme palette files: JSON palettes in `web/src/styles/themes/*.json` (CSS variables from `tokens.css`), picker in Settings → General, saved in localStorage; keep light/dark/system.
+4. [x] (done, P20) Theme palette files: JSON palettes in `web/src/styles/themes/*.json` (CSS variables from `tokens.css`), picker in Settings → General, saved in localStorage; keep light/dark/system.
 5. [ ] browser-use ideas (MIT): `browser_extract` (structured fields from the page by a schema), a `browser_task` loop with step limit and "stuck" detection (same action/URL 3x -> stop and tell user), highlight of clickable elements in `browser_snapshot`.
 6. [ ] Playwright-MCP leftovers: `browser_console` (read console messages), `browser_network` (list requests), `browser_pdf`/`browser_save_screenshot` to file, `browser_drag`, `browser_resize`, `browser_handle_dialog`.
 7. [ ] crawl4ai leftovers: `sitemap.xml` discovery in `web_crawl`, robots.txt respect, content-fit filter (drop nav/footers), CSS-selector extraction, cache for repeated URLs.
@@ -413,3 +413,6 @@ Done:
 11. [ ] Find more popular MIT/Apache repos (e.g. n8n-style workflow nodes, AutoGen, LangGraph ideas, Open Interpreter, Stagehand, Firecrawl OSS parts): ideas or code with notices in `THIRD_PARTY_NOTICES.md`. Never copy PolyForm/AGPL/noncommercial code.
 12. [ ] Verify on real machines: Windows installer + hidden launcher, browser tools on macOS.
 13. [ ] Final: version bump, tag, release assets check, tell the user.
+
+## P20 — Palette files
+- `web/src/themes/*.json` (`{name, base, vars}`; Midnight, Forest, Sand, Rose) loaded by `web/src/lib/palettes.ts` (`import.meta.glob`); only `--color-*` vars apply. `configStore`: `palette`, `setPalette`; picker under Settings → General → Colours. A palette sets its own light/dark base. Add a palette = add a JSON file.

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { ServerEvent } from '@shared/types';
 import { useStore } from './store';
 import { lsGet, lsSet } from './lib/storage';
+import { applyPalette } from './lib/palettes';
 
 /** UI state for bot settings, app settings, the Tasks view and the theme. Kept apart from store.ts on purpose. */
 
@@ -14,6 +15,8 @@ interface ConfigUI {
   appSettings: AppSection | null;
   view: 'chat' | 'tasks';
   theme: Theme;
+  /** id of a palette file in src/themes, or null for the built-in light/dark. */
+  palette: string | null;
   /** Bumped by server events (tasks, memories) so open views refetch. Keys: 'tasks', 'memories:<botId>'. */
   versions: Record<string, number>;
   openBotSettings(botId: string, tab?: BotSettingsTab): void;
@@ -22,6 +25,7 @@ interface ConfigUI {
   closeAppSettings(): void;
   setView(v: 'chat' | 'tasks'): void;
   setTheme(t: Theme): void;
+  setPalette(id: string | null): void;
   bump(key: string): void;
 }
 
@@ -33,8 +37,12 @@ const readTheme = (): Theme => {
 
 const darkQuery = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
-export function applyTheme(t: Theme) {
-  const resolved = t === 'system' ? (darkQuery?.matches ? 'dark' : 'light') : t;
+const LS_PALETTE = 'palette';
+const readPalette = () => lsGet(LS_PALETTE) || null;
+
+export function applyTheme(t: Theme, palette: string | null = readPalette()) {
+  const p = applyPalette(palette);
+  const resolved = p ? p.base : t === 'system' ? (darkQuery?.matches ? 'dark' : 'light') : t;
   document.documentElement.dataset.theme = resolved;
   document.documentElement.style.colorScheme = resolved;
 }
@@ -44,6 +52,7 @@ export const useConfigUI = create<ConfigUI>((set, get) => ({
   appSettings: null,
   view: 'chat',
   theme: readTheme(),
+  palette: readPalette(),
   versions: {},
   openBotSettings: (botId, tab = 'general') => set({ botSettings: { botId, tab } }),
   closeBotSettings: () => set({ botSettings: null }),
@@ -54,6 +63,11 @@ export const useConfigUI = create<ConfigUI>((set, get) => ({
     lsSet(LS_THEME, theme);
     applyTheme(theme);
     set({ theme });
+  },
+  setPalette: (palette) => {
+    lsSet(LS_PALETTE, palette ?? '');
+    applyTheme(get().theme, palette);
+    set({ palette });
   },
   bump: (key) => set({ versions: { ...get().versions, [key]: (get().versions[key] ?? 0) + 1 } }),
 }));
