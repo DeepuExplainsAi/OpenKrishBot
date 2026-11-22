@@ -8,9 +8,9 @@ import { findChrome } from '../src/screen/cdp.ts';
 
 const PAGE = `<html><head><title>Shop</title></head><body><a href="/two" id="l">Go two</a>
 <select id="s"><option value="a">Apple</option><option value="b">Banana</option></select>
-<input type="file" id="f"><div id="out"></div>
+<input type="file" id="f"><div id="out"></div><div id="late"></div>
 <script>document.getElementById('s').onchange = (e) => document.getElementById('out').textContent = 'picked ' + e.target.value;
-setTimeout(() => { document.getElementById('out').textContent += ' ready'; }, 700);</script></body></html>`;
+setTimeout(() => { document.getElementById('late').textContent = 'late-ready'; }, 700);</script></body></html>`;
 
 test('browser tools: navigate, select, upload, wait, tabs, read', { skip: (!findChrome() && 'no Chrome installed') || (process.env.OPENKRISHBOT_BROWSER_TEST !== '1' && 'set OPENKRISHBOT_BROWSER_TEST=1 to run against a real Chrome') }, async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okb-'));
@@ -27,7 +27,8 @@ test('browser tools: navigate, select, upload, wait, tabs, read', { skip: (!find
     assert.match(nav, /select/);
     const idx = (re: RegExp) => Number(re.exec(nav)![1]);
     await run('browser_select', { index: idx(/\[(\d+)\] select/), option: 'Banana' });
-    assert.match(await run('browser_wait', { text: 'picked b ready', seconds: 5 }), /picked b ready/);
+    assert.match(await run('browser_wait', { text: 'late-ready', seconds: 10 }), /late-ready/);
+    assert.match(await run('browser_snapshot'), /picked b/);
     assert.match(await run('browser_upload', { index: idx(/\[(\d+)\] input:file/), path: 'a.txt' }), /Attached a\.txt/);
     assert.match(await run('browser_read'), /# Shop/);
     await run('browser_tabs', { action: 'new', url: base });
