@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type ComputerDetails, type PhoneInfo } from '../../lib/configApi';
+import { configApi, type ComputerDetails, type PhoneInfo, type WhatsAppInfo } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -18,6 +18,7 @@ const SECTIONS: { id: AppSection; label: string }[] = [
   { id: 'permissions', label: 'Permissions' },
   { id: 'apps', label: 'Connected apps' },
   { id: 'phone', label: 'Phone' },
+  { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'account', label: 'Account' },
 ];
 
@@ -51,6 +52,7 @@ export function AppSettings() {
           {section === 'permissions' && <PermissionsSection />}
           {section === 'apps' && <AppsSection />}
           {section === 'phone' && <PhoneSection />}
+          {section === 'whatsapp' && <WhatsAppSection />}
           {section === 'account' && <AccountSection />}
         </div>
       </div>
@@ -354,6 +356,71 @@ function PhoneSection() {
           ))}
         </div>
       </section>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function WhatsAppSection() {
+  const [info, setInfo] = useState<WhatsAppInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [numbers, setNumbers] = useState('');
+  const load = useCallback(() => { configApi.whatsapp().then((i) => { setInfo(i); setNumbers((n) => n || i.allow.join(', ')); }).catch((e) => setError((e as Error).message)); }, []);
+  useEffect(() => { load(); const t = setInterval(load, 2500); return () => clearInterval(t); }, [load]);
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true); setError(null);
+    try { await fn(); load(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  };
+  const on = info && info.status !== 'off';
+  const label = { off: 'Not connected', starting: 'Connecting…', qr: 'Waiting for you to scan', connected: `Connected${info?.me ? ` as +${info.me}` : ''}`, error: 'Problem' }[info?.status ?? 'off'];
+  return (
+    <>
+      <PageHead title="WhatsApp" sub="Talk to your main Bot from WhatsApp. It runs on this computer; nothing goes through our servers." />
+      <section className="cfg-section">
+        <div className="cfg-card">
+          <div className="cfg-row">
+            <span className={`computer-status-dot is-${info?.status === 'connected' ? 'on' : on ? 'busy' : 'off'}`} aria-hidden />
+            <div className="cfg-row__text">
+              <div className="cfg-row__title">{label}</div>
+              <div className="cfg-row__sub">{info?.error ?? (info?.status === 'connected' ? 'Message yourself on WhatsApp to give the Bot a task. Replies and approval questions come back there.' : 'Links like WhatsApp Web, with a QR code.')}</div>
+            </div>
+            {!on && <button type="button" className="cfg-btn cfg-btn--primary" disabled={busy} onClick={() => run(configApi.whatsappStart)}>Connect</button>}
+            {on && <button type="button" className="cfg-btn cfg-btn--secondary" disabled={busy} onClick={() => run(configApi.whatsappStop)}>Turn off</button>}
+          </div>
+          {info?.qr && (
+            <div className="cfg-row phone-qr">
+              <img src={info.qr} alt="WhatsApp QR code" width={200} height={200} />
+              <div className="cfg-row__text">
+                <div className="cfg-row__title">Scan with WhatsApp</div>
+                <div className="cfg-row__sub">On your phone: WhatsApp → Settings → Linked devices → Link a device.</div>
+              </div>
+            </div>
+          )}
+          {error && <div className="card__error" style={{ margin: '0 16px 12px' }}>{error}</div>}
+        </div>
+      </section>
+      <section className="cfg-section">
+        <div className="cfg-section__label">Other numbers allowed to command the Bot</div>
+        <div className="cfg-card">
+          <div className="cfg-row">
+            <input className="text-input" style={{ flex: 1 }} placeholder="+91 98765 43210, +1 555 0100" value={numbers} onChange={(e) => setNumbers(e.target.value)} aria-label="Allowed numbers" />
+            <button type="button" className="cfg-btn cfg-btn--secondary" disabled={busy} onClick={() => run(() => configApi.whatsappAllow(numbers.split(/[,\n]/).map((n) => n.trim()).filter(Boolean)))}>Save</button>
+          </div>
+          <div className="cfg-row"><div className="cfg-row__sub">Your own “Message yourself” chat always works. Anyone you add here can make the Bot act on this computer, so add only people you trust.</div></div>
+        </div>
+      </section>
+      {info?.status === 'connected' && (
+        <section className="cfg-section">
+          <div className="cfg-card">
+            <div className="cfg-row">
+              <div className="cfg-row__text"><div className="cfg-row__title">Unlink this computer</div><div className="cfg-row__sub">Removes the saved WhatsApp login from this computer.</div></div>
+              <ConfirmButton confirmLabel="Really unlink?" onConfirm={() => run(configApi.whatsappUnlink)}>Unlink</ConfirmButton>
+            </div>
+          </div>
+        </section>
+      )}
     </>
   );
 }

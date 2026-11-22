@@ -14,6 +14,7 @@ function addColumn(table: string, col: string, ddl: string) {
   if (!hasColumn(table, col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`);
 }
 
+db.exec('CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
 addColumn('skills', 'description', "TEXT NOT NULL DEFAULT ''");
 addColumn('skills', 'updated_at', 'INTEGER');
 /** 'chat' = saved by the bot's remember tool, 'learned' = extracted by consolidation. */

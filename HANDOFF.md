@@ -41,13 +41,13 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P3 (DONE) Local computer/screen per bot (replace Orgo): local browser (Playwright/CDP) + shell, watch / take control
 - [x] P4 (DONE, verified e2e) Local connectors: MCP client (stdio + HTTP) in server/src/apps.ts, 39-app catalog, custom MCP / web-API apps, per-tool approvals, webhook routines; Composio removed
 - [x] P5 (DONE, verified) Phone remote control: QR pairing, LAN + free cloudflared tunnel, installable PWA, phone layout, device list/revoke
-- [ ] P6 OpenMausBot features: rooms/groups, handoff cards, skills, routines UI, bot memory
+- [x] P6 (DONE, partly verified) Resilient model calls + provider fallback, OpenRouter preset (free + GPT-6 Luna/Astra), WhatsApp bridge
 - [ ] P7 OpenManus features: planning flow, browser/python/file tools, multi-agent flow
 - [ ] P8 OpenBot features: AG-UI style approvals/interactive results, extra tools
 - [ ] P9 Voice (local STT/TTS), polish, packaging (desktop launcher), final audit
 
 ## Status
-P0-P5 done. Server boots with zero keys (verified). Next: P6 OpenMausBot features, WhatsApp, error handling / provider fallback.
+P0-P6 done. Server boots with zero keys (verified). Next: P7 OpenManus (planning flow), P8 OpenBot (approvals), P9 polish/About/packaging.
 
 ## P2 notes (for next agent)
 - server/src/engine.ts is now a slim replacement (old Hermes engine deleted). Every bot -> in-process engine at /krish/v1/responses (server/src/krish/engine.ts), guarded by engineKey().
@@ -90,3 +90,12 @@ P0-P5 done. Server boots with zero keys (verified). Next: P6 OpenMausBot feature
 - Verified with curl: LAN peer not auto-logged-in; pair -> cookie -> /api/bots; link single-use (410); revoke -> 401; forged Origin -> 403; tunnel end-to-end (pair + send chat over https trycloudflare URL).
 - NOT verified: real phone browser rendering of mobile.css (no device here), push notifications, PWA install prompt, screen WebSocket from a phone, wake/sleep of the laptop (the laptop app must be open).
 - Reference: ~/KRISH (separate Android app + relay) not merged; this web-PWA path needs no APK.
+
+## P6 notes
+- `server/src/krish/resilient.ts`: every model call goes through `callModel`: classify failure (rate limit / overloaded / network / timeout / auth / not found / too long / bad request), retry only before any output streamed (3 tries, exponential backoff with jitter, honours Retry-After, capped 20s, abortable), then fall back to the next READY provider (keyed ones first, keyless Pollinations last), and say so in chat (quiet info notice). Too-long and bad-request errors do not fall back. Final error names every provider tried, plain language. Tests: `server/test/resilient.test.mts` (npm test -w server). Verified live with a flaky fake provider (2x503 then OK).
+- Idea taken from paperclip `database-retry.ts`: retry only what is safe to repeat, bounded attempts, walk the cause chain for error codes.
+- Not done: mid-stream failure (after text started) is not retried, it is reported. Per-provider circuit breaker (skip a provider that failed recently) not done.
+- Models: Pollinations (keyless) is the default. OpenRouter preset lists the 11 `:free` models that support tools plus openai/gpt-6-luna, gpt-6.2-astra, gpt-6.2-sol, gpt-5.6-luna, claude-fable-5.2, gemini-4-neon (these bill OpenRouter credit). HONEST NOTE: "ChatGPT 6 Luna" is not free anywhere; a free default with that name does not exist. It is selectable once an OpenRouter key is added.
+- WhatsApp: `whatsapp-relay.ts` (pure logic, tested: allowlist, self-chat, own-message marker, approval replies 1/2/3, stop, errors) + `whatsapp.ts` (Baileys 7.0.0-rc14, QR link, reconnect with backoff, creds in ~/.krishbot/whatsapp) + Settings -> WhatsApp. Only the main Bot. Verified: server starts the socket and WhatsApp's servers return a real QR. NOT verified: actual scan/link, sending, receiving (needs a real phone). Baileys is unofficial; account-ban risk is noted in the UI/file header. Groups and media are ignored.
+- Not done from OpenMausBot: rooms exist already; handoff cards, skills marketplace, multi-chat apps (Slack/Telegram) not ported.
+- About section: the app has no About/license screen right now (checked web/src). LICENSE and THIRD_PARTY_NOTICES.md exist in repo root only; the user said they will add licenses later.

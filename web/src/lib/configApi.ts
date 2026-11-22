@@ -40,7 +40,14 @@ export interface PhoneInfo {
   devices: { id: string; name: string; pairedAt: number; lastSeen: number | null }[];
 }
 
+export interface WhatsAppInfo { status: 'off' | 'starting' | 'qr' | 'connected' | 'error'; qr: string | null; me: string | null; error: string | null; allow: string[] }
+
 export const configApi = {
+  whatsapp: () => req<WhatsAppInfo>('GET', '/whatsapp'),
+  whatsappStart: () => req<{ ok: true }>('POST', '/whatsapp/start', {}),
+  whatsappStop: () => req<{ ok: true }>('POST', '/whatsapp/stop', {}),
+  whatsappUnlink: () => req<{ ok: true }>('POST', '/whatsapp/unlink', {}),
+  whatsappAllow: (numbers: string[]) => req<{ ok: true; allow: string[] }>('PUT', '/whatsapp/allow', { numbers }),
   phone: () => req<PhoneInfo>('GET', '/phone'),
   phonePair: (via: 'lan' | 'tunnel') => req<{ url: string; qr: string; expiresInSec: number }>('POST', '/phone/pair', { via }),
   phoneTunnel: (on: boolean) => req<{ ok: true; url: string | null }>('POST', '/phone/tunnel', { on }),
