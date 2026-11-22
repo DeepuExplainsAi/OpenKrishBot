@@ -10,6 +10,7 @@ import { isRemoteMcpServer, parseStoredMcpServer } from './maus/server/mcp-regis
 import { McpHttpError } from './maus/server/mcp-http.ts';
 import { launchCommand, launchEnv } from './lib/launch.js';
 import type { Toolkit } from './types.js';
+import { cuaPath, cuaSupported, installCua } from './cua.js';
 
 /**
  * Connected apps run on this computer: ready-made MCP servers (started with npx, so Node.js must be
@@ -32,6 +33,7 @@ const secret = (key: string, label: string): Field => ({ key, label, secret: tru
 const npx = (pkg: string, ...rest: string[]) => ({ command: 'npx', args: ['-y', pkg, ...rest] });
 
 export const CATALOG: CatalogApp[] = [
+  { slug: 'computer', name: 'Computer', description: 'See the whole screen and use any app: windows, mouse, keyboard (cua-driver, runs on this computer).', categories: ['productivity'], command: 'cua-driver', args: ['mcp'], fields: [] },
   { slug: 'browser', name: 'Browser', description: 'Open pages, click, type and read websites in a real browser.', categories: ['productivity', 'developer tools'], ...npx('@playwright/mcp@latest'), fields: [] },
   { slug: 'filesystem', name: 'Files', description: 'Read and edit files in a folder you choose.', categories: ['productivity', 'developer tools'], ...npx('@modelcontextprotocol/server-filesystem', '{folder}'), fields: [{ key: 'folder', label: 'Folder path', secret: false, kind: 'arg' }] },
   { slug: 'github', name: 'GitHub', description: 'Repos, issues and pull requests.', categories: ['developer tools'], ...npx('@modelcontextprotocol/server-github'), fields: [secret('GITHUB_PERSONAL_ACCESS_TOKEN', 'Personal access token')] },
@@ -145,7 +147,7 @@ function specOf(r: Row): Spec | null {
   const sub = (s: string) => s.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? '');
   const env: Record<string, string> = {};
   for (const f of cat.fields) if (f.kind === 'env' && values[f.key]) env[f.key] = values[f.key];
-  return { command: cat.command, args: cat.args.map(sub), env };
+  return { command: cat.slug === 'computer' ? cuaPath() ?? cat.command : cat.command, args: cat.args.map(sub), env };
 }
 
 async function connect(slug: string, spec: Spec): Promise<Live> {
@@ -180,6 +182,10 @@ export async function connectCatalogApp(slug: string, values: Record<string, str
   if (false) void McpHttpError;
   const missing = cat.fields.filter((f) => !String(values[f.key] ?? '').trim());
   if (missing.length) throw new Error(`Fill in: ${missing.map((f) => f.label).join(', ')}`);
+  if (slug === 'computer') {
+    if (!cuaSupported()) throw new Error(`Computer control is not available for ${process.platform} ${process.arch}.`);
+    await installCua();
+  }
   await close(slug);
   const config: any = { values };
   const row: Row = { slug, name: cat.name, kind: 'catalog', config };
