@@ -10,7 +10,7 @@ import { libraryRoot } from '../paths.js';
 import { appendRow, getBotRow, listRoutines, toRoutine, describeCron } from '../store.js';
 import { appInfo, cachedAppTool, findAppTool, humanizeTool } from '../apps.js';
 import { scheduleRoutine, unscheduleRoutine } from '../routines.js';
-import { createWebhookRoutine, describeEvent } from '../triggers.js';
+import { createFeedRoutine, createWebhookRoutine, describeEvent } from '../triggers.js';
 import { setCheckins } from '../proactive.js';
 import { createRoom, postToRoom } from './rooms.js';
 import type { ActivityKind } from '../types.js';
@@ -48,6 +48,12 @@ function botByName(userId: string, name: string) {
   return db.prepare('SELECT * FROM bots WHERE user_id=? AND lower(name)=lower(?)').get(userId, name.trim()) as any;
 }
 
+const CONDITIONS = {
+  type: 'array',
+  description: 'Optional "only if" filters. The routine runs only when ALL hold. field is a dot path into the event (webhook JSON body, or feed item: title, link, summary, author), op is one of exists, equals, not_equals, contains, not_contains, starts_with, greater_than, less_than.',
+  items: { type: 'object', properties: { field: { type: 'string' }, op: { type: 'string' }, value: { type: 'string' } }, required: ['field', 'op'] },
+};
+
 export const TOOLS: ToolDef[] = [
   {
     name: 'save_file',
@@ -82,14 +88,27 @@ export const TOOLS: ToolDef[] = [
   {
     name: 'create_event_routine',
     description: 'Create a routine that runs whenever something calls its webhook address (instead of on a schedule). Any service, script or automation that can send an HTTP POST can trigger it. The address is returned; give it to the user. `prompt` is what you will do each time; the request body is appended to it.',
-    parameters: obj({ name: { type: 'string' }, prompt: { type: 'string' } }, ['name', 'prompt']),
+    parameters: obj({ name: { type: 'string' }, prompt: { type: 'string' }, conditions: CONDITIONS }, ['name', 'prompt']),
     activity: 'working',
     label: 'Setting up a routine',
     impl: async (a, ctx) => {
-      const r = createWebhookRoutine(ctx.botId, { name: a.name, prompt: a.prompt });
+      const r = createWebhookRoutine(ctx.botId, { name: a.name, prompt: a.prompt, conditions: a.conditions });
       appendRow(ctx.botId, 'event', { type: 'event', event: 'routine-created', text: `Routine created: ${a.name} · ${describeEvent(r.schedule)}`, ref: r.id });
       hub.emit(ctx.userId, { type: 'routines', botId: ctx.botId });
       return { output: JSON.stringify({ ok: true, routine_id: r.id, webhook: r.url }), summary: `Created event routine ${a.name}` };
+    },
+  },
+  {
+    name: 'create_feed_routine',
+    description: 'Create a routine that runs for every NEW item in an RSS or Atom feed (checked every 15 minutes while the app is open). Items already in the feed when you create it do not trigger it. `prompt` is what you should do for each item; the item (title, link, summary, author, published) is added to it.',
+    parameters: obj({ name: { type: 'string' }, prompt: { type: 'string' }, url: { type: 'string', description: 'Feed address (http/https)' }, conditions: CONDITIONS }, ['name', 'prompt', 'url']),
+    activity: 'working',
+    label: 'Setting up a routine',
+    impl: async (a, ctx) => {
+      const r = createFeedRoutine(ctx.botId, { name: a.name, prompt: a.prompt, url: a.url, conditions: a.conditions });
+      appendRow(ctx.botId, 'event', { type: 'event', event: 'routine-created', text: `Routine created: ${a.name} · new items in ${a.url}`, ref: r.id });
+      hub.emit(ctx.userId, { type: 'routines', botId: ctx.botId });
+      return { output: JSON.stringify({ ok: true, routine_id: r.id }), summary: `Created feed routine ${a.name}` };
     },
   },
   {

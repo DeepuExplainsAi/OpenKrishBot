@@ -309,3 +309,10 @@ Open: Railway downloads page (static page that lists the GitHub Release files; t
 - Composio: removed again on purpose (owner: only fully local). Local MCP catalog + registry search stay.
 - SKILL.md ported from old repo.
 - Still to do: Models settings page UI in the old style, OS-level screen control, Windows installer test on a real PC, screenshots of the UI (no Chrome on this VM).
+
+## P13b: trigger conditions + RSS trigger (2026-11-22), OpenMan items 2 and 3
+- `server/src/conditions.ts` ("only if", dot paths, 8 ops, all must hold), `server/src/feed.ts` (RSS/Atom parser + fetch), `triggers.ts`: webhook routines check conditions against the JSON body; `feed:<url>` routines poll every 15 min while the app is open (first poll only remembers existing items, max 5 per poll, seen ids kept in routines.seen).
+- Bot tools: `create_event_routine` got `conditions`; new `create_feed_routine`. Routine descriptions show the trigger.
+- Tests: triggers.test.mts (4). Unit 89.
+- NOT verified: against a real feed / real webhook over HTTP; no UI to add conditions by hand (bots create them). Feed fetch does not block private addresses (local app, user's own feeds).
+- Next: P13c projects (4), then generators (5), meeting notes (6), websites (7), share (8), skill-from-task (9).

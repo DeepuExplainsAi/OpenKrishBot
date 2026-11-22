@@ -11,6 +11,7 @@ import { compatEnv, env } from './env.js';
 import { api } from './routes.js';
 import { attachScreenRelay } from './screen/relay.js';
 import { initRoutines } from './routines.js';
+import { startFeedPolling } from './triggers.js';
 import { hooks } from './triggers.js';
 import { pairRoute, phoneApi } from './phone.js';
 import { initWhatsApp, whatsappApi } from './whatsapp.js';
@@ -69,6 +70,7 @@ attachScreenRelay(server as unknown as Server);
 // BOTHQ_NO_SCHEDULER=1 for extra dev/test servers sharing a database copy, so routines and triggers don't fire twice.
 if (compatEnv('NO_SCHEDULER') !== '1') {
   initRoutines(enqueue);
+  startFeedPolling();
   initProactive(enqueue);
   initIssues((botId, text) => enqueue(botId, { type: 'system', text }));
   initIssueControl(interrupt);

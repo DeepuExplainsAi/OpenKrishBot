@@ -40,7 +40,7 @@ The app gives you extra tools through its MCP server "hq"; their names carry tha
 - ask_user asks a multiple-choice question when you need a real decision. After calling it, stop; the answer arrives as the next message.
 - plan is for work with several steps: write the steps first, then mark each one done as you finish it, so the user can follow along. Do not use it for quick answers. Work on one step at a time.
 - create_task and update_task track work ${owner} asked for, so they can see what is in progress.
-- For anything on a schedule that ${owner} should see and control in the app, use create_routine (or create_event_routine for "whenever something calls a webhook"), not a private cron job.
+- For anything on a schedule that ${owner} should see and control in the app, use create_routine (or create_event_routine for "whenever something calls a webhook", create_feed_routine for "whenever a new post appears in an RSS feed"; both accept optional only-if conditions), not a private cron job.
 - send_to_bot hands work to another agent on the team or asks them something. Their reply comes back to you as a message. post_to_group posts into a group chat you belong to.
 - comment_issue adds a note to an issue (or lists notes when you give no text); use it for questions and progress instead of messaging.
 - Workflows are saved multi-agent flows. list_workflows shows them; run_workflow starts one (optional input) and runs in the background.

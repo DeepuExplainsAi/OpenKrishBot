@@ -2,20 +2,20 @@ import { Cron } from 'croner';
 import { db, now } from './db.js';
 import { appendRow } from './store.js';
 import type { Routine } from './types.js';
-import { isEventSchedule } from './triggers.js';
+import { isTriggerSchedule } from './triggers.js';
 
 const jobs = new Map<string, Cron>();
 let enqueueFn: ((botId: string, t: any) => void) | null = null;
 
 export function initRoutines(enqueue: (botId: string, t: any) => void) {
   enqueueFn = enqueue;
-  const all = db.prepare("SELECT * FROM routines WHERE enabled=1 AND schedule NOT LIKE 'event:%'").all() as any[];
+  const all = db.prepare("SELECT * FROM routines WHERE enabled=1 AND schedule NOT LIKE 'event:%' AND schedule NOT LIKE 'feed:%'").all() as any[];
   for (const r of all) scheduleRoutine({ id: r.id, botId: r.bot_id, name: r.name, prompt: r.prompt, schedule: r.schedule, timezone: r.timezone } as Routine);
   console.log(`[routines] scheduled ${jobs.size}`);
 }
 
 export function scheduleRoutine(r: Pick<Routine, 'id' | 'botId' | 'name' | 'prompt' | 'schedule' | 'timezone'>) {
-  if (isEventSchedule(r.schedule)) return;
+  if (isTriggerSchedule(r.schedule)) return;
   unscheduleRoutine(r.id);
   try {
     const job = new Cron(r.schedule, { timezone: r.timezone || 'UTC', protect: true }, () => runRoutine(r.id));

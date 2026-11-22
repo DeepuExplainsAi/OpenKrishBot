@@ -178,7 +178,7 @@ export function toRoutine(r: any): Routine {
   } catch { /* invalid cron */ }
   return {
     id: r.id, botId: r.bot_id, name: r.name, prompt: r.prompt, schedule: r.schedule, timezone: r.timezone,
-    enabled: !!r.enabled, nextRunAt, lastRunAt: r.last_run_at, description: r.schedule.startsWith('event:') ? 'When its webhook is called' : describeCron(r.schedule),
+    enabled: !!r.enabled, nextRunAt, lastRunAt: r.last_run_at, description: r.schedule.startsWith('event:') ? `When its webhook is called${r.conditions ? ' (only if conditions match)' : ''}` : r.schedule.startsWith('feed:') ? `When a new item appears in ${r.schedule.slice(5)}${r.conditions ? ' (only if conditions match)' : ''}` : describeCron(r.schedule),
   };
 }
 
