@@ -66,7 +66,7 @@ app.route('/api', configApi);
 const webDist = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../../web/dist');
 if (fs.existsSync(webDist)) {
   app.use('/*', serveStatic({ root: path.relative(process.cwd(), webDist) }));
-  app.get('*', (c) => c.html(fs.readFileSync(path.join(webDist, 'index.html'), 'utf8')));
+  app.get('*', (c) => c.req.path.startsWith('/api/') ? c.json({ error: 'not found' }, 404) : c.html(fs.readFileSync(path.join(webDist, 'index.html'), 'utf8')));
 }
 
 const server = serve({ fetch: app.fetch, port: env.port, hostname: env.host }, (info) => console.log(`[bothq] server on http://localhost:${info.port}`));

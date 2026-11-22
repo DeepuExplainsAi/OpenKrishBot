@@ -25,6 +25,8 @@ export function findChrome(): string | null {
   return candidates.find((p) => p && fs.existsSync(p)) ?? null;
 }
 
+const CDP_TIMEOUT_MS = 30_000;
+
 export class Cdp {
   private ws!: WebSocket;
   private id = 0;
@@ -51,7 +53,8 @@ export class Cdp {
     if (this.closed) return Promise.reject(new Error('browser closed'));
     const id = ++this.id;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const t = setTimeout(() => { this.pending.delete(id); reject(new Error(`Browser did not answer ${method} in ${CDP_TIMEOUT_MS / 1000}s`)); }, CDP_TIMEOUT_MS);
+      this.pending.set(id, { resolve: (v) => { clearTimeout(t); resolve(v); }, reject: (e) => { clearTimeout(t); reject(e); } });
       this.ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
   }
