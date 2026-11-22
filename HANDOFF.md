@@ -300,3 +300,12 @@ Update README (providers, subscription login), HANDOFF status, run unit + e2e, p
 `desktop/` = Electron 39 shell (`main.cjs` starts the packaged server with ELECTRON_RUN_AS_NODE, opens a window; single instance; external links open in the browser). `scripts/desktop-prep.mjs` copies server+web builds in; `.github/workflows/release.yml` builds on Windows (NSIS setup + portable exe), macOS (dmg + zip, x64 and arm64), Linux (AppImage + deb) and smoke-tests the packaged server (`scripts/desktop-smoke.mjs`); a `v*` tag publishes a GitHub Release. `ci.yml` runs typecheck + unit + e2e on all 3 OS.
 Lessons: Electron 33 crashed the server (SIGSEGV) with better-sqlite3 13, Electron 39 works (Node 22). Use `npm ci --ignore-scripts` (better-sqlite3 ships prebuilds; the Windows runner has no usable compiler for a rebuild). rpm dropped: rpmbuild failed. Installers are UNSIGNED (Windows SmartScreen, macOS Gatekeeper warnings) until certificates exist. The window UI was never opened by a human on Windows/macOS: only the packaged server was smoke-tested.
 Open: Railway downloads page (static page that lists the GitHub Release files; the app itself stays local), rpm, auto-update, code signing, goals-tree UI check in a real browser, P13b (trigger conditions, RSS trigger), projects.
+
+## P14 merge from old repo + rename (2026-11-22)
+- Product name is now **OpenKrishbot** everywhere (launchers OpenKrishbot.bat/.command/openkrishbot.sh, desktop productName, appId ai.openkrishbot.app). Repo name unchanged.
+- Desktop: server binds 127.0.0.1 only, window loads 127.0.0.1 (stops the Windows "allow public and private network" prompt).
+- Subscription models (no key): `server/src/krish/cli.ts` runs claude / codex / gemini / grok / kimi / cursor-agent / vibe / opencode / qwen CLIs, prompt on stdin; the CLI is its own agent. Presets with `cli` in krish/providers.ts. Command flags for Grok/Kimi/Cursor/Vibe are NOT verified against real CLIs.
+- Added API providers: Anthropic (via its OpenAI-compatible endpoint, not native format), xAI, Fireworks, NVIDIA, Hugging Face, Moonshot, Z.ai, GitHub Models, Perplexity.
+- Composio: removed again on purpose (owner: only fully local). Local MCP catalog + registry search stay.
+- SKILL.md ported from old repo.
+- Still to do: Models settings page UI in the old style, OS-level screen control, Windows installer test on a real PC, screenshots of the UI (no Chrome on this VM).
