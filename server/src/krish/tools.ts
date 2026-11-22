@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { BROWSER_TOOLS } from '../screen/tools.js';
+import { stamp, transcribeFile, transcriptText } from '../transcribe.js';
 
 /** Local tools every OpenKrishbot agent has (from the OpenManus toolset: shell, python, file edit, web). They run on this computer. */
 export interface LocalTool {
@@ -149,6 +150,19 @@ const BASE_TOOLS: LocalTool[] = [
       const r = await fetch(String(a.url), { headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(25000) });
       const t = await r.text();
       return cap(/html/i.test(r.headers.get('content-type') ?? '') ? stripHtml(t) : t, 15000);
+    },
+  },
+  {
+    name: 'transcribe', ask: 'Transcribe a recording on your computer (installs Whisper once)',
+    description: 'Turn an audio or video file (meeting, call, voice note) into a timestamped transcript with Whisper, fully on this computer. Saves <file>.transcript.txt next to it and returns the text. Use before writing meeting notes.',
+    parameters: obj({ path: { type: 'string' }, language: { type: 'string', description: 'ISO code like en or hi; default auto-detect' } }, ['path']),
+    async run(a, c) {
+      const f = abs(String(a.path), c.cwd);
+      const t = await transcribeFile(f, { language: a.language ? String(a.language) : undefined });
+      const text = transcriptText(t);
+      const saved = `${f}.transcript.txt`;
+      fs.writeFileSync(saved, text);
+      return `Language ${t.language}, ${stamp(t.duration)} long. Saved to ${saved}\n\n${cap(text, 30000)}`;
     },
   },
   {

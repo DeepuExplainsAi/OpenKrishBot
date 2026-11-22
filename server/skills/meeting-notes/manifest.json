@@ -1,0 +1,2 @@
+{ "id": "meeting-notes", "name": "Meeting notes", "version": "1.0.0", "description": "Turn a meeting recording or transcript into notes with decisions and action items.", "defaultEnabled": true,
+  "triggerTerms": ["meeting notes", "notes from this meeting", "transcribe this", "transcribe the recording", "summarize this meeting", "summarise this meeting", "minutes of", "action items from"], "requiredCapabilities": [] }

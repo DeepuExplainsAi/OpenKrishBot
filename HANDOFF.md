@@ -330,3 +330,8 @@ OpenMan's generators need its Orgo computer + Python helper, so only the idea po
 NOT verified: a real bot run end to end with a real model; the deck in a real browser (no Chrome here); edge-tts/openpyxl/matplotlib are installed on demand by the bot (not bundled). No PPTX export, no image/video generators.
 Tests: skills.test (+1). Unit 93.
 Next: P13e meeting notes (6), websites (7), share (8), skill-from-task (9). Re-check P13b-d first.
+
+## P13e: meeting notes (2026-11-22), OpenMan item 6
+New `transcribe` tool (`server/src/transcribe.ts`): faster-whisper in `~/.krishbot/stt/venv`, installed on first use, ffmpeg decodes audio/video, saves `<file>.transcript.txt` with `[mm:ss]` stamps. Asks the user first (installs software). Skill `meeting-notes` turns it into summary / decisions / action items / timeline. Env: `KRISH_WHISPER_MODEL` (default base), `KRISH_STT_PYTHON` (override interpreter).
+Tested: wrapper with a stub interpreter (3 tests). NOT tested with real Whisper: this VM has no python3-venv; needs ffmpeg + python3(-venv) on the user's computer (Windows: python on PATH). No speaker labels. Desktop version bumped to 1.1.1 (v1.1.0 release assets are named 1.0.1).
+Next: websites (7), share (8), skill-from-task (9).
