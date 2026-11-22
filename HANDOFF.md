@@ -519,3 +519,6 @@ Done:
 
 ### v1.9.1 part 3 — nod schedules
 - `web/src/nod/lib/{schedule-timing,schedules}.ts` copied from nod; `SchedulePicker.tsx` (nod plan-controls picker: frequency/day/time + label) replaces the raw cron box in workflow edit. Runs on existing croner `routines.ts` (nod's pg-boss engine not portable to SQLite).
+
+### v1.9.1 part 4 — nod memory service + routes
+- `server/src/nod/memory.ts` (nod's createMemoryService, Postgres/analytics lines removed), `nod/object-storage.ts`, `shared-nod/memory-export.ts` copied. `nod-memory.ts` = file store (`~/.openkrishbot/nod-memory/memory/MEMORY.md`); `nod-memory-api.ts` = nod's `/api/memory*` routes on Hono, mounted at `/api/memory`. Tested add/view.
