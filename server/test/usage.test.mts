@@ -29,3 +29,13 @@ test('estimate and summary', () => {
   assert.equal(s[0].name, 'Bee');
   assert.equal(s[0].tokensIn, 140);
 });
+
+test('price: cost is tokens x price, no price means free, bad price rejected by shape', async () => {
+  const { costOf, getPrice, setPrice } = await import('../src/usage.js');
+  assert.equal(costOf(null, 1e6, 1e6), 0);
+  assert.equal(costOf({ inPerM: 1, outPerM: 3 }, 2e6, 1e6), 5);
+  setPrice('bp', { inPerM: 0.5, outPerM: 1.5 });
+  assert.deepEqual(getPrice('bp'), { inPerM: 0.5, outPerM: 1.5 });
+  setPrice('bp', { inPerM: 0, outPerM: 0 });
+  assert.equal(getPrice('bp'), null);
+});

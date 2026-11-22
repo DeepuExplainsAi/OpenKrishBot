@@ -38,6 +38,21 @@ export function overBudget(botId: string, t = now()): string | null {
 }
 
 export const usageSummary = (userId: string, days = 7) =>
-  db.prepare(`SELECT u.bot_id botId, b.name, SUM(u.tokens_in) tokensIn, SUM(u.tokens_out) tokensOut, SUM(u.calls) calls
+  (db.prepare(`SELECT u.bot_id botId, b.name, SUM(u.tokens_in) tokensIn, SUM(u.tokens_out) tokensOut, SUM(u.calls) calls
     FROM usage_daily u JOIN bots b ON b.id=u.bot_id WHERE b.user_id=? AND u.day>=? GROUP BY u.bot_id ORDER BY SUM(u.tokens_in+u.tokens_out) DESC`)
-    .all(userId, day(now() - (days - 1) * 86_400_000)) as { botId: string; name: string; tokensIn: number; tokensOut: number; calls: number }[];
+    .all(userId, day(now() - (days - 1) * 86_400_000)) as { botId: string; name: string; tokensIn: number; tokensOut: number; calls: number }[])
+    .map((r) => ({ ...r, costUsd: costOf(getPrice(r.botId), r.tokensIn, r.tokensOut) }));
+
+/**
+ * Money: most providers here are free, so a price only exists if the user types one for a bot (USD per 1M tokens, in and out).
+ * No price means "free" and costs show as 0.
+ */
+export interface Price { inPerM: number; outPerM: number }
+export const getPrice = (botId: string): Price | null => {
+  try { const p = JSON.parse((db.prepare('SELECT value FROM kv WHERE key=?').get(`price:${botId}`) as any)?.value ?? 'null'); return p && p.inPerM >= 0 && p.outPerM >= 0 ? p : null; } catch { return null; }
+};
+export function setPrice(botId: string, p: Price | null) {
+  if (!p || (!p.inPerM && !p.outPerM)) db.prepare('DELETE FROM kv WHERE key=?').run(`price:${botId}`);
+  else db.prepare('INSERT OR REPLACE INTO kv(key,value) VALUES (?,?)').run(`price:${botId}`, JSON.stringify({ inPerM: p.inPerM, outPerM: p.outPerM }));
+}
+export const costOf = (price: Price | null, tokensIn: number, tokensOut: number) => (price ? (tokensIn * price.inPerM + tokensOut * price.outPerM) / 1e6 : 0);

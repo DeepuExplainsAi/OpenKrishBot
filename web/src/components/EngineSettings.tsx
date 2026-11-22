@@ -227,6 +227,27 @@ function BudgetRow({ botId }: { botId: string }) {
       <span>Today: {used.toLocaleString()} tokens · {info.today.calls} calls{info.dailyTokens ? ` · limit ${info.dailyTokens.toLocaleString()}` : ''}</span>
       <input className="text-input" style={{ width: 130 }} inputMode="numeric" placeholder="Daily limit" aria-label="Daily token limit" value={text} onChange={(e) => setText(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === 'Enter' && save()} />
       {err && <span className="voice-error" role="alert">{err}</span>}
+      <PriceRow botId={botId} info={info} onSaved={setInfo} />
     </div>
+  );
+}
+
+/** Optional: what this model costs (USD per million tokens). Free providers: leave empty and cost stays 0. */
+function PriceRow({ botId, info, onSaved }: { botId: string; info: BudgetInfo; onSaved: (i: BudgetInfo) => void }) {
+  const [inP, setIn] = useState(info.price ? String(info.price.inPerM) : '');
+  const [outP, setOut] = useState(info.price ? String(info.price.outPerM) : '');
+  const [err, setErr] = useState('');
+  const save = () => {
+    const a = inP.trim() === '' ? 0 : Number(inP), b = outP.trim() === '' ? 0 : Number(outP);
+    if (!(a >= 0) || !(b >= 0)) { setErr('Prices are numbers, in USD per million tokens.'); return; }
+    configApi.setPrice(botId, a || b ? { inPerM: a, outPerM: b } : null).then((r) => { onSaved(r); setErr(''); }).catch((e) => setErr(e.message));
+  };
+  return (
+    <>
+      <span>{info.price ? `Cost today ≈ $${info.today.costUsd.toFixed(info.today.costUsd < 0.01 ? 4 : 2)}` : 'Free model'}</span>
+      <input className="text-input" style={{ width: 90 }} inputMode="decimal" placeholder="$ in /1M" aria-label="Price per million input tokens" value={inP} onChange={(e) => setIn(e.target.value)} onBlur={save} />
+      <input className="text-input" style={{ width: 90 }} inputMode="decimal" placeholder="$ out /1M" aria-label="Price per million output tokens" value={outP} onChange={(e) => setOut(e.target.value)} onBlur={save} />
+      {err && <span className="voice-error" role="alert">{err}</span>}
+    </>
   );
 }

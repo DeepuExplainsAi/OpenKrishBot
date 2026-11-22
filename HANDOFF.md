@@ -257,3 +257,7 @@ Paperclip's goals, adapted to SQLite for one user. `server/src/goals.ts` (table,
 Tests: goals.test.mts (4), e2e "goals" (HTTP, 20 total). Unit 79, e2e 20, typecheck/build clean.
 NOT verified: the Goals screen in a real browser (no Chrome here; only typechecked).
 Still not built: per-step PlanningFlow executor, Slack/Discord, handoff cards, money cost tracking, offline Whisper, skills marketplace.
+
+## P12k: money cost (2026-11-22)
+Optional per-bot price (USD per 1M tokens in/out, kv `price:<bot>`), `PUT /api/bots/:id/price`. No price = free model, cost 0. Cost is computed from the current price x recorded tokens (changing the price re-prices history; shown as "≈"). UI: price inputs + "Cost today" in the bot's Engine budget row; last-7-days usage and total in Settings → Activity log.
+Tests: usage.test (price), e2e "price" (21 total). Unit 80. UI not seen in a browser.

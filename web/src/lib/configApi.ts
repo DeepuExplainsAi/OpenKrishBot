@@ -55,7 +55,8 @@ export type GoalStatus = 'planned' | 'active' | 'achieved' | 'cancelled';
 export interface Goal { id: string; title: string; description: string; level: GoalLevel; status: GoalStatus; parentId: string | null; ownerBotId: string | null; done: number; total: number }
 export interface Issue { id: string; title: string; body: string; status: IssueStatus; assigneeBotId: string | null; parentId: string | null; checkoutBotId: string | null; result: string; goalId: string | null; updatedAt: number }
 
-export interface BudgetInfo { dailyTokens: number | null; today: { tokensIn: number; tokensOut: number; calls: number } }
+export interface Price { inPerM: number; outPerM: number }
+export interface BudgetInfo { dailyTokens: number | null; today: { tokensIn: number; tokensOut: number; calls: number; costUsd: number }; price: Price | null }
 
 export interface LibrarySkill { id: string; name: string; description: string; triggers: string[]; enabled: boolean }
 
@@ -71,6 +72,7 @@ export const configApi = {
   skillLibrary: () => req<{ skills: LibrarySkill[] }>('GET', '/skill-library'),
   setLibrarySkill: (id: string, enabled: boolean) => req<{ id: string; enabled: boolean }>('PUT', `/skill-library/${id}`, { enabled }),
   budget: (botId: string) => req<BudgetInfo>('GET', `/bots/${botId}/budget`),
+  setPrice: (botId: string, p: Price | null) => req<BudgetInfo>('PUT', `/bots/${botId}/price`, p),
   setBudget: (botId: string, dailyTokens: number | null) => req<BudgetInfo>('PUT', `/bots/${botId}/budget`, { dailyTokens }),
   issues: () => req<{ issues: Issue[] }>('GET', '/issues'),
   goals: () => req<{ goals: Goal[] }>('GET', '/goals'),
@@ -92,6 +94,7 @@ export const configApi = {
   stopFlowRun: (runId: string) => req<{ ok: true }>('POST', `/flows/runs/${runId}/stop`, {}),
   dangerMode: () => req<{ mode: 'ask' | 'follow' }>('GET', '/audit/danger-mode'),
   setDangerMode: (mode: 'ask' | 'follow') => req<{ mode: 'ask' | 'follow' }>('PUT', '/audit/danger-mode', { mode }),
+  usage: () => req<{ usage: { botId: string; name: string; tokensIn: number; tokensOut: number; calls: number; costUsd: number }[] }>('GET', '/usage'),
   audit: () => req<{ entries: AuditEntry[] }>('GET', '/audit'),
   whatsapp: () => req<WhatsAppInfo>('GET', '/whatsapp'),
   whatsappStart: () => req<{ ok: true }>('POST', '/whatsapp/start', {}),

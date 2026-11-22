@@ -244,6 +244,14 @@ try {
     ok((await api('GET', '/api/goals')).goals.find((g) => g.id === p.id).parentId === null, 'child not lifted');
   });
 
+  await test('price: set per bot, shows in budget info, bad price refused, cleared with zeros', async () => {
+    ok((await api('PUT', `/api/bots/${botA}/price`, { inPerM: -1, outPerM: 1 })).status === 400, 'negative price accepted');
+    const r = await api('PUT', `/api/bots/${botA}/price`, { inPerM: 1, outPerM: 2 });
+    ok(r.price?.inPerM === 1 && typeof r.today?.costUsd === 'number', JSON.stringify(r));
+    const c = await api('PUT', `/api/bots/${botA}/price`, { inPerM: 0, outPerM: 0 });
+    ok(c.price === null && c.today.costUsd === 0, 'not cleared');
+  });
+
   await test('issues: assign wakes bot, comment reaches it, state visible', async () => {
     const i = await api('POST', '/api/issues', { title: 'Write report', assigneeBotId: botB });
     ok(i.issue?.id, JSON.stringify(i));

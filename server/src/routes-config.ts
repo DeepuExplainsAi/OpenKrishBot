@@ -14,7 +14,7 @@ import { box } from './box.js';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
 import { listMemories } from './engine-memory.js';
 import { isEnabled, loadLibrary, setEnabled } from './skill-library.js';
-import { getBudget, setBudget, usageSummary, usageToday } from './usage.js';
+import { costOf, getBudget, getPrice, setBudget, setPrice, usageSummary, usageToday } from './usage.js';
 import type { LibraryFile, Skill } from './types.js';
 
 /**
@@ -137,7 +137,23 @@ configApi.patch('/bots/:id/engine', async (c) => {
 configApi.get('/bots/:id/budget', (c) => {
   const b = ownBot(c.get('user').id, c.req.param('id'));
   if (!b) return c.json({ error: 'not found' }, 404);
-  return c.json({ dailyTokens: getBudget(b.id), today: usageToday(b.id) });
+  return c.json(budgetInfo(b.id));
+});
+
+function budgetInfo(botId: string) {
+  const today = usageToday(botId);
+  const price = getPrice(botId);
+  return { dailyTokens: getBudget(botId), today: { ...today, costUsd: costOf(price, today.tokensIn, today.tokensOut) }, price };
+}
+
+/** { inPerM, outPerM } USD per million tokens, or null: what this bot's model costs, so Today shows money. */
+configApi.put('/bots/:id/price', async (c) => {
+  const b = ownBot(c.get('user').id, c.req.param('id'));
+  if (!b) return c.json({ error: 'not found' }, 404);
+  const p = await c.req.json<any>().catch(() => null);
+  if (p !== null && !(Number.isFinite(p?.inPerM) && Number.isFinite(p?.outPerM) && p.inPerM >= 0 && p.outPerM >= 0 && p.inPerM <= 10_000 && p.outPerM <= 10_000)) return c.json({ error: 'Prices are USD per million tokens, between 0 and 10000.' }, 400);
+  setPrice(b.id, p);
+  return c.json(budgetInfo(b.id));
 });
 
 /** { dailyTokens: number | null }: a daily token cap for this bot; null or 0 removes it. */
@@ -147,7 +163,7 @@ configApi.put('/bots/:id/budget', async (c) => {
   const { dailyTokens } = await c.req.json<{ dailyTokens?: number | null }>().catch(() => ({} as { dailyTokens?: number | null }));
   if (dailyTokens !== null && dailyTokens !== undefined && !(Number.isFinite(dailyTokens) && dailyTokens >= 0)) return c.json({ error: 'dailyTokens must be a number.' }, 400);
   setBudget(b.id, dailyTokens ?? null);
-  return c.json({ dailyTokens: getBudget(b.id), today: usageToday(b.id) });
+  return c.json(budgetInfo(b.id));
 });
 
 configApi.get('/skill-library', (c) => c.json({ skills: loadLibrary().map((s) => ({ id: s.id, name: s.name, description: s.description, triggers: s.triggerTerms.slice(0, 6), enabled: isEnabled(s) })) }));

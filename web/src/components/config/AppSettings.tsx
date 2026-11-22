@@ -209,10 +209,27 @@ function humanizeTool(slug: string): { app: string; action: string } {
 
 function ActivitySection() {
   const [rows, setRows] = useState<AuditEntry[] | null>(null);
-  useEffect(() => { configApi.audit().then((r) => setRows(r.entries)).catch(() => setRows([])); }, []);
+  const [usage, setUsage] = useState<Awaited<ReturnType<typeof configApi.usage>>['usage']>([]);
+  useEffect(() => { configApi.audit().then((r) => setRows(r.entries)).catch(() => setRows([])); configApi.usage().then((r) => setUsage(r.usage)).catch(() => {}); }, []);
+  const total = usage.reduce((n, u) => n + u.costUsd, 0);
   return (
     <>
       <PageHead title="Activity log" sub="Every action your Bots ran on this computer. Kept only here, with keys hidden." />
+      {usage.length > 0 && (
+        <section className="cfg-section">
+          <div className="cfg-card">
+            <div className="cfg-row"><div className="cfg-row__text"><div className="cfg-row__title">Last 7 days{total > 0 ? ` · ≈ $${total.toFixed(total < 0.01 ? 4 : 2)}` : ''}</div></div></div>
+            {usage.map((u) => (
+              <div key={u.botId} className="cfg-row">
+                <div className="cfg-row__text">
+                  <div className="cfg-row__title">{u.name}</div>
+                  <div className="cfg-row__sub">{(u.tokensIn + u.tokensOut).toLocaleString()} tokens · {u.calls} calls{u.costUsd > 0 ? ` · ≈ $${u.costUsd.toFixed(u.costUsd < 0.01 ? 4 : 2)}` : ''}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="cfg-section">
         <div className="cfg-card">
           {rows === null ? <div className="cfg-empty cfg-empty--flat">Loading…</div> : rows.length === 0 ? (
