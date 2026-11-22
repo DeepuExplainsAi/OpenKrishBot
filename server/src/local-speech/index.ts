@@ -11,6 +11,7 @@ import type { ProviderUsageEvent } from '../ports/provider-usage.ts';
 import { logFailure } from '../ports/failure-log.ts';
 import { speechVoices } from '../shared-nod/speech.ts';
 import { verifySpeechCache } from './cache.ts';
+import { ext, tsxArgs } from './runtime.ts';
 
 interface LocalSpeechStatus {
   state: 'not_downloaded' | 'downloading' | 'ready' | 'failed';
@@ -102,13 +103,13 @@ export function createLocalSpeechProvider(options: {
     active = job;
     if (!child) {
       const worker = (options.fork ?? fork)(
-        fileURLToPath(new URL('./worker.ts', import.meta.url)),
+        fileURLToPath(new URL(`./worker${ext}`, import.meta.url)),
         [options.cacheDir],
         {
           cwd: options.cacheDir,
           stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
           serialization: 'advanced',
-          execArgv: ['--import', import.meta.resolve('tsx'), '--max-old-space-size=1536'],
+          execArgv: [...tsxArgs, '--max-old-space-size=1536'],
           env: {
             ...Object.fromEntries(
               ['PATH', 'SystemRoot', 'TMPDIR', 'TMP', 'TEMP', 'LANG'].flatMap((name) =>

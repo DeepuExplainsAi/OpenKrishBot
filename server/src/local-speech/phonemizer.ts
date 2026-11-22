@@ -1,3 +1,4 @@
+import { ext, tsxArgs } from './runtime.ts';
 import { fork } from 'node:child_process';
 
 export function phonemizeSpeech(
@@ -8,9 +9,9 @@ export function phonemizeSpeech(
     const env: NodeJS.ProcessEnv = { ELECTRON_RUN_AS_NODE: '1' };
     for (const name of ['PATH', 'SystemRoot', 'TEMP', 'TMP', 'TMPDIR', 'LANG'])
       if (process.env[name]) env[name] = process.env[name];
-    const child = fork(new URL('./phonemizer-worker.ts', import.meta.url), [], {
+    const child = fork(new URL(`./phonemizer-worker${ext}`, import.meta.url), [], {
       env,
-      execArgv: ['--import', import.meta.resolve('tsx'), '--max-old-space-size=128'],
+      execArgv: [...tsxArgs, '--max-old-space-size=128'],
       stdio: ['pipe', 'pipe', 'ignore', 'ipc'],
       serialization: 'json',
     });
