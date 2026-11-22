@@ -1,3 +1,4 @@
+import { stepMessage, type PipelineStep } from './pipeline.js';
 import { goalsFor } from '../goals.js';
 import { addComment, checkout, createIssue, finish, issuesFor, listComments } from '../issues.js';
 import { db, now } from '../db.js';
@@ -457,6 +458,23 @@ export const TOOLS: ToolDef[] = [
       if (ctx.depth >= 4) return { output: 'Too many hops between bots; answer the user directly instead.' };
       ctx.enqueueBotMessage(ctx.botId, target.id, String(a.message), ctx.depth + 1);
       return { output: `Sent to ${target.name}. Their reply will come back to you as a message.`, summary: `Messaged ${target.name}` };
+    },
+  },
+  {
+    name: 'run_pipeline',
+    description: 'Run work through several Bots in order (like a crew): each does its task, then passes the result to the next; the last one reports back to you. Max 3 steps. Use for e.g. research -> write -> review.',
+    parameters: obj({ steps: { type: 'array', items: obj({ bot_name: { type: 'string' }, task: { type: 'string' } }, ['bot_name', 'task']) } }, ['steps']),
+    activity: 'messaging_named',
+    label: 'Starting a pipeline',
+    impl: async (a, ctx) => {
+      const steps: PipelineStep[] = ((a.steps ?? []) as any[]).slice(0, 3).map((x) => ({ bot: String(x.bot_name), task: String(x.task) }));
+      if (steps.length < 2) return { output: 'A pipeline needs at least 2 steps.' };
+      const bots = steps.map((st) => botByName(ctx.userId, st.bot));
+      const bad = steps.filter((_, i) => !bots[i] || bots[i]!.kind === 'room' || bots[i]!.id === ctx.botId).map((st) => st.bot);
+      if (bad.length) return { output: `Not usable as steps: ${bad.join(', ')}. Use other Bots' names (not yourself, not groups).` };
+      if (ctx.depth + steps.length >= 4) return { output: 'Too many hops between bots; answer the user directly instead.' };
+      ctx.enqueueBotMessage(ctx.botId, bots[0]!.id, stepMessage(steps, 0, getBotRow(ctx.botId).name), ctx.depth + 1);
+      return { output: `Pipeline started with ${steps[0].bot}. The final result will come back to you as a message.`, summary: `Pipeline of ${steps.length} Bots` };
     },
   },
   {

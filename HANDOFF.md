@@ -391,3 +391,25 @@ NOT tested: a real model calling save_skill/publish_site; browser rendering of t
 - UI: `QueueRow` in `EngineSettings.tsx` (shown only when something waits or paused).
 - Test: `server/test/queue.test.mts`. Idea from the openbot README only; code written independently.
 - Not done: theme palette files, Docker image, remote server mode.
+
+## P19 — mem0 notes, web_crawl, Docker, pipelines (in progress on branch p18-queue, v1.4.0)
+Done:
+- `server/src/krish/memory.ts`: `memory` tool dedupes / updates / `replaces` / `forget` (mem0 idea, word overlap, no model call). Test `memory.test.mts`.
+- `web_crawl` tool (`crawlSite` in `scrape.ts`, crawl4ai idea): same-host BFS, max 50 pages, path prefix. Test in `scrape.test.mts`.
+- `run_pipeline` tool (`agent/pipeline.ts`, crewAI idea): up to 3 bots in order, last reports to starter. Test `pipeline.test.mts`.
+- Docker: `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/sign-in-link.sh` (one-time sign-in link via owner key). NOT yet built or tested (no Docker on the VM). Check CI/local build.
+
+## TODO checklist (everything the user asked for; do in order, commit + push after each, update this file)
+1. [ ] Merge p18-queue to main after CI green; tag v1.4.0 and publish release (wait for `desktop` workflow, 8 assets).
+2. [ ] Docker: add a CI job that runs `docker build .` (needs `workflow` scope, which we lack: ask user to add it, or run build elsewhere). Document in README (run, sign-in link, reverse proxy + TLS, APP_URL).
+3. [ ] Remote server mode: bind/URL docs, `APP_URL` public, sign-in via link; optional access token for `/script`.
+4. [ ] Theme palette files: JSON palettes in `web/src/styles/themes/*.json` (CSS variables from `tokens.css`), picker in Settings → General, saved in localStorage; keep light/dark/system.
+5. [ ] browser-use ideas (MIT): `browser_extract` (structured fields from the page by a schema), a `browser_task` loop with step limit and "stuck" detection (same action/URL 3x -> stop and tell user), highlight of clickable elements in `browser_snapshot`.
+6. [ ] Playwright-MCP leftovers: `browser_console` (read console messages), `browser_network` (list requests), `browser_pdf`/`browser_save_screenshot` to file, `browser_drag`, `browser_resize`, `browser_handle_dialog`.
+7. [ ] crawl4ai leftovers: `sitemap.xml` discovery in `web_crawl`, robots.txt respect, content-fit filter (drop nav/footers), CSS-selector extraction, cache for repeated URLs.
+8. [ ] mem0 leftovers: semantic recall (local embeddings or keyword index over past chats) injected into the prompt; per-user vs per-bot memory scopes.
+9. [ ] crewAI / MetaGPT leftovers: role templates with goal + backstory, task context passing, hierarchical "manager" bot that plans and assigns, SOP-style company templates (Product Manager -> Architect -> Engineer -> QA).
+10. [ ] Other repos from the user's first list not mined yet: suparagent (marketplace), openfuse (connectors), munder-difflin (rooms), orgo-teammates. Read each, list ideas, build the useful ones.
+11. [ ] Find more popular MIT/Apache repos (e.g. n8n-style workflow nodes, AutoGen, LangGraph ideas, Open Interpreter, Stagehand, Firecrawl OSS parts): ideas or code with notices in `THIRD_PARTY_NOTICES.md`. Never copy PolyForm/AGPL/noncommercial code.
+12. [ ] Verify on real machines: Windows installer + hidden launcher, browser tools on macOS.
+13. [ ] Final: version bump, tag, release assets check, tell the user.
