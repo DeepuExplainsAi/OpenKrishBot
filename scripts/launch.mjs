@@ -14,7 +14,7 @@ function openBrowser(url) {
 }
 const run = (args) => {
   const r = spawnSync(npm, args, { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
-  if (r.status !== 0) { console.error(`\nKrishbot could not finish "npm ${args.join(' ')}". Fix the error above and run this again.`); process.exit(1); }
+  if (r.status !== 0) { console.error(`\nOpenKrishbot could not finish "npm ${args.join(' ')}". Fix the error above and run this again.`); process.exit(1); }
 };
 
 if (Number(process.versions.node.split('.')[0]) < 22) { console.error('OpenKrishbot needs Node.js 22 or newer: https://nodejs.org'); process.exit(1); }
@@ -34,7 +34,7 @@ if (taken) {
 }
 
 const server = spawn(process.execPath, ['dist/index.js'], { cwd: path.join(root, 'server'), stdio: 'inherit', env: { ...process.env, PORT: port } });
-server.on('exit', (code) => { if (code) console.error(`\nKrishbot stopped with an error (code ${code}). The message above says why; if it mentions a missing module, delete the node_modules folder and start again.`); process.exit(code ?? 0); });
+server.on('exit', (code) => { if (code) console.error(`\nOpenKrishbot stopped with an error (code ${code}). The message above says why; if it mentions a missing module, delete the node_modules folder and start again.`); process.exit(code ?? 0); });
 process.on('SIGINT', () => server.kill());
 
 const url = `http://localhost:${port}`;
@@ -42,5 +42,5 @@ for (let i = 0; i < 60; i++) {
   await new Promise((r) => setTimeout(r, 500));
   if (await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(2000) }).then((r) => r.ok, () => false)) break;
 }
-console.log(`\nKrishbot is running at ${url}  (Ctrl+C to stop)`);
+console.log(`\nOpenKrishbot is running at ${url}  (Ctrl+C to stop)`);
 openBrowser(url);

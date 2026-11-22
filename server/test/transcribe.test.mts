@@ -15,7 +15,7 @@ test('stamp formats mm:ss and h:mm:ss', () => {
   assert.equal(stamp(65.9), '01:05');
   assert.equal(stamp(3725), '1:02:05');
 });
-test('transcribeFile reads the last stdout line and formats text', async () => {
+test('transcribeFile reads the last stdout line and formats text', { skip: process.platform === 'win32' && 'stub interpreter is a shell script' }, async () => {
   const audio = path.join(d, 'a.mp3'); fs.writeFileSync(audio, 'x');
   const t = await transcribeFile(audio);
   assert.equal(t.language, 'en');

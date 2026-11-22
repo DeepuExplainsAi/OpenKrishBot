@@ -1,11 +1,16 @@
 // OpenKrishbot desktop shell: starts the local server (same code as `npm start`) and shows it in a window.
-const { app, BrowserWindow, shell, Menu } = require('electron');
+const { app, BrowserWindow, shell, Menu, dialog } = require('electron');
+const fs = require('node:fs');
+const os = require('node:os');
 const { spawn } = require('node:child_process');
 const net = require('node:net');
 const path = require('node:path');
 
 const PREFERRED_PORT = Number(process.env.PORT) || 8787;
 let server = null;
+const logFile = path.join(os.homedir(), '.krishbot', 'desktop.log');
+fs.mkdirSync(path.dirname(logFile), { recursive: true });
+const logFd = fs.openSync(logFile, 'w');
 let win = null;
 
 const freePort = (port) => new Promise((resolve) => {
@@ -25,7 +30,7 @@ async function start() {
   server = spawn(process.execPath, [path.join(__dirname, 'server', 'dist', 'index.js')], {
     cwd: path.join(__dirname, 'server'),
     env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: String(port), HOST: process.env.HOST || '127.0.0.1' },
-    stdio: 'inherit',
+    stdio: ['ignore', logFd, logFd],
     windowsHide: true,
   });
   server.on('exit', (code) => { server = null; if (code && !app.isQuitting) { console.error('OpenKrishbot server stopped, code', code); app.quit(); } });
@@ -37,7 +42,7 @@ async function open() {
   const port = await start();
   win = new BrowserWindow({
     width: 1360, height: 860, minWidth: 420, minHeight: 600, title: 'OpenKrishbot', backgroundColor: '#ffffff', show: false,
-    icon: path.join(__dirname, 'build', 'icon.png'),
+    icon: path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true },
   });
   win.once('ready-to-show', () => win.show());
@@ -55,7 +60,10 @@ else {
   app.whenReady().then(() => {
     Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' }]) : null);
     return open();
-  }).catch((e) => { console.error(e); app.quit(); });
+  }).catch((e) => {
+    dialog.showErrorBox('OpenKrishbot could not start', `${e?.message ?? e}\n\nDetails: ${logFile}`);
+    app.quit();
+  });
   app.on('activate', () => { if (!win && app.isReady()) open().catch(() => {}); });
   app.on('window-all-closed', () => app.quit());
   app.on('before-quit', () => { app.isQuitting = true; server?.kill(); });

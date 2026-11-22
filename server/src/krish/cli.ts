@@ -15,9 +15,9 @@ export function cliFound(bin: string): boolean {
   return ok;
 }
 
-export function runCli(p: Preset, system: string, history: { role: string; content?: string | null }[], signal: AbortSignal): Promise<string> {
+export function runCli(p: Preset, system: string, history: { role: string; content?: string | any[] | null }[], signal: AbortSignal): Promise<string> {
   const cli = p.cli!;
-  const transcript = history.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content).slice(-30)
+  const transcript = history.filter((m) => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content).slice(-30)
     .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n\n');
   const flags = /^claude\b/.test(cli.command) ? ' --dangerously-skip-permissions' : /^codex\b/.test(cli.command) ? ' --full-auto' : /^gemini\b/.test(cli.command) ? ' --yolo --skip-trust' : '';
   return new Promise((resolve, reject) => {

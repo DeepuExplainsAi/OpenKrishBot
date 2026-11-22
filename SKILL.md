@@ -1,5 +1,5 @@
 ---
-name: krishbot
+name: openkrishbot
 description: Install, start, update and troubleshoot OpenKrishbot, a local AI-bots app (Node.js server + web UI) at http://localhost:8787. Use when the user asks to install, run, fix or update OpenKrishbot.
 ---
 

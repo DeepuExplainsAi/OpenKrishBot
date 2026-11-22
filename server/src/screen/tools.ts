@@ -1,4 +1,6 @@
+import fs from 'node:fs';
 import path from 'node:path';
+import { libraryRoot } from '../paths.js';
 import type { LocalTool } from '../krish/tools.js';
 import { screenOf } from './manager.js';
 
@@ -51,7 +53,26 @@ const KEYS: Record<string, { key: string; code: string; vk: number }> = {
   PageDown: { key: 'PageDown', code: 'PageDown', vk: 34 }, PageUp: { key: 'PageUp', code: 'PageUp', vk: 33 },
 };
 
+/** JPEG from the last browser_screenshot per bot; the engine hands it to vision models and clears it. */
+const pendingShots = new Map<string, string>();
+export const takeScreenshot = (botId: string) => { const b = pendingShots.get(botId); pendingShots.delete(botId); return b; };
+
 export const BROWSER_TOOLS: LocalTool[] = [
+  {
+    name: 'browser_screenshot',
+    description: 'Take a picture of the current page. Vision models see it directly; the file is also saved to your Library (screenshots/).',
+    parameters: obj({}),
+    async run(_a, c) {
+      const id = botOf(c.home);
+      const f = await (await screenOf(id)).shot();
+      const dir = path.join(libraryRoot(), id, 'screenshots');
+      fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, `shot-${Date.now()}.jpg`);
+      fs.writeFileSync(file, f.jpeg);
+      pendingShots.set(id, f.jpeg.toString('base64'));
+      return `Screenshot saved to Library: screenshots/${path.basename(file)}. Models that can see images get it attached.`;
+    },
+  },
   {
     name: 'browser_navigate',
     description: 'Open a URL in your own browser. Returns the page as a numbered list of things you can click or type into.',

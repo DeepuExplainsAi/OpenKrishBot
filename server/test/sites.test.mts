@@ -15,7 +15,7 @@ const w = (rel: string, body = 'x') => { const f = path.join(libraryRoot(), 'b1'
 w('site/index.html', '<h1>hi</h1>'); w('site/app.js', '1'); w('notes/readme.txt'); fs.mkdirSync(path.join(libraryRoot(), 'b2'), { recursive: true }); fs.writeFileSync(path.join(libraryRoot(), 'b2', 'secret.txt'), 's');
 
 test('siteFile serves index.html for a folder and files inside it', () => {
-  assert.ok(siteFile('b1', 'site/')?.endsWith('site/index.html'));
+  assert.ok(siteFile('b1', 'site/')?.endsWith(path.join('site', 'index.html')));
   assert.ok(siteFile('b1', 'site/app.js')?.endsWith('app.js'));
   assert.equal(siteFile('b1', 'site/missing.css'), null);
   assert.equal(siteFile('b1', 'notes/'), null);

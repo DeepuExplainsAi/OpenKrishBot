@@ -1,7 +1,7 @@
 {
   "name": "openkrishbot-desktop",
   "productName": "OpenKrishbot",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "OpenKrishbot: a team of AI agents on your own computer. Free, local, Mera AI.",
   "author": "OpenKrishbot <DeepuExplainsAi@users.noreply.github.com>",
   "homepage": "https://github.com/DeepuExplainsAi/krishbot-ai",
@@ -40,6 +40,7 @@
     "files": [
       "main.cjs",
       "build/icon.png",
+      "build/icon.ico",
       "server/package.json",
       "server/dist/**",
       "server/skills/**",
@@ -61,13 +62,20 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
-      "artifactName": "OpenKrishbot-Setup-${version}-win-x64.${ext}"
+      "artifactName": "OpenKrishbot-Setup-${version}-win-x64.${ext}",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true
     },
     "mac": {
       "category": "public.app-category.productivity",
@@ -88,7 +96,8 @@
         }
       ],
       "hardenedRuntime": false,
-      "identity": null
+      "identity": null,
+      "icon": "build/icon.png"
     },
     "linux": {
       "category": "Utility",

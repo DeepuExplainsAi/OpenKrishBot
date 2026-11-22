@@ -38,3 +38,6 @@ See `HANDOFF.md` for design notes and what is not verified yet.
 
 ## Licence
 GNU AGPL-3.0 (see `LICENSE`). Third-party notices: `THIRD_PARTY_NOTICES.md`.
+
+## Windows install notes
+The installers are unsigned, so Windows SmartScreen shows "Windows protected your PC": click **More info → Run anyway**. The app listens on 127.0.0.1 only, so there is no firewall prompt. If it does not open, read `%USERPROFILE%\.krishbot\desktop.log`.

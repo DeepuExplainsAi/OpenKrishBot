@@ -354,3 +354,10 @@ Not measured: UI render speed in a browser (no Chrome here); startup time of the
 - (9) Skill from task: tool `save_skill` writes a user skill (`~/.krishbot/skills`) through `installSkill`, so triggers/enable/remove in Settings -> Skills already work; built-in ids are refused.
 Tested: sites.test (5), share.test (2); real HTTP: site 200, `..` and `%2e%2e` -> 404, no cookie 401, share 200 with CSP.
 NOT tested: a real model calling save_skill/publish_site; browser rendering of the Share/Open website menu entries.
+
+## P18: finishing pass (2026-11-22)
+- Fixed CI on Windows (2 tests: path separator in sites.test, stub interpreter in transcribe.test skipped on win32). Unit 106 pass.
+- New tool `browser_screenshot`: saves a JPEG to Library/screenshots and attaches it to the next model turn for vision-capable model ids (`SEES_IMAGES` in krish/engine.ts). Non-vision models just get the file name. NOT verified with a real model/Chrome (none on this VM).
+- Desktop 1.1.2: real `.ico` for the Windows exe/installer/shortcuts (installed-apps list and Start menu show the icon), desktop + Start-menu shortcuts, server log in `~/.krishbot/desktop.log`, error dialog if the server does not start. SmartScreen note in README (unsigned installers).
+- Launcher/SKILL.md names now say OpenKrishbot. `~/.krishbot` data folder name is kept on purpose (existing data).
+- Still open: OS-level screen control (cua-driver licence not checked; browser only), code signing, real-PC Windows install test, UI check in a real browser.

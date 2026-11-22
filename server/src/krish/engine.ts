@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { takeScreenshot } from '../screen/tools.js';
 import fs from 'node:fs';
 import { db } from '../db.js';
 import { env } from '../env.js';
@@ -31,7 +32,8 @@ krishApi.use('/v1/*', async (c, next) => {
   await next();
 });
 
-type Msg = { role: 'system' | 'user' | 'assistant' | 'tool'; content?: string | null; tool_calls?: any[]; tool_call_id?: string };
+const SEES_IMAGES = /gpt-4o|gpt-4\.1|gpt-5|gpt-6|claude|gemini|llava|vision|-vl|pixtral|llama-?4|gemma-?3|grok|luna|astra/i;
+type Msg = { role: 'system' | 'user' | 'assistant' | 'tool'; content?: string | any[] | null; tool_calls?: any[]; tool_call_id?: string };
 const threads = new Map<string, Msg[]>();
 const DECLINED = 'The user declined this action. Do not retry it. Find another way, or tell the user what you could not do.';
 const SKIPPED = 'Skipped: the user did not approve this in time. Do not retry unless they ask.';
@@ -171,6 +173,8 @@ krishApi.post('/v1/responses', async (c) => {
             send('response.output_item.added', { item: { type: 'function_call', call_id: k.id, name: k.name, arguments: k.args || '{}' } });
             const out = await runTool(botId, k.name, k.args, home);
             history.push({ role: 'tool', tool_call_id: k.id, content: out });
+            const shot = takeScreenshot(botId);
+            if (shot && SEES_IMAGES.test(model)) history.push({ role: 'user', content: [{ type: 'text', text: 'Screenshot of the page:' }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${shot}` } }] });
             send('response.output_item.done', { item: { type: 'function_call_output', call_id: k.id, output: out } });
           }
         }
