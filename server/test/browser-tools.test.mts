@@ -12,7 +12,7 @@ const PAGE = `<html><head><title>Shop</title></head><body><a href="/two" id="l">
 <script>document.getElementById('s').onchange = (e) => document.getElementById('out').textContent = 'picked ' + e.target.value;
 setTimeout(() => { document.getElementById('out').textContent += ' ready'; }, 700);</script></body></html>`;
 
-test('browser tools: navigate, select, upload, wait, tabs, read', { skip: !findChrome() && 'no Chrome installed' }, async () => {
+test('browser tools: navigate, select, upload, wait, tabs, read', { skip: (!findChrome() && 'no Chrome installed') || (process.env.OPENKRISHBOT_BROWSER_TEST !== '1' && 'set OPENKRISHBOT_BROWSER_TEST=1 to run against a real Chrome') }, async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'okb-'));
   process.env.HOME = home;
   const { BROWSER_TOOLS } = await import('../src/screen/tools.ts');
