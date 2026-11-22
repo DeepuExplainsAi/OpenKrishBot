@@ -400,7 +400,7 @@ Done:
 - Docker: `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/sign-in-link.sh` (one-time sign-in link via owner key). NOT yet built or tested (no Docker on the VM). Check CI/local build.
 
 ## TODO checklist (everything the user asked for; do in order, commit + push after each, update this file)
-1. [ ] Merge p18-queue to main after CI green; tag v1.4.0 and publish release (wait for `desktop` workflow, 8 assets).
+1. [x] (done) Merge p18-queue to main after CI green; tag v1.4.0 and publish release (wait for `desktop` workflow, 8 assets).
 2. [~] (README done P27; CI job needs workflow scope) Docker: add a CI job that runs `docker build .` (needs `workflow` scope, which we lack: ask user to add it, or run build elsewhere). Document in README (run, sign-in link, reverse proxy + TLS, APP_URL).
 3. [x] (done P27) Remote server mode: bind/URL docs, `APP_URL` public, sign-in via link; optional access token for `/script`.
 4. [x] (done, P20) Theme palette files: JSON palettes in `web/src/styles/themes/*.json` (CSS variables from `tokens.css`), picker in Settings → General, saved in localStorage; keep light/dark/system.
