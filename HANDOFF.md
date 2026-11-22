@@ -494,3 +494,4 @@ Done:
 - Not testable on the VM: the real update flow needs two installed versions on a real PC.
 - [x] P19 one-line dismissible notices (no red box, short provider-switch text); desktop window opens at once with a loading page and shows a dialog with the log tail if the engine crashes; version 1.8.1
 - [x] P20 desktop package lacked linkedom/turndown/readability (app stopped on start); added, smoke test now runs from a copy outside the repo; version 1.8.2
+- [x] P21 new bot logo (assets/icon.svg, app/installer/web icons), dark by default and dark loading page (no white flash); version 1.9.0-dev

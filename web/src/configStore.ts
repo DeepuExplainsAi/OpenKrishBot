@@ -32,7 +32,7 @@ interface ConfigUI {
 const LS_THEME = 'theme';
 const readTheme = (): Theme => {
   const t = lsGet(LS_THEME);
-  return t === 'light' || t === 'dark' ? t : 'system';
+  return t === 'light' || t === 'system' ? t : 'dark';
 };
 
 const darkQuery = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;

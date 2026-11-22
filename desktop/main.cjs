@@ -46,11 +46,11 @@ async function start() {
   throw new Error('The OpenKrishBot server did not start.');
 }
 
-const LOADING = 'data:text/html,' + encodeURIComponent('<body style="margin:0;display:grid;place-items:center;height:100vh;font:16px system-ui;color:#555">Starting OpenKrishBot…</body>');
+const LOADING = 'data:text/html,' + encodeURIComponent('<body style="margin:0;display:grid;place-items:center;height:100vh;background:#121212;color:#9aa0aa;font:15px system-ui">Starting OpenKrishBot…</body>');
 
 async function open() {
   win = new BrowserWindow({
-    width: 1360, height: 860, minWidth: 420, minHeight: 600, title: 'OpenKrishBot', backgroundColor: '#ffffff', show: true,
+    width: 1360, height: 860, minWidth: 420, minHeight: 600, title: 'OpenKrishBot', backgroundColor: '#121212', show: true,
     icon: path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true },
   });
