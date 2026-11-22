@@ -132,10 +132,6 @@ CREATE TABLE IF NOT EXISTS skills (
   body TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
-CREATE TABLE IF NOT EXISTS composio_sessions (
-  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  session_id TEXT NOT NULL
-);
 `);
 
 // Idempotent column migrations for tables that predate a column.

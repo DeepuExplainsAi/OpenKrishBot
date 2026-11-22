@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { CardBody, Row } from '@shared/types';
-import { api, openPopup } from '../../lib/api';
+import { api } from '../../lib/api';
 import { useStore } from '../../store';
 import { Icon } from '../Icon';
 import { ToolkitLogo } from '../ToolkitLogo';
@@ -34,7 +34,7 @@ export function ApprovalCard({ body }: { body: Card<'approval'> }) {
   return (
     <div className={`card approval-card${pending ? '' : ' is-resolved'}`}>
       <div className="card__head">
-        <ToolkitLogo name={name} logo={body.toolkit ? `https://logos.composio.dev/api/${body.toolkit.toLowerCase()}` : undefined} size={44} />
+        <ToolkitLogo name={name} size={44} />
         <div className="card__titles">
           <div className="card__title">{body.title}</div>
           <div className="card__sub">{name}</div>
@@ -104,21 +104,9 @@ export function QuestionCard({ row, body }: { row: Row; body: Card<'question'> }
 
 export function ConnectCard({ row, body }: { row: Row; body: Card<'connect'> }) {
   const { busy, error, run } = useBusy();
-  const [waiting, setWaiting] = useState(false);
-  const connectionsVersion = useStore((s) => s.connectionsVersion);
   const pending = body.status === 'pending';
 
-  // Leave the "waiting" state once the server reports a connection change or the card resolves.
-  useEffect(() => { setWaiting(false); }, [connectionsVersion, body.status]);
-
-  const connect = () => run('connect', async () => {
-    const popup = openPopup('about:blank');
-    try {
-      const { redirectUrl } = await api.connect(body.toolkit, row.botId, row.seq);
-      if (popup) popup.location.href = redirectUrl; else window.open(redirectUrl, '_blank');
-      setWaiting(true);
-    } catch (e) { popup?.close(); throw e; }
-  });
+  const connect = () => useStore.getState().setModal('apps');
 
   return (
     <div className={`card connect-card${pending ? '' : ' is-resolved'}`}>
@@ -133,7 +121,7 @@ export function ConnectCard({ row, body }: { row: Row; body: Card<'connect'> }) 
         <>
           <div className="card__actions">
             <button type="button" className="btn btn--secondary" disabled={!!busy} onClick={() => run('skip', () => api.dismiss(row.botId, row.seq))}>Skip</button>
-            <button type="button" className="btn btn--primary" disabled={!!busy} onClick={connect}>{waiting ? 'Waiting for sign-in…' : 'Connect'}</button>
+            <button type="button" className="btn btn--primary" disabled={!!busy} onClick={connect}>Connect</button>
           </div>
           {error && <div className="card__error">{error}</div>}
         </>

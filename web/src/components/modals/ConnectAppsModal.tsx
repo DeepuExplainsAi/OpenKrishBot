@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { api, isConnectedMessage, openPopup, type AppsResponse } from '../../lib/api';
+import { api, type AppsResponse } from '../../lib/api';
 import { useStore } from '../../store';
 import { Icon } from '../Icon';
 import { Menu } from '../Menu';
 import { ToolkitLogo } from '../ToolkitLogo';
+import { BOT_TEMPLATES, type BotTemplate } from '../../lib/templates';
 import { Modal } from './Modal';
 
-/** Design pill → backend (Composio) category. */
+/** Design pill → app category. */
 const PILLS: { label: string; category: string }[] = [
   { label: 'Password Managers', category: 'security & identity tools' },
   { label: 'Productivity', category: 'productivity' },
@@ -26,18 +27,14 @@ function AppRow({ app, onChanged }: { app: Toolkit; onChanged: () => void }) {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { setState('idle'); }, [app.connected]);
 
+  const [form, setForm] = useState(false);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const needs = app.needs ?? [];
   const connect = async () => {
+    if (needs.length && !form) { setForm(true); return; }
     setState('busy'); setError(null);
-    const popup = openPopup('about:blank');
-    try {
-      const { redirectUrl } = await api.connect(app.slug);
-      if (popup) popup.location.href = redirectUrl; else window.open(redirectUrl, '_blank');
-      setState('waiting');
-    } catch (e) {
-      popup?.close();
-      setError((e as Error).message || 'Couldn’t start the connection');
-      setState('idle');
-    }
+    try { await api.connect(app.slug, values); setForm(false); onChanged(); }
+    catch (e) { setError((e as Error).message || 'Couldn’t connect'); setState('idle'); }
   };
   const disconnect = async () => {
     if (state !== 'confirm') { setState('confirm'); return; }
@@ -46,11 +43,11 @@ function AppRow({ app, onChanged }: { app: Toolkit; onChanged: () => void }) {
   };
 
   return (
-    <div className="app-row" title={app.description}>
+    <div className={`app-row${form ? ' has-form' : ''}`} title={app.description}>
       <ToolkitLogo name={app.name} logo={app.logo} />
       <span className="app-row__text">
         <span className="app-row__name">{app.name}</span>
-        {error ? <span className="app-row__error">{error}</span> : app.description && <span className="app-row__desc">{app.description}</span>}
+        {error ? <span className="app-row__error" title={error}>{error}</span> : app.description && <span className="app-row__desc">{app.description}</span>}
       </span>
       {app.connected ? (
         <button type="button" className={`app-row__connected${state === 'confirm' ? ' is-confirm' : ''}`} onClick={disconnect} onMouseLeave={() => state === 'confirm' && setState('idle')} disabled={state === 'busy'}>
@@ -59,9 +56,25 @@ function AppRow({ app, onChanged }: { app: Toolkit; onChanged: () => void }) {
       ) : app.noAuth ? (
         <span className="app-row__connected is-static"><Icon name="check" size={12} opacity={0.56} />Built in</span>
       ) : (
-        <button type="button" className="app-row__connect" onClick={connect} disabled={state === 'busy'}>
-          {state === 'busy' ? 'Opening…' : state === 'waiting' ? 'Waiting…' : 'Connect'}
-        </button>
+        !form && (
+          <button type="button" className="app-row__connect" onClick={connect} disabled={state === 'busy'}>
+            {state === 'busy' ? 'Starting…' : 'Connect'}
+          </button>
+        )
+      )}
+      {form && !app.connected && (
+        <form className="app-row__form" onSubmit={(e) => { e.preventDefault(); connect(); }}>
+          {needs.map((n) => (
+            <label key={n.key} className="app-row__field">
+              <span className="cfg-field__label">{n.label}</span>
+              <input className="text-input" type={n.secret ? 'password' : 'text'} autoComplete="off" spellCheck={false} value={values[n.key] ?? ''} onChange={(e) => setValues({ ...values, [n.key]: e.target.value })} />
+            </label>
+          ))}
+          <div className="cfg-form__actions">
+            <button type="submit" className="app-row__connect" disabled={state === 'busy'}>{state === 'busy' ? 'Testing…' : 'Save & test'}</button>
+            <button type="button" className="link-btn link-btn--small" onClick={() => { setForm(false); setError(null); }}>Cancel</button>
+          </div>
+        </form>
       )}
     </div>
   );
@@ -88,6 +101,47 @@ function Section({ title, apps, onViewAll, onChanged }: { title: string; apps: T
   );
 }
 
+function CustomApp({ onDone }: { onDone: () => void }) {
+  const [kind, setKind] = useState<'mcp' | 'http'>('mcp');
+  const [f, setF] = useState({ name: '', command: '', args: '', url: '', method: 'GET', headers: '', body: '', description: '' });
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const set = (k: string, v: string) => setF((x) => ({ ...x, [k]: v }));
+  const save = async () => {
+    setBusy(true); setErr(null);
+    const mcpUrl = kind === 'mcp' && /^https?:/.test(f.command.trim());
+    const app = kind === 'http' ? { kind, name: f.name, url: f.url, method: f.method, headers: f.headers, body: f.body, description: f.description }
+      : mcpUrl ? { kind, name: f.name, url: f.command.trim() }
+      : { kind, name: f.name, command: f.command.trim().split(/\s+/)[0], args: [...f.command.trim().split(/\s+/).slice(1), ...f.args.split('\n').map((a) => a.trim()).filter(Boolean)] };
+    try { await api.addCustomApp(app); onDone(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <section className="apps-section">
+      <div className="apps-section__head"><span className="apps-section__title">Add your own</span></div>
+      <div className="custom-app">
+        <div className="cat-pills">
+          <button type="button" className={`cat-pill${kind === 'mcp' ? ' is-active' : ''}`} onClick={() => setKind('mcp')}>MCP server</button>
+          <button type="button" className={`cat-pill${kind === 'http' ? ' is-active' : ''}`} onClick={() => setKind('http')}>Web API</button>
+        </div>
+        <input className="text-input" placeholder="Name" value={f.name} onChange={(e) => set('name', e.target.value)} />
+        {kind === 'mcp' ? (
+          <input className="text-input" placeholder="Command (npx -y some-mcp-server) or https:// address" spellCheck={false} value={f.command} onChange={(e) => set('command', e.target.value)} />
+        ) : (
+          <>
+            <input className="text-input" placeholder="URL, e.g. https://api.example.com/items/{id}" spellCheck={false} value={f.url} onChange={(e) => set('url', e.target.value)} />
+            <select className="text-input" value={f.method} onChange={(e) => set('method', e.target.value)}>{['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => <option key={m}>{m}</option>)}</select>
+            <textarea className="text-input" rows={2} placeholder={'Headers, one per line\nAuthorization: Bearer …'} spellCheck={false} value={f.headers} onChange={(e) => set('headers', e.target.value)} />
+            <textarea className="text-input" rows={2} placeholder="Body (optional). Use {name} for values the Bot fills in." spellCheck={false} value={f.body} onChange={(e) => set('body', e.target.value)} />
+            <input className="text-input" placeholder="What it does (so the Bot knows when to use it)" value={f.description} onChange={(e) => set('description', e.target.value)} />
+          </>
+        )}
+        {err && <div className="app-row__error">{err}</div>}
+        <button type="button" className="app-row__connect" disabled={busy || !f.name.trim()} onClick={save}>{busy ? 'Checking…' : 'Add'}</button>
+      </div>
+    </section>
+  );
+}
+
 export function ConnectAppsModal() {
   const setModal = useStore((s) => s.setModal);
   const connectionsVersion = useStore((s) => s.connectionsVersion);
@@ -101,6 +155,18 @@ export function ConnectAppsModal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [more, setMore] = useState(false);
+  const [templates, setTemplates] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const addTemplate = async (t: BotTemplate) => {
+    setTemplateError(null);
+    try {
+      const { bot } = await api.createBot({ name: t.name, label: t.label, instructions: t.instructions, avatarShape: 'heart', avatarColor: 'orange', mode: 'personal' });
+      const st = useStore.getState();
+      st.set({ bots: st.bots.some((b) => b.id === bot.id) ? st.bots : [...st.bots, bot] });
+      st.selectBot(bot.id);
+      close();
+    } catch (e) { setTemplateError((e as Error).message); }
+  };
   const [bump, setBump] = useState(0);
   const refresh = useCallback(() => setBump((n) => n + 1), []);
 
@@ -128,13 +194,6 @@ export function ConnectAppsModal() {
     return () => { alive = false; };
   }, [data]);
 
-  // Refresh after the OAuth popup reports back.
-  useEffect(() => {
-    const onMsg = (e: MessageEvent) => { if (isConnectedMessage(e)) refresh(); };
-    window.addEventListener('message', onMsg);
-    return () => window.removeEventListener('message', onMsg);
-  }, [refresh]);
-
   const apps = data?.apps ?? [];
   const searching = debounced.length > 0;
   const moreCategories = useMemo(() => (data?.categories ?? []).filter((c) => !PILLS.some((p) => p.category === c)), [data?.categories]);
@@ -152,11 +211,13 @@ export function ConnectAppsModal() {
   } else {
     body = (
       <>
-        <Section title="Picked for you" apps={apps.slice(0, 6)} onChanged={refresh} />
+        <Section title="Picked for you" apps={apps.filter((a) => !a.custom).slice(0, 6)} onChanged={refresh} />
         {PILLS.map((p) => {
           const list = apps.filter((a) => a.categories.includes(p.category));
           return <Section key={p.category} title={p.label} apps={list.slice(0, 4)} onViewAll={list.length > 2 ? () => setView({ kind: 'category', category: p.category }) : undefined} onChanged={refresh} />;
         })}
+        <Section title="Your own" apps={apps.filter((a) => a.custom)} onChanged={refresh} />
+        <CustomApp onDone={refresh} />
       </>
     );
   }
@@ -185,11 +246,17 @@ export function ConnectAppsModal() {
               <Icon name="search" size={14} opacity={0.56} />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search apps and skills" aria-label="Search apps" />
             </label>
-            <button type="button" className="pill-chip" title="Bot templates are coming soon" disabled>
-              {primary && <BotAvatarFor bot={primary} size={22} />}
-              <span>Bot templates</span>
-              <Icon name="share" size={12} opacity={0.56} />
-            </button>
+            <span className="cat-pill-anchor">
+              <button type="button" className="pill-chip" onClick={() => setTemplates(!templates)} aria-expanded={templates}>
+                {primary && <BotAvatarFor bot={primary} size={22} />}
+                <span>Bot templates</span>
+                <Icon name="chev_down" size={10} opacity={0.56} />
+              </button>
+              {templates && (
+                <Menu align="right" onClose={() => setTemplates(false)} items={BOT_TEMPLATES.map((t) => ({ label: t.name, hint: t.label, onSelect: () => addTemplate(t) }))} />
+              )}
+            </span>
+            {templateError && <span className="app-row__error">{templateError}</span>}
           </div>
           <div className="cat-pills">
             <button type="button" className={`cat-pill${view.kind === 'all' ? ' is-active' : ''}`} onClick={() => setView({ kind: 'all' })}>All</button>

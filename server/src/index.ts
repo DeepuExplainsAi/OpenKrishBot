@@ -8,7 +8,7 @@ import { compatEnv, env } from './env.js';
 import { api } from './routes.js';
 import { attachScreenRelay } from './screen/relay.js';
 import { initRoutines } from './routines.js';
-import { initTriggers } from './triggers.js';
+import { hooks } from './triggers.js';
 import { initProactive } from './proactive.js';
 import { initSubagents } from './agent/subagents.js';
 import { initRooms } from './agent/rooms.js';
@@ -32,6 +32,7 @@ app.use('/api/*', sameOriginWrites);
 app.get('/api/health', (c) => c.json({ ok: true, engine: 'krishbot' }));
 // The app's tools for the agent engines (MCP).
 app.route('/mcp', mcpApi);
+app.route('/hooks', hooks);
 app.route('/krish', krishApi);
 app.route('/api/krish', providersApi);
 app.route('/api/checkins', checkinsApi);
@@ -51,7 +52,6 @@ attachScreenRelay(server as unknown as Server);
 // BOTHQ_NO_SCHEDULER=1 for extra dev/test servers sharing a database copy, so routines and triggers don't fire twice.
 if (compatEnv('NO_SCHEDULER') !== '1') {
   initRoutines(enqueue);
-  void initTriggers(enqueue);
-initProactive(enqueue);
+  initProactive(enqueue);
 } else console.log('[bothq] scheduler disabled (BOTHQ_NO_SCHEDULER=1)');
 initEngines();

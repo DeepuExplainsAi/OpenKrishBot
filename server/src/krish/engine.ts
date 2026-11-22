@@ -6,7 +6,7 @@ import { requireUser, type AuthVars } from '../lib/auth.js';
 import { engineKey } from '../engine.js';
 import { DEFAULT_PROVIDER, PRESETS, hasKey, liveModels, resolve, saveProvider } from './providers.js';
 import { botHome, localToolMap, LOCAL_TOOLS } from './tools.js';
-import { TOOLS, toolMap } from '../agent/tools.js';
+import { TOOLS, policyFor, toolMap } from '../agent/tools.js';
 import { callTool as callHqTool, listTools as listHqTools } from '../mcp.js';
 import { claimToolRow, noteToolOutcome, requestApproval } from '../agent/loop.js';
 import { extraTools, callExtraTool } from './mcp-client.js';
@@ -159,7 +159,21 @@ async function runTool(botId: string, name: string, rawArgs: string, home: strin
       } catch (e: any) { noteToolOutcome(botId, seq, { status: 'error', summary: String(e?.message ?? e).slice(0, 200) }); throw e; }
     }
     if (name.startsWith('mcp_hq_')) return (await callHqTool(botId, name.slice(7), args)).content.map((c) => c.text).join('\n');
-    return await callExtraTool(botId, name, args);
+    // Connected apps: read-only tools run, everything else asks first (same cards and policies as the app's own tools).
+    await extraTools(botId);
+    const userId = (db.prepare('SELECT user_id FROM bots WHERE id=?').get(botId) as any).user_id as string;
+    const pol = policyFor(userId, name, args);
+    const seq = await claimToolRow(botId, name);
+    if (pol.decision === 'block') { noteToolOutcome(botId, seq, { status: 'denied', summary: 'Not allowed' }); return DECLINED; }
+    if (pol.decision === 'ask') {
+      const a = await requestApproval({ userId, botId }, pol, args, seq);
+      if (a !== 'allow') return a === 'deny' ? DECLINED : SKIPPED;
+    }
+    try {
+      const out = await callExtraTool(botId, name, args);
+      noteToolOutcome(botId, seq, { status: 'done' });
+      return out;
+    } catch (e: any) { noteToolOutcome(botId, seq, { status: 'error', summary: String(e?.message ?? e).slice(0, 200) }); throw e; }
   } catch (e: any) {
     return JSON.stringify({ error: String(e?.message ?? e).slice(0, 500) });
   }

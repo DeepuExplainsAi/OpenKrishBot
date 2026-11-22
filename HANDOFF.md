@@ -39,7 +39,7 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [x] P1 Rebrand to Krishbot (name is exactly "Krishbot"); Orgo/Composio/xAI keys now optional (server boots with none); no sign-in screen (loopback auto-login as owner); session secret auto-generated in ~/.krishbot. NOTE: Hermes/Orgo/Composio code still present - removed in P2/P3/P4 as replaced
 - [x] P2 (DONE, verified e2e: free model -> terminal tool -> approval card -> result 'krish-42') Local engine: Ollama + OpenAI-compatible (LM Studio, llama.cpp) + free providers; model picker with many models; no key needed to start
 - [x] P3 (DONE) Local computer/screen per bot (replace Orgo): local browser (Playwright/CDP) + shell, watch / take control
-- [ ] P4 MCP connectors: add/remove MCP servers (stdio + HTTP), provider catalog, per-tool approvals
+- [x] P4 (DONE, verified e2e) Local connectors: MCP client (stdio + HTTP) in server/src/apps.ts, 39-app catalog, custom MCP / web-API apps, per-tool approvals, webhook routines; Composio removed
 - [ ] P5 Phone remote control of the laptop (LAN/PWA + QR pairing, optional free tunnel); laptop does the work
 - [ ] P6 OpenMausBot features: rooms/groups, handoff cards, skills, routines UI, bot memory
 - [ ] P7 OpenManus features: planning flow, browser/python/file tools, multi-agent flow
@@ -47,7 +47,7 @@ Replace Hermes+Orgo+Composio+xAI with ONE built-in Node "Krishbot engine" inside
 - [ ] P9 Voice (local STT/TTS), polish, packaging (desktop launcher), final audit
 
 ## Status
-P0, P1, P2, P3 done. Server boots with zero keys (verified). Next: P4 MCP connectors (generic stdio/HTTP MCP client in server/src/krish/mcp-client.ts is a stub; port OpenMausBot connector catalog).
+P0-P4 done. Server boots with zero keys (verified). Next: P5 phone remote control.
 
 ## P2 notes (for next agent)
 - server/src/engine.ts is now a slim replacement (old Hermes engine deleted). Every bot -> in-process engine at /krish/v1/responses (server/src/krish/engine.ts), guarded by engineKey().
@@ -72,3 +72,13 @@ P0, P1, P2, P3 done. Server boots with zero keys (verified). Next: P4 MCP connec
 - Owner's extra requirements (from docx): WhatsApp integrated; phone remote control; best error handling (provider/API failures: retry, fallback to next provider, clear messages) taken from the reference repos incl. paperclipai/paperclip; model list incl. "gpt-6-luna"-style ids preconfigured; look stays bot-hq/Grok Bot; no cloud; no license text in About (add later).
 - Machine limits: 482 MB RAM, ~900 MB disk. Reference repos cloned under ~/ref (not committed).
 - Order: P4 (local connectors, remove Composio) -> P5 -> ... as listed. Each part: re-check previous part first, push, update this file.
+
+## P4 notes
+- `server/src/apps.ts`: catalog (npx MCP servers; fields = keys typed in the UI, stored in the local DB), custom MCP (command or URL) and custom web-API tools, MCP clients cached per app. Tools are named `<slug>__<tool>`; read-only (MCP annotation / GET) run directly, the rest ask via approval cards (`policyFor`). Hosted servers (Linear, Jira, Asana, PayPal, Webflow, Cloudflare) go through `mcp-remote`: a browser sign-in opens on this computer.
+- `krish/mcp-client.ts` is now a thin wrapper over apps.ts; `krish/engine.ts` `runTool` applies the approval policy to connected-app tools.
+- `triggers.ts`: event routines = webhook `POST /hooks/<secret>` (no cloud). `create_event_routine` tool returns the URL. Composio removed everywhere (server, web, deps, db table, env).
+- Web: ConnectAppsModal has key forms, "Add your own" (MCP / web API), bot templates menu. Connect card opens the modal.
+- Verified: memory MCP server via npx (list, call), custom HTTP tool, full chat loop with a fake OpenAI server -> approval card -> allow -> tool result, webhook routine fires, unknown secret 404.
+- NOT verified: real third-party apps with real keys; `mcp-remote` browser sign-in; npm package names were checked to exist, not run (only `memory` was run).
+- Catalog is 39 apps, not 180-1000+. Easy to extend: add a line in CATALOG. Idea for later: a "search npm / MCP registry" box that fills the custom form.
+- Machine note: never run many `npm view` in parallel on this 482 MB VM (it froze the box).

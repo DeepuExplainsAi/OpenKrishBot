@@ -72,7 +72,6 @@ export const env = {
   localOnly: isLoopbackUrl(appUrl),
   xaiKey: process.env.XAI_API_KEY ?? '',
   xaiModel: process.env.XAI_MODEL ?? 'grok-4.7',
-  composioKey: process.env.COMPOSIO_API_KEY ?? '',
   sessionSecret: sessionSecret(),
   /** Krishbot runs on your own computer: requests from this machine sign in automatically as the owner. */
   autoLocalLogin: process.env.AUTO_LOCAL_LOGIN !== '0',

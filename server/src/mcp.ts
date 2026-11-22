@@ -1,10 +1,10 @@
 import crypto from 'node:crypto';
 import { Hono } from 'hono';
 import { getBotRow } from './store.js';
-import { composioTools } from './composio.js';
+import { appTools } from './apps.js';
 import { mcpToken, primaryBotId } from './engine.js';
 import { claimToolRow, enqueueBotMessage, markSilent, noteToolOutcome, requestApproval, turnDepth } from './agent/loop.js';
-import { policyFor, runComposioTool, toolMap, TOOLS, type ToolCtx } from './agent/tools.js';
+import { policyFor, runAppTool, toolMap, TOOLS, type ToolCtx } from './agent/tools.js';
 
 /**
  * The app's tools, served to the Hermes engines over MCP (streamable HTTP, JSON answers only).
@@ -14,7 +14,7 @@ import { policyFor, runComposioTool, toolMap, TOOLS, type ToolCtx } from './agen
  *                         can be written before the bot exists)
  *
  * Every call is stateless: the URL says which bot is calling. Besides the app's own tools the list
- * carries the user's Composio tools, so connected apps (and the approvals around them) work the
+ * carries the user's connected apps' tools, so connected apps (and the approvals around them) work the
  * same for every engine.
  */
 
@@ -44,9 +44,9 @@ export async function listTools(botId: string | null) {
   const own = TOOLS.map((t) => ({ name: t.name, description: t.description, inputSchema: t.parameters }));
   const bot = botId ? getBotRow(botId) : null;
   if (!bot) return own;
-  const apps = (await composioTools(bot.user_id))
-    .filter((t: any) => t?.type === 'function' && typeof t.name === 'string' && !toolMap.has(t.name))
-    .map((t: any) => ({ name: t.name as string, description: String(t.description ?? ''), inputSchema: t.parameters ?? { type: 'object', properties: {} } }));
+  const apps = (await appTools())
+    .filter((t) => !toolMap.has(t.name))
+    .map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema }));
   return [...own, ...apps];
 }
 
@@ -75,7 +75,7 @@ export async function callTool(botId: string | null, rawName: string, args: any)
       const answer = await requestApproval({ userId, botId }, pol, args, rowSeq);
       if (answer !== 'allow') return text(answer === 'deny' ? DECLINED : SKIPPED);
     }
-    const r = await runComposioTool(ctx, name, args);
+    const r = await runAppTool(ctx, name, args);
     noteToolOutcome(botId, rowSeq, { status: r.summary === 'failed' ? 'error' : 'done', summary: r.summary === 'failed' ? 'Failed' : undefined });
     return text(r.output);
   } catch (e: any) {

@@ -13,9 +13,8 @@ import { computerState, ensureComputer, forgetBotFiles, refreshComputer, release
 import { assignEngine, provisionEngine, removeEngine, syncPersona } from './engine.js';
 import { deleteMemory, listMemories, memoryBot } from './engine-memory.js';
 import { screenIfRunning } from './screen/manager.js';
-import { catalog, connectedToolkits, deleteConnection, disconnect, googleProfile, startConnect, startGoogleLogin, toolkitInfo } from './composio.js';
+import { addCustomApp, appInfo, connectCatalogApp, forgetAppTools, listApps, removeApp } from './apps.js';
 import { runRoutine, scheduleRoutine, unscheduleRoutine } from './routines.js';
-import { deleteEventTrigger } from './triggers.js';
 import { dispatchRoomMessage } from './agent/rooms.js';
 import { voiceApi } from './voice.js';
 import type { AvatarColor, AvatarShape, Toolkit } from './types.js';
@@ -88,42 +87,6 @@ api.get('/auth/me', (c) => {
     user = { id, email: env.ownerEmail, name: env.ownerName, avatarUrl: null } as any;
   }
   return c.json({ user, devLogin: env.devLogin });
-});
-
-api.get('/auth/google/start', async (c) => {
-  const attemptId = newId('login');
-  const provisional = newId('usr');
-  const cb = `${env.serverUrl}/api/auth/google/callback?attempt=${attemptId}`;
-  const { redirectUrl, connectedAccountId } = await startGoogleLogin(provisional, cb);
-  db.prepare('INSERT INTO login_attempts(id,provisional_user_id,connected_account_id,created_at) VALUES (?,?,?,?)').run(attemptId, provisional, connectedAccountId ?? null, now());
-  return c.redirect(redirectUrl);
-});
-
-api.get('/auth/google/callback', async (c) => {
-  const attempt = db.prepare('SELECT * FROM login_attempts WHERE id=?').get(c.req.query('attempt') ?? '') as any;
-  // Only the Google connection this attempt started may sign in, and only for a short while: an
-  // account id taken from the URL alone could name somebody else's connection.
-  const caId: string | undefined = attempt?.connected_account_id ?? undefined;
-  const fresh = attempt && now() - attempt.created_at < 15 * 60_000;
-  const given = c.req.query('connected_account_id');
-  if (!attempt || !fresh || c.req.query('status') === 'failed' || !caId || (given && given !== caId)) {
-    if (attempt) db.prepare('DELETE FROM login_attempts WHERE id=?').run(attempt.id);
-    return c.redirect(`${env.appUrl}/?login=failed`);
-  }
-  db.prepare('DELETE FROM login_attempts WHERE id=?').run(attempt.id);
-  try {
-    const profile = await googleProfile(caId);
-    const { id, isNew } = findOrCreateUser(profile.email, profile.name, attempt.provisional_user_id);
-    // Existing user: the Gmail connection made for sign-in belongs to a throwaway id; remove it.
-    if (!isNew && id !== attempt.provisional_user_id) await deleteConnection(caId);
-    createSession(c, id);
-    return c.redirect(`${env.appUrl}/`);
-  } catch (e: any) {
-    // A refused account leaves no Gmail connection behind.
-    if (e instanceof UserError) await deleteConnection(caId);
-    else console.error('[auth] google callback', e);
-    return c.redirect(`${env.appUrl}/?login=failed`);
-  }
 });
 
 api.post('/auth/dev', async (c) => {
@@ -243,7 +206,6 @@ api.delete('/bots/:id', async (c) => {
   interrupt(b.id);
   for (const r of listRoutines(b.id)) {
     unscheduleRoutine(r.id);
-    await deleteEventTrigger(r.id).catch(() => {});
   }
   if (b.kind !== 'room') {
     await removeEngine(b.id).catch((e) => console.warn('[engine] remove failed', e?.message ?? e));
@@ -369,7 +331,6 @@ api.delete('/routines/:id', async (c) => {
   const r = db.prepare('SELECT r.* FROM routines r JOIN bots b ON b.id=r.bot_id WHERE r.id=? AND b.user_id=?').get(c.req.param('id'), c.get('user').id) as any;
   if (!r) return c.json({ error: 'not found' }, 404);
   unscheduleRoutine(r.id);
-  await deleteEventTrigger(r.id);
   db.prepare('DELETE FROM routines WHERE id=?').run(r.id);
   hub.emit(c.get('user').id, { type: 'routines', botId: r.bot_id });
   return c.json({ ok: true });
@@ -427,66 +388,49 @@ api.get('/bots/:id/screenshot', async (c) => {
   }
 });
 
-// ---------- apps (Composio marketplace) ----------
+// ---------- apps: MCP servers and web APIs on this computer ----------
 
-api.get('/apps', async (c) => {
-  const user = c.get('user');
+api.get('/apps', (c) => {
   const search = (c.req.query('search') ?? '').toLowerCase();
   const category = c.req.query('category') ?? '';
-  const [all, connected] = await Promise.all([catalog(), connectedToolkits(user.id).catch(() => new Set<string>())]);
-  let items: Toolkit[] = all.map((t) => ({ ...t, connected: connected.has(t.slug) }));
+  const all = listApps();
+  let items: Toolkit[] = all;
   if (search) items = items.filter((t) => t.name.toLowerCase().includes(search) || t.slug.includes(search) || t.description?.toLowerCase().includes(search));
   if (category) items = items.filter((t) => t.categories.some((x) => x.toLowerCase() === category.toLowerCase()));
-  const categories = [...new Set(all.flatMap((t) => t.categories))].sort();
-  const connectedApps = all.filter((t) => connected.has(t.slug)).map((t) => ({ ...t, connected: true }));
-  return c.json({ apps: items.slice(0, Number(c.req.query('limit') ?? 120)), connected: [...connected], connectedApps, categories, total: items.length });
+  const connectedApps = all.filter((t) => t.connected);
+  return c.json({ apps: items, connected: connectedApps.map((t) => t.slug), connectedApps, categories: [...new Set(all.flatMap((t) => t.categories))].sort(), total: items.length });
+});
+
+/** After an app is connected, the bot that asked continues. */
+function afterConnect(userId: string, slug: string, botId?: string, seq?: number) {
+  forgetAppTools();
+  hub.emit(userId, { type: 'connections' });
+  if (!botId || !getBotRow(botId)) return;
+  if (seq) {
+    const row = getRow(botId, seq);
+    if (row?.body.type === 'card' && row.body.card === 'connect') updateRow(botId, seq, { ...row.body, status: 'connected' });
+  }
+  enqueue(botId, { type: 'system', text: `The user connected ${appInfo(slug)?.name ?? slug}. Continue with what you were doing.` });
+}
+
+api.post('/apps/custom', async (c) => {
+  const a = await c.req.json<any>().catch(() => ({}));
+  try { await addCustomApp(a); } catch (e: any) { return c.json({ error: e.message }, 400); }
+  afterConnect(c.get('user').id, '');
+  return c.json({ ok: true });
 });
 
 api.post('/apps/:slug/connect', async (c) => {
-  const user = c.get('user');
   const slug = c.req.param('slug');
-  const { botId, seq } = await c.req.json<{ botId?: string; seq?: number }>().catch(() => ({} as any));
-  const cb = new URL(`${env.serverUrl}/api/apps/callback`);
-  cb.searchParams.set('slug', slug);
-  if (botId) cb.searchParams.set('bot', botId);
-  if (seq) cb.searchParams.set('seq', String(seq));
-  const r = await startConnect(user.id, slug, cb.toString());
-  return c.json(r);
-});
-
-api.get('/apps/callback', async (c) => {
-  const userId = userFromCookieHeader(c.req.header('cookie'))?.id ?? '';
-  const slug = c.req.query('slug') ?? '';
-  // This route is unauthenticated and reflects `slug` into the page, so accept only toolkit-slug shapes.
-  if (!/^[a-z0-9_-]{1,64}$/i.test(slug)) return c.text('Invalid app.', 400);
-  const botId = c.req.query('bot');
-  const seq = Number(c.req.query('seq') ?? 0);
-  const ok = c.req.query('status') !== 'failed';
-  const userExists = db.prepare('SELECT 1 FROM users WHERE id=?').get(userId);
-  if (userExists && ok) {
-    const connected = await connectedToolkits(userId).catch(() => new Set<string>());
-    if (connected.has(slug)) {
-      hub.emit(userId, { type: 'connections' });
-      if (botId && ownBot(userId, botId)) {
-        const info = await toolkitInfo(slug);
-        if (seq) {
-          const row = getRow(botId, seq);
-          if (row?.body.type === 'card' && row.body.card === 'connect') updateRow(botId, seq, { ...row.body, status: 'connected' });
-        }
-        enqueue(botId, { type: 'system', text: `The user connected ${info?.name ?? slug}. Continue with what you were doing.` });
-      }
-    }
-  }
-  // Data embedded in an inline <script> must not be able to close the tag, so escape `<` (and U+2028/2029).
-  const payload = jsonForScript({ type: 'bothq-connected', slug, ok });
-  const target = jsonForScript(new URL(env.appUrl).origin);
-  c.header('Cache-Control', 'no-store');
-  c.header('X-Content-Type-Options', 'nosniff');
-  return c.html(`<!doctype html><meta charset="utf-8"><title>Connected</title><body style="font-family:system-ui;padding:40px;text-align:center">${ok ? 'Connected. You can close this window.' : 'Connection failed.'}<script>try{window.opener&&window.opener.postMessage(${payload},${target})}catch(e){};setTimeout(()=>window.close(),800)</script></body>`);
+  const { values, botId, seq } = await c.req.json<{ values?: Record<string, string>; botId?: string; seq?: number }>().catch(() => ({} as any));
+  try { await connectCatalogApp(slug, values ?? {}); } catch (e: any) { return c.json({ error: e.message }, 400); }
+  afterConnect(c.get('user').id, slug, botId, seq);
+  return c.json({ ok: true });
 });
 
 api.delete('/apps/:slug', async (c) => {
-  await disconnect(c.get('user').id, c.req.param('slug'));
+  await removeApp(c.req.param('slug'));
+  forgetAppTools();
   hub.emit(c.get('user').id, { type: 'connections' });
   return c.json({ ok: true });
 });

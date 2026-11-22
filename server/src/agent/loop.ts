@@ -3,7 +3,7 @@ import { newId } from '../lib/ids.js';
 import { hub } from '../lib/hub.js';
 import { appendRow, emitBot, getBotRow, getLive, getRow, setLive, updateRow } from '../store.js';
 import type { ActivityKind, MessageBody, ToolCallBody } from '../types.js';
-import { toolkitInfo } from '../composio.js';
+import { appInfo } from '../apps.js';
 import { screenForWork } from '../computer.js';
 import { engineFor } from '../engine.js';
 import { instructionsFor } from './prompt.js';
@@ -156,7 +156,7 @@ export async function requestApproval(
 ): Promise<ApprovalDecision> {
   const { userId, botId } = who;
   const approvalId = newId('apr');
-  const tk = pol.toolkit ? await toolkitInfo(pol.toolkit).catch(() => undefined) : undefined;
+  const tk = pol.toolkit ? appInfo(pol.toolkit) : undefined;
   const card = appendRow(botId, 'card', {
     type: 'card', card: 'approval', approvalId, title: `Allow ${getBotRow(botId).name} to ${pol.title.split(': ')[1] ?? pol.title}?`,
     detail: describeArgs(args), tool: pol.key, toolkit: pol.toolkit, toolkitName: tk?.name, logo: tk?.logo, args, status: 'pending',
@@ -435,15 +435,6 @@ async function runTurn(botId: string, trigger: Trigger) {
             if (!getLive(botId).awaiting) setLive(botId, { isRunning: true, activity: { kind, detail, since: now() }, steps, caption: null });
             else setLive(botId, { steps });
             reasoning = '';
-            if (ours && name.startsWith('COMPOSIO_')) {
-              const tk = policyFor(userId, name, args ?? {}).toolkit;
-              if (tk) {
-                void toolkitInfo(tk).then((info) => {
-                  const live = getLive(botId);
-                  if (info?.name && turns.get(botId) === turn && live.activity?.kind === kind && !live.awaiting) setLive(botId, { activity: { ...live.activity, detail: info.name } });
-                }).catch(() => {});
-              }
-            }
           }
           break;
         }

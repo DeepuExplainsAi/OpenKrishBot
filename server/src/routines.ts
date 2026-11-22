@@ -2,7 +2,7 @@ import { Cron } from 'croner';
 import { db, now } from './db.js';
 import { appendRow } from './store.js';
 import type { Routine } from './types.js';
-import { isEventSchedule, setEventRoutineEnabled } from './triggers.js';
+import { isEventSchedule } from './triggers.js';
 
 const jobs = new Map<string, Cron>();
 let enqueueFn: ((botId: string, t: any) => void) | null = null;
@@ -15,7 +15,7 @@ export function initRoutines(enqueue: (botId: string, t: any) => void) {
 }
 
 export function scheduleRoutine(r: Pick<Routine, 'id' | 'botId' | 'name' | 'prompt' | 'schedule' | 'timezone'>) {
-  if (isEventSchedule(r.schedule)) { void setEventRoutineEnabled(r.id, true); return; }
+  if (isEventSchedule(r.schedule)) return;
   unscheduleRoutine(r.id);
   try {
     const job = new Cron(r.schedule, { timezone: r.timezone || 'UTC', protect: true }, () => runRoutine(r.id));
@@ -26,8 +26,6 @@ export function scheduleRoutine(r: Pick<Routine, 'id' | 'botId' | 'name' | 'prom
 }
 
 export function unscheduleRoutine(id: string) {
-  const row = db.prepare('SELECT schedule FROM routines WHERE id=?').get(id) as any;
-  if (row && isEventSchedule(row.schedule)) void setEventRoutineEnabled(id, false);
   jobs.get(id)?.stop();
   jobs.delete(id);
 }

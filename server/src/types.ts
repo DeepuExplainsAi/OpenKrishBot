@@ -213,6 +213,10 @@ export interface EngineInfo {
 export interface Toolkit {
   slug: string; name: string; logo?: string; description?: string; categories: string[];
   managedAuth: boolean; noAuth: boolean; connected: boolean;
+  /** Fields to fill in before connecting (keys, folders). */
+  needs?: { key: string; label: string; secret: boolean }[];
+  /** Added by the user (own MCP server or web API). */
+  custom?: boolean;
 }
 
 /** Server-sent events on GET /api/events */

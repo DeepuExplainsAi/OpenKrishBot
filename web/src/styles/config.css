@@ -214,3 +214,13 @@
 
 /* knob contrasts with the "on" track (matters for black bots in dark mode) */
 .toggle.is-on .toggle__knob { background: var(--bot-on-action, #FFFFFF); }
+/* local models + custom apps */
+.cfg-card__item + .cfg-card__item { border-top: 1px solid var(--color-border); }
+.cfg-form { display: flex; flex-direction: column; gap: 8px; padding: 4px 16px 16px; }
+.cfg-form__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.cfg-field__label { font-size: 12px; opacity: .7; }
+.app-row.has-form { flex-wrap: wrap; }
+.app-row__form, .custom-app { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.app-row__form { flex-basis: 100%; padding-top: 8px; }
+.custom-app { padding: 4px 0 12px; align-items: flex-start; }
+.custom-app .text-input { width: 100%; }

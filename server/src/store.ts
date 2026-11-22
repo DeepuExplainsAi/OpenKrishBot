@@ -171,12 +171,6 @@ export function describeCron(expr: string): string {
   return expr;
 }
 
-function describeEventSlug(schedule: string) {
-  const words = schedule.slice(6).split('_');
-  const app = words.shift() ?? '';
-  return `When ${app.charAt(0) + app.slice(1).toLowerCase()}: ${words.join(' ').toLowerCase()}`;
-}
-
 export function toRoutine(r: any): Routine {
   let nextRunAt: number | null = null;
   try {
@@ -184,7 +178,7 @@ export function toRoutine(r: any): Routine {
   } catch { /* invalid cron */ }
   return {
     id: r.id, botId: r.bot_id, name: r.name, prompt: r.prompt, schedule: r.schedule, timezone: r.timezone,
-    enabled: !!r.enabled, nextRunAt, lastRunAt: r.last_run_at, description: r.schedule.startsWith('event:') ? describeEventSlug(r.schedule) : describeCron(r.schedule),
+    enabled: !!r.enabled, nextRunAt, lastRunAt: r.last_run_at, description: r.schedule.startsWith('event:') ? 'When its webhook is called' : describeCron(r.schedule),
   };
 }
 

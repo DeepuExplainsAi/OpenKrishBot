@@ -1,6 +1,6 @@
 import { db } from '../db.js';
 import { getBotRow, listRoutines } from '../store.js';
-import { connectedToolkits } from '../composio.js';
+import { appInfo, connectedSlugs } from '../apps.js';
 import { libraryRoot } from '../paths.js';
 
 /**
@@ -23,8 +23,7 @@ export async function instructionsFor(userId: string, botId: string): Promise<st
   const groups = (db.prepare("SELECT name FROM bots WHERE user_id=? AND kind='room' AND members LIKE ? ORDER BY created_at").all(userId, `%${botId}%`) as any[]).map((g) => g.name).join(', ');
   const skills = (db.prepare('SELECT name, body FROM skills WHERE bot_id=? ORDER BY created_at').all(botId) as any[]).map((s) => `### ${s.name}\n${s.body}`).join('\n\n');
   const routines = listRoutines(botId).map((r) => `- ${r.name} (${r.id}): ${r.enabled ? r.description : 'paused'}; ${r.prompt.slice(0, 120)}`).join('\n');
-  let apps = '';
-  try { apps = [...(await connectedToolkits(userId))].sort().join(', '); } catch { apps = '(could not check right now)'; }
+  const apps = [...connectedSlugs()].sort().map((s) => appInfo(s)?.name ?? s).join(', ');
 
   const who = primaryEngine
     ? `This conversation comes from ${owner}'s team app, where you appear as "${bot.name}"${bot.label ? ` (${bot.label})` : ''}. You are the same agent as everywhere else you talk with ${owner}: keep your own identity, memory and voice.${bot.is_primary ? ` You are ${owner}'s main point of contact in the app and coordinate with the other agents on the team.` : ''}`
@@ -35,13 +34,13 @@ ${who}
 
 ## The app's tools
 The app gives you extra tools through its MCP server "hq"; their names carry that prefix (save_file appears as mcp_hq_save_file or mcp__hq__save_file).
-- Connected apps (Gmail, Calendar, Slack, GitHub, Notion and many more): find the right action with COMPOSIO_SEARCH_TOOLS, then run it with COMPOSIO_MULTI_EXECUTE_TOOL. When an app is connected, prefer it over doing the same thing in the browser. If the app you need is not connected, call request_app_connection and stop; you will be told when it is connected.
+- Connected apps are extra tools named "<app>__<action>" (GitHub, Slack, Notion, Browser, Files and any MCP server or web API the user added). Prefer them over doing the same thing in the browser. If the app you need is not connected, call request_app_connection.
 - Some actions in connected apps wait for ${owner} to approve them. The tool call simply takes longer and then returns. If the answer is that they declined, do not retry; find another way or say what you could not do.
 - x_search researches X (Twitter) live: what is being posted, what is going viral, what an account said.
 - save_file puts a finished deliverable in your Library, where ${owner} can open and download it. Anything you write under ${libraryRoot()}/${botId}/ shows up there too.
 - ask_user asks a multiple-choice question when you need a real decision. After calling it, stop; the answer arrives as the next message.
 - create_task and update_task track work ${owner} asked for, so they can see what is in progress.
-- For anything on a schedule that ${owner} should see and control in the app, use create_routine (or create_event_routine for "whenever X happens in an app"), not a private cron job.
+- For anything on a schedule that ${owner} should see and control in the app, use create_routine (or create_event_routine for "whenever something calls a webhook"), not a private cron job.
 - send_to_bot hands work to another agent on the team or asks them something. Their reply comes back to you as a message. post_to_group posts into a group chat you belong to.
 - stay_silent ends a turn without telling ${owner} anything. Use it for routines, check-ins and agent-to-agent exchanges that produced nothing worth their attention.
 

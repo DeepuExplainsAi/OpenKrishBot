@@ -30,7 +30,7 @@ export const api = {
   logout: () => req<{ ok: true }>('POST', '/auth/logout'),
 
   bots: () => req<{ bots: Bot[]; live: LiveState[] }>('GET', '/bots'),
-  createBot: (b: Pick<Bot, 'name' | 'avatarShape' | 'avatarColor' | 'mode'>) => req<{ bot: Bot }>('POST', '/bots', b),
+  createBot: (b: Pick<Bot, 'name' | 'avatarShape' | 'avatarColor' | 'mode'> & Partial<Pick<Bot, 'label' | 'description' | 'instructions'>>) => req<{ bot: Bot }>('POST', '/bots', b),
   markRead: (id: string) => req<{ ok: true }>('POST', `/bots/${id}/read`),
   rows: (id: string) => req<{ generation: number; rows: Row[] }>('GET', `/bots/${id}/rows`),
   send: (id: string, text: string) => req<{ row: Row }>('POST', `/bots/${id}/messages`, { text }),
@@ -48,27 +48,11 @@ export const api = {
   ensureComputer: () => req<{ computer: ComputerState }>('POST', '/computer/ensure'),
 
   apps: (search = '', category = '') => req<AppsResponse>('GET', `/apps?search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}`),
-  connect: (slug: string, botId?: string, seq?: number) => req<{ redirectUrl: string }>('POST', `/apps/${slug}/connect`, { botId, seq }),
+  connect: (slug: string, values: Record<string, string> = {}, botId?: string, seq?: number) => req<{ ok: true }>('POST', `/apps/${slug}/connect`, { values, botId, seq }),
+  addCustomApp: (app: Record<string, unknown>) => req<{ ok: true }>('POST', '/apps/custom', app),
   disconnect: (slug: string) => req<{ ok: true }>('DELETE', `/apps/${slug}`),
 
   roomMembers: (id: string) => req<{ members: RoomMember[] }>('GET', `/rooms/${id}/members`),
   setRoomMembers: (id: string, botIds: string[]) => req<{ ok: true; members: string[] }>('PUT', `/rooms/${id}/members`, { botIds }),
   createRoom: (name: string, botIds: string[]) => req<{ id: string }>('POST', '/rooms', { name, botIds }),
 };
-
-let connectPopup: Window | null = null;
-
-/** Open a Composio redirect in a centered popup. */
-export function openPopup(url: string) {
-  const w = 520, h = 680;
-  const left = window.screenX + (window.outerWidth - w) / 2;
-  const top = window.screenY + (window.outerHeight - h) / 2;
-  connectPopup = window.open(url, 'bothq-connect', `width=${w},height=${h},left=${left},top=${top}`);
-  return connectPopup;
-}
-
-/** The "app connected" note from our OAuth callback page: it must come from the popup we opened or from this app's own origin. */
-export function isConnectedMessage(e: MessageEvent): boolean {
-  if ((e.data as { type?: string } | null)?.type !== 'bothq-connected') return false;
-  return e.origin === window.location.origin || (connectPopup !== null && e.source === connectPopup);
-}

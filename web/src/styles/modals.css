@@ -122,3 +122,12 @@
 .group-pick__opt:hover { background: var(--color-bg-hover); }
 .group-pick__opt.is-active { background: var(--color-bg-active, var(--color-bg-hover)); }
 .group-pick__name { flex: 1; font-size: 13px; line-height: 18px; color: var(--color-ink); }
+/* an app row that opens its token form grows instead of overlapping the rows below */
+.app-row.has-form { height: auto; min-height: 64px; flex-wrap: wrap; align-items: center; }
+.app-row.has-form .app-row__form { order: 3; }
+.app-row__form .text-input { background: var(--color-bg-elevated); color: var(--color-text-primary); border-color: var(--color-border-primary); }
+.app-grid { align-items: start; }
+.pill-chip:disabled { opacity: 1; color: var(--color-text-tertiary); }
+.app-row__field { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.app-row.has-form .app-row__error { white-space: normal; max-height: none; }
+.app-row.has-form { grid-column: 1 / -1; }
