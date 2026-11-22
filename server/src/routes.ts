@@ -1,3 +1,4 @@
+import { releaseBotIssues } from './issues.js';
 import crypto from 'node:crypto';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
@@ -216,6 +217,7 @@ api.delete('/bots/:id', async (c) => {
   }
   db.prepare('DELETE FROM screens WHERE bot_id=?').run(b.id);
   db.prepare('DELETE FROM bots WHERE id=?').run(b.id);
+  releaseBotIssues(b.id);
   hub.emit(c.get('user').id, { type: 'roster' });
   return c.json({ ok: true });
 });

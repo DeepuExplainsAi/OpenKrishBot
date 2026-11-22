@@ -24,3 +24,12 @@ test('startFlowRun fails for unknown flow', () => {
   assert.throws(() => F.startFlowRun('u', 'nope', ''), /not found/);
   setTimeout(() => process.exit(0), 50).unref();
 });
+
+test('restart marks interrupted runs failed so nothing stays running forever', async () => {
+  const { reconcileRuns } = F;
+  db.prepare("INSERT OR IGNORE INTO users(id,email,name,created_at) VALUES ('u','u@x','U',1)").run();
+  db.prepare("INSERT INTO flows(id,user_id,name,steps,schedule,created_at,updated_at) VALUES ('f_x','u','X','[]','',1,1)").run();
+  db.prepare("INSERT INTO flow_runs(id,flow_id,input,status,results,started_at) VALUES ('r_old','f_x','','running','{}',1)").run();
+  reconcileRuns();
+  assert.equal((db.prepare("SELECT status FROM flow_runs WHERE id='r_old'").get() as any).status, 'failed');
+});

@@ -16,6 +16,8 @@ db.exec(`CREATE TABLE IF NOT EXISTS issues (
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
 )`);
 
+try { db.exec('ALTER TABLE issues ADD COLUMN wakes INTEGER NOT NULL DEFAULT 0'); } catch (e: any) { if (!/duplicate column/i.test(String(e?.message))) throw e; }
+
 db.exec(`CREATE TABLE IF NOT EXISTS issue_comments (
   id TEXT PRIMARY KEY, issue_id TEXT NOT NULL REFERENCES issues(id) ON DELETE CASCADE, author TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL
 )`);
@@ -71,7 +73,7 @@ export function createIssue(o: { userId: string; title: string; body?: string; a
 
 function wakeAssignee(i: Issue) {
   if (!i.assigneeBotId) return;
-  db.prepare('UPDATE issues SET last_wake=? WHERE id=?').run(now(), i.id);
+  db.prepare('UPDATE issues SET last_wake=?, wakes=wakes+1 WHERE id=?').run(now(), i.id);
   wake(i.assigneeBotId, wakeText(i));
 }
 
@@ -80,7 +82,7 @@ const openChildren = (id: string) => (db.prepare("SELECT COUNT(*) n FROM issues 
 
 /** Atomic: one UPDATE decides the owner. Unassigned issues are claimed by the caller; assigned ones only by their assignee. */
 export function checkout(id: string, botId: string): { ok: true; issue: Issue } | { ok: false; reason: string } {
-  const r = db.prepare("UPDATE issues SET status='in_progress', checkout_bot=?, assignee_bot=COALESCE(assignee_bot, ?), updated_at=? WHERE id=? AND status='todo' AND checkout_bot IS NULL AND (assignee_bot IS NULL OR assignee_bot=?)")
+  const r = db.prepare("UPDATE issues SET status='in_progress', wakes=0, checkout_bot=?, assignee_bot=COALESCE(assignee_bot, ?), updated_at=? WHERE id=? AND status='todo' AND checkout_bot IS NULL AND (assignee_bot IS NULL OR assignee_bot=?)")
     .run(botId, botId, now(), id, botId);
   const issue = getIssue(id);
   if (!issue) return { ok: false, reason: `No issue ${id}.` };
@@ -113,29 +115,59 @@ export function finish(id: string, botId: string, status: 'done' | 'blocked' | '
   return { ok: true, issue };
 }
 
-export function setStatus(userId: string, id: string, patch: { status?: IssueStatus; assigneeBotId?: string | null }): Issue | null {
+/** Set by index.ts: stops a bot's running turn (used when the user cancels or reassigns what it is working on). */
+let stopBot: (botId: string) => void = () => {};
+export const initIssueControl = (fn: typeof stopBot) => { stopBot = fn; };
+
+export function setStatus(userId: string, id: string, patch: { status?: IssueStatus; assigneeBotId?: string | null }): Issue | { error: string } | null {
   const cur = db.prepare('SELECT * FROM issues WHERE id=? AND user_id=?').get(id, userId) as any;
   if (!cur) return null;
-  const status = patch.status ?? cur.status;
+  let status: IssueStatus = patch.status ?? cur.status;
   const assignee = patch.assigneeBotId === undefined ? cur.assignee_bot : patch.assigneeBotId;
+  if (assignee && !db.prepare('SELECT 1 FROM bots WHERE id=? AND user_id=?').get(assignee, userId)) return { error: 'That bot does not exist.' };
+  if (status === 'done' && cur.status !== 'done' && openChildren(id)) return { error: `It has ${openChildren(id)} unfinished sub-issue(s).` };
   const reassigned = assignee !== cur.assignee_bot;
+  // "in progress" only means something while a bot holds the checkout; set by hand it would be stuck, so it goes back to todo
+  if (status === 'in_progress' && (reassigned || !cur.checkout_bot)) status = 'todo';
   // moving an issue releases any checkout, so a new owner can take it
   const release = reassigned || status === 'todo' || status === 'cancelled' || status === 'done';
-  db.prepare('UPDATE issues SET status=?, assignee_bot=?, checkout_bot=?, updated_at=? WHERE id=?').run(reassigned && status === 'in_progress' ? 'todo' : status, assignee, release ? null : cur.checkout_bot, now(), id);
+  db.prepare('UPDATE issues SET status=?, assignee_bot=?, checkout_bot=?, wakes=0, updated_at=? WHERE id=?').run(status, assignee, release ? null : cur.checkout_bot, now(), id);
+  // the bot that was working on it must stop, or it keeps spending tokens on cancelled work
+  if (cur.checkout_bot && release) stopBot(cur.checkout_bot);
   const issue = getIssue(id)!;
   touch(userId);
   if (issue.status === 'todo' && issue.assigneeBotId && (reassigned || cur.status !== 'todo')) wakeAssignee(issue);
   return issue;
 }
 
+/** A bot was deleted: its issues go back to the pool instead of pointing at nobody. */
+export function releaseBotIssues(botId: string) {
+  db.prepare("UPDATE issues SET checkout_bot=NULL, status=CASE WHEN status='in_progress' THEN 'todo' ELSE status END, updated_at=? WHERE checkout_bot=?").run(now(), botId);
+  db.prepare('UPDATE issues SET assignee_bot=NULL, updated_at=? WHERE assignee_bot=?').run(now(), botId);
+  db.prepare('UPDATE issues SET created_by_bot=NULL WHERE created_by_bot=?').run(botId);
+}
+
 export const listIssues = (userId: string): Issue[] => (db.prepare("SELECT * FROM issues WHERE user_id=? ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'todo' THEN 1 WHEN 'blocked' THEN 2 ELSE 3 END, updated_at DESC LIMIT 300").all(userId) as any[]).map(to);
 export const issuesFor = (botId: string): Issue[] => (db.prepare("SELECT * FROM issues WHERE assignee_bot=? AND status IN ('todo','in_progress','blocked') ORDER BY updated_at DESC LIMIT 20").all(botId) as any[]).map(to);
 
 const HEARTBEAT_MS = 10 * 60_000;
-/** Paperclip heartbeat: an idle bot with a todo issue it never picked up gets nudged, at most once per interval per issue. */
+const MAX_WAKES = 3;
+/**
+ * Paperclip-style heartbeat, every minute:
+ * - a todo issue its assignee never picked up gets nudged, at most once per interval and MAX_WAKES times (each nudge is a paid turn);
+ * - an in_progress issue whose holder is idle (crashed, restarted, or ended its turn without finishing) is released and the holder is told once.
+ */
 export function heartbeat(isBusy: (botId: string) => boolean, nowMs = now()): number {
-  const due = db.prepare("SELECT * FROM issues WHERE status='todo' AND assignee_bot IS NOT NULL AND checkout_bot IS NULL AND last_wake<?").all(nowMs - HEARTBEAT_MS) as any[];
   let n = 0;
+  const stale = db.prepare("SELECT * FROM issues WHERE status='in_progress' AND checkout_bot IS NOT NULL AND updated_at<?").all(nowMs - HEARTBEAT_MS) as any[];
+  for (const r of stale) {
+    if (isBusy(r.checkout_bot)) continue;
+    db.prepare("UPDATE issues SET status='todo', checkout_bot=NULL, updated_at=? WHERE id=?").run(nowMs, r.id);
+    touch(r.user_id);
+    const i = getIssue(r.id)!;
+    if (i.assigneeBotId) { wakeAssignee(i); n++; }
+  }
+  const due = db.prepare("SELECT * FROM issues WHERE status='todo' AND assignee_bot IS NOT NULL AND checkout_bot IS NULL AND last_wake<? AND wakes<?").all(nowMs - HEARTBEAT_MS, MAX_WAKES) as any[];
   for (const r of due) { if (isBusy(r.assignee_bot)) continue; wakeAssignee(to(r)); n++; }
   return n;
 }

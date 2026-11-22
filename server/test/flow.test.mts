@@ -63,3 +63,17 @@ test('concurrency cap', async () => {
   await runFlow([S('a'), S('b'), S('c'), S('d')], { input: '', concurrency: 2, exec: async () => { live++; peak = Math.max(peak, live); await new Promise((r) => setTimeout(r, 10)); live--; return ''; } });
   assert.equal(peak, 2);
 });
+
+test('a hung step times out instead of leaving the run open', async () => {
+  const res = await runFlow([S('a', [], { retries: 0 }), S('b', ['a'])], { input: '', stepTimeoutMs: 50, exec: () => new Promise(() => {}) });
+  assert.equal(res.status, 'failed');
+  assert.match(res.results.a.error!, /took longer/);
+  assert.equal(res.results.b.status, 'skipped');
+});
+
+test('retries wait between attempts (backoff)', async () => {
+  const stamps: number[] = [];
+  await runFlow([S('a', [], { retries: 2 })], { input: '', retryBaseMs: 40, exec: async () => { stamps.push(Date.now()); throw new Error('x'); } });
+  assert.equal(stamps.length, 3);
+  assert.ok(stamps[1] - stamps[0] >= 35 && stamps[2] - stamps[1] >= 70, `gaps ${stamps[1] - stamps[0]}, ${stamps[2] - stamps[1]}`);
+});

@@ -35,10 +35,25 @@ export function fill(template: string, input: string, results: RunResults): stri
   return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => (k === 'input' ? input : results[k]?.status === 'done' ? results[k].output ?? '' : m));
 }
 
+const STEP_TIMEOUT_MS = 20 * 60_000;
+
+function withTimeout<T>(p: Promise<T>, ms: number, what: string, signal?: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${what} took longer than ${Math.round(ms / 60000)} min and was stopped.`)), ms);
+    const onAbort = () => { clearTimeout(t); reject(new Error('Stopped.')); };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    p.then(resolve, reject).finally(() => { clearTimeout(t); signal?.removeEventListener('abort', onAbort); });
+  });
+}
+
 export interface RunOptions {
   input: string;
   concurrency?: number;
   signal?: AbortSignal;
+  /** Give up on one step after this long (default 20 min) so a hung model never leaves a run open forever. */
+  stepTimeoutMs?: number;
+  /** First retry waits this long, then doubles (default 2 s). */
+  retryBaseMs?: number;
   exec: (step: FlowStep, prompt: string) => Promise<string>;
   onUpdate?: (results: RunResults) => void;
 }
@@ -69,8 +84,12 @@ export async function runFlow(steps: FlowStep[], o: RunOptions): Promise<{ statu
           const tries = 1 + Math.max(0, Math.min(s.retries ?? 0, 3));
           for (let a = 1; a <= tries; a++) {
             r.attempts = a;
-            try { r.output = await o.exec(s, prompt); r.status = 'done'; r.error = undefined; break; }
-            catch (e: any) { r.error = String(e?.message ?? e); r.status = 'failed'; if (o.signal?.aborted) break; }
+            try { r.output = await withTimeout(o.exec(s, prompt), o.stepTimeoutMs ?? STEP_TIMEOUT_MS, `Step "${s.id}"`, o.signal); r.status = 'done'; r.error = undefined; break; }
+            catch (e: any) {
+              r.error = String(e?.message ?? e); r.status = 'failed';
+              if (o.signal?.aborted || a === tries) break;
+              await new Promise((res) => setTimeout(res, Math.min((o.retryBaseMs ?? 2000) * 2 ** (a - 1), 30_000)));
+            }
           }
           r.finishedAt = Date.now(); running--; notify(); pump();
         })();

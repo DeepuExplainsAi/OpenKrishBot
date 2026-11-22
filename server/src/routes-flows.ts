@@ -3,7 +3,7 @@ import { Cron } from 'croner';
 import { db, now } from './db.js';
 import { newId } from './lib/ids.js';
 import { requireUser, type AuthVars } from './lib/auth.js';
-import { enqueue, runInBotQueue } from './agent/loop.js';
+import { enqueue, interrupt, runInBotQueue } from './agent/loop.js';
 import { appendRow, getBotRow, listRows } from './store.js';
 import { runFlow, validate, type FlowStep, type RunResults } from './flow.js';
 
@@ -31,13 +31,19 @@ function resolveBot(userId: string, name: string) {
 }
 
 /** Send the prompt to the bot like a typed message and return what it answered once its queue has drained. */
-export async function askBot(userId: string, botName: string, prompt: string): Promise<string> {
+export async function askBot(userId: string, botName: string, prompt: string, signal?: AbortSignal): Promise<string> {
   const bot = resolveBot(userId, botName);
   if (!bot) throw new Error(`No bot called "${botName}".`);
   const row = appendRow(bot.id, 'message', { type: 'message', role: 'user', text: prompt, from: { kind: 'routine', id: 'flow', name: 'Flow' } });
   enqueue(bot.id, { type: 'user', text: prompt });
-  await runInBotQueue(bot.id, async () => {});
-  const rows = listRows(bot.id, { limit: 200 }).filter((r) => r.seq > row.seq);
+  const stop = () => interrupt(bot.id);
+  signal?.addEventListener('abort', stop, { once: true });
+  try { await runInBotQueue(bot.id, async () => {}); } finally { signal?.removeEventListener('abort', stop); }
+  if (signal?.aborted) throw new Error('Stopped.');
+  // only what the bot wrote for THIS prompt: rows after ours, up to the next message from someone else
+  const after = listRows(bot.id, { limit: 500 }).filter((r) => r.seq > row.seq);
+  const next = after.findIndex((r) => r.body.type === 'message' && r.body.role === 'user');
+  const rows = next < 0 ? after : after.slice(0, next);
   const text = rows.flatMap((r) => (r.body.type === 'message' && r.body.role === 'assistant' && r.body.text ? [r.body.text] : [])).join('\n\n').trim();
   const err = rows.find((r) => (r.body as any).type === 'notice' && (r.body as any).tone === 'error') as any;
   if (!text && err) throw new Error(err.body.text);
@@ -85,13 +91,16 @@ export function startFlowRun(userId: string, flowId: string, input: string): str
   const runId = newId('run');
   const ctl = new AbortController();
   aborts.set(runId, ctl);
-  const save = (status: string, results: RunResults, done = false) =>
+  let last: RunResults = {};
+  const save = (status: string, results: RunResults, done = false) => {
+    last = results;
     db.prepare('UPDATE flow_runs SET status=?, results=?, finished_at=? WHERE id=?').run(status, JSON.stringify(results), done ? now() : null, runId);
+  };
   const initial = Object.fromEntries(steps.map((s) => [s.id, { status: 'pending', attempts: 0 }]));
   db.prepare('INSERT INTO flow_runs(id,flow_id,input,status,results,started_at) VALUES (?,?,?,?,?,?)').run(runId, flowId, input, 'running', JSON.stringify(initial), now());
-  void runFlow(steps, { input, signal: ctl.signal, concurrency: 3, exec: (s, p) => askBot(userId, s.bot, p), onUpdate: (r) => save('running', r) })
+  void runFlow(steps, { input, signal: ctl.signal, concurrency: 3, exec: (s, p) => askBot(userId, s.bot, p, ctl.signal), onUpdate: (r) => save('running', r) })
     .then((r) => save(r.status, r.results, true))
-    .catch((e) => save('failed', { error: { status: 'failed', error: String(e?.message ?? e), attempts: 0 } }, true))
+    .catch((e) => save('failed', { ...last, _run: { status: 'failed', error: String(e?.message ?? e), attempts: 0 } }, true))
     .finally(() => aborts.delete(runId));
   return runId;
 }
@@ -120,12 +129,21 @@ export function scheduleFlow(flowId: string, userId: string, schedule: string) {
   crons.get(flowId)?.stop();
   crons.delete(flowId);
   if (!schedule) return;
-  crons.set(flowId, new Cron(schedule, { protect: true }, () => {
+  crons.set(flowId, new Cron(schedule, () => {
+    // croner's protect does not wait for our (instant-returning) handler, so check the run table ourselves
+    if (db.prepare("SELECT 1 FROM flow_runs WHERE flow_id=? AND status='running'").get(flowId)) return;
     try { startFlowRun(userId, flowId, ''); } catch (e) { console.warn('[flows] scheduled run failed', flowId, (e as Error).message); }
   }));
 }
 
+/** Runs that were in flight when the server stopped can never finish: mark them so the UI and the overlap guard are not stuck. */
+export function reconcileRuns() {
+  const r = db.prepare("UPDATE flow_runs SET status='failed', finished_at=? WHERE status='running'").run(now());
+  if (r.changes) console.log(`[flows] ${r.changes} run(s) were interrupted by the restart`);
+}
+
 export function initFlowSchedules() {
+  reconcileRuns();
   for (const f of db.prepare("SELECT id, user_id, schedule FROM flows WHERE schedule!=''").all() as any[]) {
     try { scheduleFlow(f.id, f.user_id, f.schedule); } catch (e) { console.warn('[flows] bad schedule', f.id, (e as Error).message); }
   }

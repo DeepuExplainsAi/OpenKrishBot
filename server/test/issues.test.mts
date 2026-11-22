@@ -112,3 +112,64 @@ test('bot-to-bot comment ping-pong stops waking after a run of 6; a user note re
   I.addComment('u', i.id, null, 'carry on');
   assert.ok(woken.length >= 1);
 });
+
+const age = (id: string, ms: number) => db.prepare('UPDATE issues SET updated_at=updated_at-?, last_wake=last_wake-? WHERE id=?').run(ms, ms, id);
+const stopped: string[] = [];
+I.initIssueControl((b) => stopped.push(b));
+
+test('a holder that went idle loses a stale checkout, and is nudged once', () => {
+  const i = mk({ assigneeBotId: 'b1' });
+  I.checkout(i.id, 'b1');
+  age(i.id, 11 * 60_000);
+  woken.length = 0;
+  assert.equal(I.heartbeat(() => false), 1);
+  assert.equal(I.getIssue(i.id)!.status, 'todo');
+  assert.equal(I.getIssue(i.id)!.checkoutBotId, null);
+  assert.equal(woken.at(-1)![0], 'b1');
+  assert.equal(I.checkout(i.id, 'b1').ok, true);
+});
+
+test('a busy holder keeps its checkout', () => {
+  const i = mk({ assigneeBotId: 'b1' });
+  I.checkout(i.id, 'b1');
+  age(i.id, 11 * 60_000);
+  I.heartbeat(() => true);
+  assert.equal(I.getIssue(i.id)!.checkoutBotId, 'b1');
+});
+
+test('an ignored issue wakes its assignee 3 times in total (creation + 2 nudges), then stops costing tokens', () => {
+  woken.length = 0;
+  const i = mk({ assigneeBotId: 'b2' });
+  for (let n = 0; n < 6; n++) { age(i.id, 11 * 60_000); I.heartbeat(() => false); }
+  assert.equal(woken.filter(([b, t]) => b === 'b2' && t.includes(i.id)).length, 3);
+});
+
+test('setting in_progress by hand cannot strand an issue', () => {
+  const i = mk({ assigneeBotId: 'b1' });
+  const r = I.setStatus('u', i.id, { status: 'in_progress' }) as any;
+  assert.equal(r.status, 'todo');
+  assert.equal(I.checkout(i.id, 'b1').ok, true);
+});
+
+test('cancelling stops the bot that was working on it', () => {
+  const i = mk({ assigneeBotId: 'b1' });
+  I.checkout(i.id, 'b1');
+  stopped.length = 0;
+  I.setStatus('u', i.id, { status: 'cancelled' });
+  assert.deepEqual(stopped, ['b1']);
+});
+
+test('user cannot mark a parent done over open sub-issues, or assign a bot that does not exist', () => {
+  const p = mk(); mk({ parentId: p.id });
+  assert.match((I.setStatus('u', p.id, { status: 'done' }) as any).error, /unfinished/);
+  assert.match((I.setStatus('u', p.id, { assigneeBotId: 'nope' }) as any).error, /does not exist/);
+});
+
+test('deleting a bot frees its issues', () => {
+  db.prepare("INSERT INTO bots(id,user_id,name,created_at,updated_at) VALUES ('b9','u','Temp',1,1)").run();
+  const i = mk({ assigneeBotId: 'b9' });
+  I.checkout(i.id, 'b9');
+  I.releaseBotIssues('b9');
+  const after = I.getIssue(i.id)!;
+  assert.equal(after.checkoutBotId, null); assert.equal(after.assigneeBotId, null); assert.equal(after.status, 'todo');
+});

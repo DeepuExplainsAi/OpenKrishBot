@@ -28,7 +28,8 @@ issuesApi.patch('/:id', async (c) => {
   const assignee = b.assigneeBotId === undefined ? undefined : ownBotId(userId, b.assigneeBotId);
   if (assignee === false) return c.json({ error: 'Unknown bot.' }, 400);
   const i = setStatus(userId, c.req.param('id'), { status: b.status as IssueStatus | undefined, assigneeBotId: assignee });
-  return i ? c.json({ issue: i }) : c.json({ error: 'not found' }, 404);
+  if (!i) return c.json({ error: 'not found' }, 404);
+  return 'error' in i ? c.json({ error: i.error }, 409) : c.json({ issue: i });
 });
 
 issuesApi.delete('/:id', (c) => {
