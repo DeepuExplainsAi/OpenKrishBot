@@ -60,7 +60,8 @@ export const skillsPrompt = (message: string, skills = loadAll()): string => {
 };
 
 /** SKILL.md front matter: `name:` and `description:` (optional `triggers: a, b`). Without triggers the skill answers to its own name. */
-export function parseSkillMd(md: string): { id: string; name: string; description: string; triggerTerms: string[]; body: string } {
+export function parseSkillMd(raw: string): { id: string; name: string; description: string; triggerTerms: string[]; body: string } {
+  const md = raw.replace(/\r\n/g, '\n');
   const fm = md.match(/^---\n([\s\S]*?)\n---\n?/);
   const field = (k: string) => fm?.[1].match(new RegExp(`^${k}:\\s*(.+)$`, 'm'))?.[1].trim().replace(/^["']|["']$/g, '') ?? '';
   const body = md.replace(/^---[\s\S]*?\n---\n?/, '').trim();

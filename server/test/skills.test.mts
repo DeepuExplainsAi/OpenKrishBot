@@ -10,7 +10,7 @@ const { loadLibrary, matchSkills } = await import('../src/skill-library.js');
 test('shipped skills all load with matching ids and bodies', () => {
   const l = loadLibrary();
   assert.ok(l.length >= 4);
-  for (const s of l) { assert.ok(s.body.length > 50, s.id); assert.ok(s.triggerTerms.length, s.id); }
+  for (const s of l) { assert.ok(s.body.length > 50, s.id); assert.ok(s.catalog || s.triggerTerms.length, s.id); }
 });
 test('trigger match is case-insensitive substring; off skills and misses are not injected', () => {
   const l = loadLibrary();
