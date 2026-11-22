@@ -1,0 +1,2 @@
+{ "id": "slide-deck", "name": "Slide deck", "version": "1.0.0", "description": "Make a presentation as one self-contained HTML file with speaker notes, opened in any browser.", "defaultEnabled": true,
+  "triggerTerms": ["slide deck", "slides about", "presentation about", "make a presentation", "pitch deck", "powerpoint", "make slides"], "requiredCapabilities": [] }

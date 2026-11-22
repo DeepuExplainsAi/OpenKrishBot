@@ -1,0 +1,2 @@
+{ "id": "chart", "name": "Chart", "version": "1.0.0", "description": "Turn data into a clean chart image or SVG.", "defaultEnabled": true,
+  "triggerTerms": ["make a chart", "chart this", "plot this", "bar chart", "line chart", "pie chart", "graph of", "visualize this data"], "requiredCapabilities": [] }

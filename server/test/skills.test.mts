@@ -60,3 +60,15 @@ test('install, load as custom, never shadow a shipped skill, remove, import from
   assert.equal(removeSkill('from-git', d), true);
   assert.rejects(importFromGithub('https://github.com/o/r', (async () => new Response('', { status: 404 })) as unknown as typeof fetch), /No SKILL\.md/);
 });
+
+test('generator skills ship and match their requests', () => {
+  const l = loadLibrary();
+  const ids = (m: string) => matchSkills(m, l, () => true).map((s) => s.id);
+  assert.ok(ids('Make a slide deck about solar power').includes('slide-deck'));
+  assert.ok(ids('Build a spreadsheet that tracks rent').includes('spreadsheet'));
+  assert.ok(ids('make a bar chart of sales').includes('chart'));
+  assert.ok(ids('Record a voiceover of this text').includes('voiceover'));
+  const deck = l.find((s) => s.id === 'slide-deck')!.body;
+  assert.match(deck, /<section class="slide">/);
+  assert.ok((deck.match(/<script>/g) ?? []).length === 1 && deck.includes('</html>'));
+});

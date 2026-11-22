@@ -1,0 +1,2 @@
+{ "id": "spreadsheet", "name": "Spreadsheet", "version": "1.0.0", "description": "Build a real .xlsx (formulas, formats) or CSV from a description or attached data.", "defaultEnabled": true,
+  "triggerTerms": ["spreadsheet", "excel file", ".xlsx", "make a csv", "build a table of", "budget sheet", "tracker sheet"], "requiredCapabilities": [] }

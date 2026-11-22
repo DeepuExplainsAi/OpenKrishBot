@@ -1,0 +1,2 @@
+{ "id": "voiceover", "name": "Voiceover", "version": "1.0.0", "description": "Record narration from text as an MP3 using a free voice.", "defaultEnabled": true,
+  "triggerTerms": ["voiceover", "voice over", "narrate this", "read this aloud", "text to speech", "record audio of", "make an mp3"], "requiredCapabilities": [] }

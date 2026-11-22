@@ -324,3 +324,9 @@ Open: Railway downloads page (static page that lists the GitHub Release files; t
 - NOT verified: UI in a real browser (no Chrome on this VM). Text files only (no PDF/images). Agent-proposed project updates (OpenMan's approval-card flow) not built.
 - Release fix: Linux smoke test used the old binary name after the rename (desktop job failed on v1.1.0 Linux only); fixed, tag v1.1.0 re-pushed.
 - Next: P13d generators (5), meeting notes (6), websites (7), share (8), skill-from-task (9). Re-check P13b/c first.
+
+## P13d: generators as skills (2026-11-22), OpenMan item 5
+OpenMan's generators need its Orgo computer + Python helper, so only the idea ports: four shipped skills in server/skills/: `slide-deck` (one self-contained HTML deck, arrow keys, `n` = notes, print = PDF; template's JS was run against a DOM stub: navigation, clamping, progress and notes verified), `spreadsheet` (openpyxl, formulas, frozen header, CSV fallback), `chart` (matplotlib/SVG, one takeaway per chart), `voiceover` (free edge-tts MP3). Trigger words match requests like "make a slide deck about…".
+NOT verified: a real bot run end to end with a real model; the deck in a real browser (no Chrome here); edge-tts/openpyxl/matplotlib are installed on demand by the bot (not bundled). No PPTX export, no image/video generators.
+Tests: skills.test (+1). Unit 93.
+Next: P13e meeting notes (6), websites (7), share (8), skill-from-task (9). Re-check P13b-d first.
