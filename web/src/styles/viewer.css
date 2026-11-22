@@ -140,3 +140,15 @@
    scaled frame would leave the picture slightly too small until the next resize. */
 .viewer__stage .screen__body { pointer-events: auto; animation: rise 200ms var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .viewer__stage .screen__body { animation: none; } }
+
+.viewer__historybtn { margin-left: auto; margin-right: 8px; height: 28px; padding: 0 12px; border-radius: var(--radius-full); color: #FFFFFFCC; box-shadow: #FFFFFF33 0 0 0 0.5px inset; font-size: 12px; }
+.viewer__historybtn.is-on, .viewer__historybtn:hover { background: #FFFFFF1F; color: #FFFFFF; }
+.viewer__history { position: absolute; z-index: 3; top: 60px; right: 12px; bottom: 12px; width: 300px; overflow: auto; padding: 12px; border-radius: 16px; background: #1B1B1BF2; color: #FFFFFF; box-shadow: 0 0 0 0.5px #FFFFFF26; }
+.viewer__history-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.viewer__history-empty { font-size: 12px; line-height: 16px; color: #FFFFFF99; }
+.viewer__history ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.viewer__history li { display: flex; flex-direction: column; gap: 2px; padding: 8px; border-radius: 10px; background: #FFFFFF0D; }
+.viewer__history li.is-error { box-shadow: inset 2px 0 0 #E5484D; }
+.viewer__history li img { width: 100%; border-radius: 6px; margin-bottom: 4px; }
+.viewer__history-label { font-size: 12px; line-height: 16px; }
+.viewer__history-sub { font-size: 11px; line-height: 14px; color: #FFFFFF8F; overflow-wrap: anywhere; }

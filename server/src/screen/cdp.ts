@@ -82,7 +82,7 @@ export async function launch(profileDir: string): Promise<Running> {
     '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-extensions', '--disable-sync',
     '--disable-dev-shm-usage', '--mute-audio', '--hide-scrollbars',
     ...(process.getuid?.() === 0 || process.env.KRISH_NO_SANDBOX === '1' ? ['--no-sandbox'] : []),
-    'about:blank',
+    'data:text/html,<body style="background:%23fff">',
   ];
   const proc = spawn(exe, args, { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
   const wsUrl = await new Promise<string>((resolve, reject) => {

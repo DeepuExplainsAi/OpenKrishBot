@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import type { Bot } from '@shared/types';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import type { Bot, ToolCallBody } from '@shared/types';
 import { BotAvatarFor } from '../avatar/BotAvatar';
 import { api } from '../lib/api';
 import { botVars } from '../lib/colors';
 import { computerStatusText, screenSize, screensFull } from '../lib/computer';
 import { configApi } from '../lib/configApi';
-import { useSelectedBot, useStore } from '../store';
+import { sortedRows, useSelectedBot, useStore } from '../store';
 import { Icon } from './Icon';
 
 export type ScreenMode = 'watch' | 'control';
@@ -317,6 +317,31 @@ export function ComputerScreen({ bot, variant, initialMode = 'watch', hint, paus
   );
 }
 
+/** What the Bot did on its computer, newest first: its browser actions with the time and result. */
+function ScreenHistory({ botId }: { botId: string }) {
+  const transcript = useStore((s) => s.transcripts[botId]);
+  const items = useMemo(() => sortedRows(transcript).filter((r) => r.body.type === 'tool-call' && /^(browser_|computer_|screen_)/.test((r.body as ToolCallBody).name)).slice(-60).reverse(), [transcript]);
+  return (
+    <aside className="viewer__history" aria-label="History">
+      <div className="viewer__history-title">History</div>
+      {items.length === 0 ? <div className="viewer__history-empty">Nothing yet. Actions the Bot takes in its browser appear here.</div> : (
+        <ul>
+          {items.map((r) => {
+            const b = r.body as ToolCallBody;
+            return (
+              <li key={r.seq} className={`is-${b.status}`}>
+                {b.screenshot && <img src={b.screenshot} alt="" />}
+                <span className="viewer__history-label">{b.label}</span>
+                <span className="viewer__history-sub">{new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{b.summary ? ` · ${b.summary.slice(0, 90)}` : ''}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </aside>
+  );
+}
+
 /** The large computer view: the bot's screen on a dimmed stage, opened from the chat menu or the details panel. */
 export function ComputerViewer() {
   const bot = useSelectedBot();
@@ -325,6 +350,7 @@ export function ComputerViewer() {
   const hint = useStore((s) => s.viewerHint);
   const set = useStore((s) => s.set);
   const [mode, setMode] = useState<ScreenMode>(initialMode);
+  const [showHistory, setShowHistory] = useState(false);
   const botId = bot?.id;
 
   const close = useCallback(() => {
@@ -359,11 +385,13 @@ export function ComputerViewer() {
           <span>{bot.name}’s computer</span>
           <span className="viewer__status">{computerStatusText(computer)}</span>
         </div>
+        <button type="button" className={`viewer__historybtn${showHistory ? ' is-on' : ''}`} onClick={() => setShowHistory(!showHistory)}>History</button>
         <button type="button" className="viewer__close" onClick={close} aria-label="Close computer"><Icon name="close" color="#FFFFFF" /></button>
       </div>
       <div className="viewer__stage">
         <ComputerScreen key={bot.id} bot={bot} variant="stage" initialMode={initialMode} hint={hint} onModeChange={onModeChange} />
       </div>
+      {showHistory && <ScreenHistory botId={bot.id} />}
     </div>
   );
 }

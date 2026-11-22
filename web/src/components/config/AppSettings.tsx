@@ -7,7 +7,6 @@ import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibraryS
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
-import { computerStatusText } from '../DetailsPanel';
 import { Icon } from '../Icon';
 import { ToolkitLogo } from '../ToolkitLogo';
 import { Glyph } from './glyphs';
@@ -175,42 +174,28 @@ function ComputerSection() {
   const computer = useStore((s) => s.computer);
   const bots = useStore((s) => s.bots);
   const [details, setDetails] = useState<ComputerDetails | null>(null);
-  const [busy, setBusy] = useState<'wake' | 'sleep' | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const load = useCallback(() => { configApi.computerDetails().then(setDetails).catch(() => {}); }, []);
   useEffect(() => { load(); }, [load, computer?.status, computer?.screens.length]);
 
-  const status = computer?.status ?? details?.computer.status;
-  const running = status === 'running';
-  const transitioning = status === 'starting' || status === 'resuming' || status === 'creating' || status === 'suspending';
-  const act = async (kind: 'wake' | 'sleep') => {
-    setBusy(kind); setNote(null);
-    try { kind === 'wake' ? await configApi.wake() : await configApi.sleep(); }
-    catch (e) { setNote((e as Error).message); }
-    finally { setBusy(null); }
-  };
+  const running = true;
   const byId = new Map(bots.map((b) => [b.id, b]));
   // The server says how many screens the computer can hold; 4 until it does.
   const maxScreens = computer?.maxScreens ?? details?.computer.maxScreens ?? 4;
 
   return (
     <>
-      <PageHead title="Computer" sub="Your Bots share one cloud computer. Each Bot works on its own screen." />
+      <PageHead title="Computer" sub="Each Bot has its own browser on this computer. Logins stay between runs." />
       <section className="cfg-section">
         <div className="cfg-card">
           <div className="cfg-row">
-            <span className={`computer-status-dot is-${running ? 'on' : transitioning ? 'busy' : 'off'}`} aria-hidden />
+            <span className="computer-status-dot is-on" aria-hidden />
             <div className="cfg-row__text">
-              <div className="cfg-row__title">Bots’ computer · {computerStatusText(computer ?? null)}</div>
+              <div className="cfg-row__title">This computer · ready</div>
               <div className="cfg-row__sub">
-                {details ? `Goes to sleep after ${details.hibernation.idleMinutes} idle minutes when nobody is watching. Starts again on its own once a Bot has work.` : 'Checking…'}
+                A Bot’s browser starts when it first needs one. Reset closes it; the next use opens it again.
               </div>
             </div>
-            {running || status === 'suspending' ? (
-              <button type="button" className="cfg-btn cfg-btn--secondary" disabled={!running || !!busy} onClick={() => act('sleep')}>{busy === 'sleep' || status === 'suspending' ? 'Going to sleep…' : 'Sleep'}</button>
-            ) : (
-              <button type="button" className="cfg-btn cfg-btn--primary" disabled={transitioning || !!busy} onClick={() => act('wake')}>{busy === 'wake' || transitioning ? 'Waking…' : 'Wake'}</button>
-            )}
           </div>
           {computer?.error && status === 'error' && <div className="cfg-error cfg-error--inset">{computer.error}</div>}
           {note && <div className="cfg-error cfg-error--inset">{note}</div>}

@@ -1,3 +1,5 @@
+/** What a bot's browser shows until it opens a page: never an empty (black when captured) tab. */
+export const START_PAGE = 'data:text/html;charset=utf-8,' + encodeURIComponent('<!doctype html><meta charset=utf-8><title>New tab</title><body style="margin:0;height:100vh;display:grid;place-items:center;background:#fff;color:#6b7280;font:18px system-ui">Ready. Waiting for the first page…</body>');
 import { Cdp, launch, profileDirFor, SCREEN_H, SCREEN_W, type Running } from './cdp.js';
 
 /** One Chrome per bot, started on first use. Its profile lives in ~/.openkrishbot/profiles/<bot>, so logins stay. */
@@ -30,7 +32,7 @@ class BotScreen {
       if (p.targetId !== this.target) return;
       const { targetInfos } = await cdp.send('Target.getTargets');
       const next = targetInfos.find((t: any) => t.type === 'page');
-      if (next) await this.attach(next.targetId); else await this.openTab('about:blank');
+      if (next) await this.attach(next.targetId); else await this.openTab(START_PAGE);
     });
     cdp.on('Runtime.consoleAPICalled', (p, sid) => { if (sid === this.session) this.log(`${p.type}: ${(p.args ?? []).map((a: any) => a.value ?? a.description ?? a.type).join(' ')}`); });
     cdp.on('Runtime.exceptionThrown', (p, sid) => { if (sid === this.session) this.log(`error: ${p.exceptionDetails?.exception?.description ?? p.exceptionDetails?.text}`); });
@@ -47,7 +49,7 @@ class BotScreen {
     await cdp.send('Target.setDiscoverTargets', { discover: true });
     const { targetInfos } = await cdp.send('Target.getTargets');
     const page = targetInfos.find((t: any) => t.type === 'page');
-    if (page) await this.attach(page.targetId); else await this.openTab('about:blank');
+    if (page) await this.attach(page.targetId); else await this.openTab(START_PAGE);
   }
 
   async openTab(url: string) {
@@ -65,6 +67,8 @@ class BotScreen {
       this.cdp.send('Runtime.enable', {}, sessionId),
       this.cdp.send('Network.enable', {}, sessionId),
       this.cdp.send('Emulation.setDeviceMetricsOverride', { width: SCREEN_W, height: SCREEN_H, deviceScaleFactor: 1, mobile: false }, sessionId),
+      // pages without their own background are white, as in a normal browser (headless would capture them black)
+      this.cdp.send('Emulation.setDefaultBackgroundColorOverride', { color: { r: 255, g: 255, b: 255, a: 1 } }, sessionId).catch(() => {}),
     ]);
     await this.cdp.send('Target.activateTarget', { targetId }).catch(() => {});
     if (this.viewers.size) await this.startCast();
