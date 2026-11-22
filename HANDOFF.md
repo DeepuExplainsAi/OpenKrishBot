@@ -496,3 +496,4 @@ Done:
 - [x] P20 desktop package lacked linkedom/turndown/readability (app stopped on start); added, smoke test now runs from a copy outside the repo; version 1.8.2
 - [x] P21 new bot logo (assets/icon.svg, app/installer/web icons), dark by default and dark loading page (no white flash); version 1.9.0-dev
 - [x] P22 Models: warnings (256-color/YOLO) stripped from CLI output, NO_COLOR; 'Sign in with your account' now starts the login itself (Claude/Codex in the browser, others open a sign-in window); model picker is a dropdown with a round refresh button (also on Settings > Models); CLI providers have model lists and the chosen model is passed to the CLI
+- [x] P23 Connect Apps: brand logos for 30 apps (web/public/logos, Simple Icons CC0), readable descriptions and letter tiles in dark mode. Connectors stay local MCP (OpenMausBot's catalog needs its hosted broker, which the owner does not want)

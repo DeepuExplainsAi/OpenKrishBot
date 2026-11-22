@@ -82,10 +82,14 @@ const rows = (): Row[] => (db.prepare('SELECT * FROM apps ORDER BY created_at').
 
 // ---------- listing ----------
 
+/** Brand logos shipped in web/public/logos (Simple Icons, CC0). Others show a letter tile. */
+const LOGOS = new Set(["airtable", "asana", "atlassian", "brave", "browser", "cloudflare", "discord", "docs", "figma", "github", "gitlab", "hubspot", "kubernetes", "linear", "mapbox", "maps", "mongodb", "notion", "paypal", "postgres", "puppeteer", "redis", "resend", "sentry", "slack", "stripe", "supabase", "todoist", "webflow", "youtube"]);
+const logoOf = (slug: string) => (LOGOS.has(slug) ? `/logos/${slug}.svg` : undefined);
+
 export function listApps(): Toolkit[] {
   const mine = new Map(rows().map((r) => [r.slug, r]));
   const catalog = CATALOG.map((c): Toolkit => ({
-    slug: c.slug, name: c.name, description: c.description, categories: c.categories,
+    slug: c.slug, name: c.name, logo: logoOf(c.slug), description: c.description, categories: c.categories,
     managedAuth: false, noAuth: false, connected: mine.has(c.slug),
     needs: c.fields.map(({ key, label, secret }) => ({ key, label, secret })),
   }));
