@@ -3,6 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { cliFound } from './cli.js';
 import { ModelCatalogStore } from '../maus/server/model-catalog/catalog.ts';
+import { currentEngineCatalog, startModelManifestRefresh } from '../maus/server/model-manifest/manifest.ts';
+import type { ManifestEngine } from '../maus/server/model-manifest/schema.ts';
+import { readCodexModelCatalog } from '../maus/server/drivers/codex-catalog.ts';
+import { execFile } from 'node:child_process';
 
 /** Model providers the OpenKrishBot engine can talk to. All speak the OpenAI chat-completions dialect. */
 export interface Preset { id: string; name: string; baseUrl: string; keyless?: boolean; local?: boolean; models: string[]; env?: string; note?: string; cli?: { command: string; bin: string; login?: string } }
@@ -97,7 +101,7 @@ async function fetchModels(id: string): Promise<{ ok: boolean; models: string[] 
   const { preset, baseUrl, apiKey } = resolve(id);
   // a cloud provider that needs a key and has none cannot answer: show its built-in list without waiting on the network
   if (!preset.keyless && !apiKey && !preset.cli) return { ok: false, models: preset.models };
-  if (preset.cli) return { ok: cliFound(preset.cli.bin), models: preset.models };
+  if (preset.cli) return { ok: cliFound(preset.cli.bin), models: await cliModels(preset) };
   if (!baseUrl) return { ok: false, models: [] };
   try {
     const r = await fetch(`${baseUrl}/models`, { headers: apiKey ? { authorization: `Bearer ${apiKey}` } : {}, signal: AbortSignal.timeout(preset.local ? 1200 : 4000) });
@@ -109,3 +113,24 @@ async function fetchModels(id: string): Promise<{ ok: boolean; models: string[] 
     return { ok: preset.keyless === true && !preset.local, models: preset.models };
   }
 }
+
+// Subscription CLIs: OpenMausBot's live lists (the hourly-refreshed model manifest; Codex asks its own app-server; OpenCode lists its models).
+const MANIFEST_ENGINE: Record<string, ManifestEngine> = { 'claude-cli': 'claude', 'cursor-cli': 'cursor', 'grok-cli': 'grok', 'kimi-cli': 'kimi', 'antigravity-cli': 'antigravity' };
+async function cliModels(preset: Preset): Promise<string[]> {
+  const found = cliFound(preset.cli!.bin);
+  try {
+    if (preset.id === 'codex-cli' && found) {
+      const c = await readCodexModelCatalog(process.env, fetch, 'codex');
+      return ['default', ...c.options.map((o) => o.id)];
+    }
+    if (preset.id === 'opencode-cli' && found) {
+      const out = await new Promise<string>((res) => execFile('opencode', ['models'], { timeout: 15_000, shell: process.platform === 'win32', windowsHide: true }, (_e, stdout) => res(String(stdout ?? ''))));
+      const ids = out.split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[\w.-]+\/\S+$/.test(l));
+      if (ids.length) return ['default', ...ids];
+    }
+    const engine = MANIFEST_ENGINE[preset.id];
+    if (engine) return ['default', ...currentEngineCatalog(engine).options.map((o) => o.id)];
+  } catch { /* keep the built-in list */ }
+  return preset.models;
+}
+startModelManifestRefresh();
