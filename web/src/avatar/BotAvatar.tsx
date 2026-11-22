@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { AvatarColor, AvatarShape, Bot } from '@shared/types';
 import { palette } from '../lib/colors';
 import { Icon } from '../components/Icon';
@@ -20,6 +21,8 @@ interface Props {
   ring?: boolean;
   className?: string;
   title?: string;
+  /** Own picture (data URL), drawn inside the shape instead of the character. */
+  image?: string | null;
 }
 
 /** The part of the 100×100 drawing box that maps onto the slot. */
@@ -46,17 +49,27 @@ function Eyes({ def, size }: { def: ShapeDef; size: number }) {
   );
 }
 
-export function BotAvatar({ shape, color, size, star, ring, className, title }: Props) {
+export function BotAvatar({ shape, color, size, star, ring, className, title, image }: Props) {
   const def = shapeDef(shape);
   const fill = palette(color).fill;
+  const clipId = `av-${useId().replace(/:/g, '')}`;
   const unit = VIEW.w / size; // viewBox units per CSS px
   return (
     <span className={`bot-avatar ${className ?? ''}`} style={{ width: size, height: size }} title={title} role="img" aria-label={title}>
       <svg width={size} height={size} viewBox={`${VIEW.x} ${VIEW.x} ${VIEW.w} ${VIEW.w}`} style={{ position: 'absolute', inset: 0, overflow: 'visible' }} aria-hidden>
         {ring && <path d={def.d} fill="#1C1C1C3D" stroke="#1C1C1C3D" strokeWidth={unit * 2 * 3.4} strokeLinejoin="round" />}
         {ring && <path d={def.d} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={unit * 2 * 2.4} strokeLinejoin="round" />}
-        <path d={def.d} fill={fill} />
-        <Eyes def={def} size={size} />
+        {image ? (
+          <>
+            <clipPath id={clipId}><path d={def.d} /></clipPath>
+            <image href={image} x={VIEW.x} y={VIEW.x} width={VIEW.w} height={VIEW.w} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${clipId})`} />
+          </>
+        ) : (
+          <>
+            <path d={def.d} fill={fill} />
+            <Eyes def={def} size={size} />
+          </>
+        )}
       </svg>
       {star && (
         <span className="bot-avatar__star" style={{ width: size * 0.2667, height: size * 0.2667 }}>
@@ -67,6 +80,6 @@ export function BotAvatar({ shape, color, size, star, ring, className, title }: 
   );
 }
 
-export function BotAvatarFor({ bot, size, star, className }: { bot: Pick<Bot, 'avatarShape' | 'avatarColor' | 'name'> & { isPrimary?: boolean }; size: number; star?: boolean; className?: string }) {
-  return <BotAvatar shape={bot.avatarShape} color={bot.avatarColor} size={size} star={star} className={className} title={bot.name} />;
+export function BotAvatarFor({ bot, size, star, className }: { bot: Pick<Bot, 'avatarShape' | 'avatarColor' | 'name'> & { isPrimary?: boolean; avatarImage?: string | null }; size: number; star?: boolean; className?: string }) {
+  return <BotAvatar shape={bot.avatarShape} color={bot.avatarColor} size={size} star={star} className={className} title={bot.name} image={bot.avatarImage} />;
 }

@@ -193,7 +193,8 @@ api.patch('/bots/:id', async (c) => {
   if (!b) return c.json({ error: 'not found' }, 404);
   const p = await c.req.json().catch(() => null);
   if (!p || typeof p !== 'object') return c.json({ error: 'invalid JSON body' }, 400);
-  const cols: Record<string, string> = { name: 'name', label: 'label', description: 'description', instructions: 'instructions', avatarShape: 'avatar_shape', avatarColor: 'avatar_color', mode: 'mode', effort: 'effort', pinned: 'pinned', archived: 'archived', unread: 'unread', voice: 'voice', voiceSpeed: 'voice_speed', voiceLanguage: 'voice_language' };
+  const cols: Record<string, string> = { name: 'name', label: 'label', description: 'description', instructions: 'instructions', avatarShape: 'avatar_shape', avatarColor: 'avatar_color', mode: 'mode', effort: 'effort', pinned: 'pinned', archived: 'archived', avatarImage: 'avatar_image', unread: 'unread', voice: 'voice', voiceSpeed: 'voice_speed', voiceLanguage: 'voice_language' };
+  if (p.avatarImage !== undefined && p.avatarImage !== null && !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]{20,120000}$/.test(p.avatarImage)) return c.json({ error: 'The picture must be a small PNG, JPEG or WebP.' }, 400);
   for (const [k, col] of Object.entries(cols)) {
     if (p[k] !== undefined) db.prepare(`UPDATE bots SET ${col}=?, updated_at=? WHERE id=?`).run(typeof p[k] === 'boolean' ? (p[k] ? 1 : 0) : p[k], now(), b.id);
   }

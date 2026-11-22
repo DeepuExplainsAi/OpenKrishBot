@@ -29,6 +29,7 @@ export function toBot(r: any): Bot {
     kind: r.kind === 'room' ? 'room' : 'agent',
     pinned: !!r.pinned,
     archived: !!r.archived,
+    avatarImage: r.avatar_image ?? null,
     effort: r.effort,
     voice: r.voice ?? 'luna',
     voiceSpeed: r.voice_speed ?? 1,

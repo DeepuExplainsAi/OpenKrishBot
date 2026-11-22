@@ -26,6 +26,8 @@ export interface Bot {
   kind?: 'agent' | 'room';
   pinned: boolean;
   archived: boolean;
+  /** Own picture (small data URL) shown instead of the drawn character; null = the character. */
+  avatarImage: string | null;
   effort: 'low' | 'medium' | 'high' | 'xhigh';
   /** Voice chat settings: browser voice id, speed multiplier (0.7–1.5), BCP-47 language or 'auto'. */
   voice: string;

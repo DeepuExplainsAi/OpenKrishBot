@@ -86,8 +86,8 @@ export function BotSettingsModal() {
 
 // ---------------------------------------------------------------------------
 
-type Draft = Pick<Bot, 'name' | 'label' | 'description' | 'instructions' | 'avatarShape' | 'avatarColor' | 'effort' | 'mode'>;
-const draftOf = (b: Bot): Draft => ({ name: b.name, label: b.label, description: b.description, instructions: b.instructions, avatarShape: b.avatarShape, avatarColor: b.avatarColor, effort: b.effort, mode: b.mode });
+type Draft = Pick<Bot, 'name' | 'label' | 'description' | 'instructions' | 'avatarShape' | 'avatarColor' | 'avatarImage' | 'effort' | 'mode'>;
+const draftOf = (b: Bot): Draft => ({ name: b.name, label: b.label, description: b.description, instructions: b.instructions, avatarShape: b.avatarShape, avatarColor: b.avatarColor, avatarImage: b.avatarImage ?? null, effort: b.effort, mode: b.mode });
 
 function GeneralTab({ bot, onClose }: { bot: Bot; onClose: () => void }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(bot));
@@ -123,12 +123,14 @@ function GeneralTab({ bot, onClose }: { bot: Bot; onClose: () => void }) {
     <div className="cfg-page">
       <section className="cfg-section">
         <div className="cfg-look">
-          <BotAvatar shape={draft.avatarShape} color={draft.avatarColor} size={72} />
+          <BotAvatar shape={draft.avatarShape} color={draft.avatarColor} image={draft.avatarImage} size={72} />
           <div className="cfg-look__text">
             <div className="cfg-look__name">{draft.name || 'New Bot'}</div>
             <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => setPicker(!picker)} aria-expanded={picker}>
               {picker ? 'Done' : 'Change look'}
             </button>
+            <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => pickImage((url) => put('avatarImage', url), (m) => flash(m, 'error'))}>Upload picture</button>
+            {draft.avatarImage && <button type="button" className="cfg-btn cfg-btn--ghost" onClick={() => put('avatarImage', null)}>Remove picture</button>}
           </div>
         </div>
         {picker && <LookPicker shape={draft.avatarShape} color={draft.avatarColor} onShape={(s) => put('avatarShape', s)} onColor={(c) => put('avatarColor', c)} />}
@@ -423,4 +425,26 @@ function RoutineItem({ r, onFlash }: { r: Routine; onFlash: (t: string) => void 
       </div>
     </div>
   );
+}
+
+/** Choose an image file and shrink it to a 128px square JPEG, small enough to travel with the Bot. */
+function pickImage(done: (dataUrl: string) => void, fail: (message: string) => void) {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const side = Math.min(img.width, img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 128;
+      canvas.getContext('2d')!.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, 128, 128);
+      URL.revokeObjectURL(img.src);
+      done(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => fail('That file is not a picture.');
+    img.src = URL.createObjectURL(file);
+  };
+  input.click();
 }
