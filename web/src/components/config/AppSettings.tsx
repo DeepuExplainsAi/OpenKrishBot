@@ -10,7 +10,7 @@ import { useStore } from '../../store';
 import { Icon } from '../Icon';
 import { ToolkitLogo } from '../ToolkitLogo';
 import { Glyph } from './glyphs';
-import { ConfirmButton } from './ui';
+import { ConfirmButton, Switch } from './ui';
 import { ModelsSection } from './ModelsSection';
 
 const SECTIONS: { id: AppSection; label: string }[] = [
@@ -129,9 +129,31 @@ function GeneralSection() {
           ))}
         </div>
       </section>
+      <MemorySection />
       <LanguageSection />
       <UpdateSection />
     </>
+  );
+}
+
+/** Whether Bots keep notes about you and can look back at older chats. */
+function MemorySection() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => { configApi.memorySetting().then((r) => setOn(r.on)).catch(() => {}); }, []);
+  if (on === null) return null;
+  return (
+    <section className="cfg-section">
+      <div className="cfg-section__label">Memory</div>
+      <div className="cfg-card">
+        <div className="cfg-row">
+          <div className="cfg-row__text">
+            <div className="cfg-row__title">Remember me and past chats</div>
+            <div className="cfg-row__sub">Bots keep short notes about you and your work, and can search older conversations. Stored only on this computer.</div>
+          </div>
+          <Switch on={on} onChange={(v) => configApi.setMemorySetting(v).then((r) => setOn(r.on))} label="Memory" />
+        </div>
+      </div>
+    </section>
   );
 }
 

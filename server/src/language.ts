@@ -11,3 +11,7 @@ export function languageRule(): string {
   if (l !== 'auto') return `Always reply in ${l}${l === 'Hinglish' ? ' (Hindi written in the Latin alphabet)' : ''}, whatever language the person writes in.`;
   return 'Reply in the language the person writes in, in the same script: if they write Hinglish (Hindi in Latin letters), answer in Hinglish, never in Devanagari; if they write English, answer in English.';
 }
+
+/** Settings > General > Memory: off = bots neither get their notes in the prompt nor save or search them. */
+export const memoryOn = (): boolean => (db.prepare("SELECT value FROM kv WHERE key='memory_on'").get() as { value: string } | undefined)?.value !== '0';
+export const setMemoryOn = (on: boolean) => db.prepare("INSERT OR REPLACE INTO kv(key,value) VALUES ('memory_on',?)").run(on ? '1' : '0');

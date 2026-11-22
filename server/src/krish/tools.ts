@@ -1,4 +1,5 @@
 import { recall } from './recall.js';
+import { memoryOn } from '../language.js';
 import { saveNote } from './memory.js';
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -182,13 +183,14 @@ const BASE_TOOLS: LocalTool[] = [
     name: 'recall',
     description: 'Search your older conversations with the user by keywords, e.g. "invoice template" or "Pune address". Use when they refer to something said earlier that you do not see.',
     parameters: obj({ query: { type: 'string' } }, ['query']),
-    async run(a, c) { return recall(path.basename(c.home), String(a.query)); },
+    async run(a, c) { if (!memoryOn()) return 'Memory is turned off in Settings.'; return recall(path.basename(c.home), String(a.query)); },
   },
   {
     name: 'memory',
     description: 'Save a short note you want to remember about the user or the work (kept across conversations). A note close to an existing one updates it; set replaces to an old note\'s text when a fact changed, or forget=true to delete that note.',
     parameters: obj({ note: { type: 'string' }, about: { type: 'string', enum: ['work', 'user'] }, replaces: { type: 'string' }, forget: { type: 'boolean' } }, ['note']),
     async run(a, c) {
+      if (!memoryOn()) return 'Memory is turned off in Settings, so nothing was saved.';
       const f = path.join(c.home, 'memories', a.about === 'user' ? 'USER.md' : 'MEMORY.md');
       return saveNote(f, String(a.note), { replaces: a.replaces ? String(a.replaces) : undefined, forget: a.forget === true });
     },

@@ -17,6 +17,7 @@ import { TOOLS, policyFor, toolMap } from '../agent/tools.js';
 import { callTool as callHqTool, listTools as listHqTools } from '../mcp.js';
 import { claimToolRow, noteToolOutcome, requestApproval } from '../agent/loop.js';
 import { audit, autoSkips, dangerReason, getDangerMode, redact, riskyReason } from '../danger.js';
+import { memoryOn } from '../language.js';
 import { runCli, cliFound, forgetCliLookups, startLogin } from './cli.js';
 import { extraTools, callExtraTool } from './mcp-client.js';
 
@@ -101,7 +102,7 @@ krishApi.post('/v1/responses', async (c) => {
   const effort = b.model_options?.reasoning_effort;
   const home = botHome(botId);
   fs.mkdirSync(`${home}/work`, { recursive: true });
-  const memory = ['MEMORY.md', 'USER.md'].map((f) => { try { return fs.readFileSync(`${home}/memories/${f}`, 'utf8').replace(/\n§\n/g, '\n- '); } catch { return ''; } }).filter(Boolean).join('\n');
+  const memory = !memoryOn() ? '' : ['MEMORY.md', 'USER.md'].map((f) => { try { return fs.readFileSync(`${home}/memories/${f}`, 'utf8').replace(/\n§\n/g, '\n- '); } catch { return ''; } }).filter(Boolean).join('\n');
   const system = `${b.instructions ?? ''}\n\n## Your computer\nYou run on the user's own computer, with a shell, files, Python and the web. Your workspace folder is ${home}/work. Be careful with anything destructive.${memory ? `\n\n## What you remember\n- ${memory}` : ''}${skillsPrompt(String(b.input ?? ''))}`;
 
   const stream = new ReadableStream({

@@ -10,7 +10,7 @@ import { Readable } from 'node:stream';
 import { env } from './env.js';
 import { libraryRoot } from './paths.js';
 import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
-import { LANGUAGES, getLanguage, setLanguage } from './language.js';
+import { LANGUAGES, getLanguage, memoryOn, setLanguage, setMemoryOn } from './language.js';
 import { computerState, readyScreen, resetBotScreen } from './computer.js';
 import { box } from './box.js';
 import { engineHome, engineInfo, engineKind, forgetEngineOptions, restartEngine, stopOwnScreen } from './engine.js';
@@ -313,6 +313,9 @@ configApi.get('/bots/:id/files/raw', (c) => {
 });
 
 // ---------- computer: screens, reset, hibernation ----------
+
+configApi.get('/memory-setting', (c) => c.json({ on: memoryOn() }));
+configApi.put('/memory-setting', async (c) => { const { on } = await c.req.json<{ on?: boolean }>().catch(() => ({ on: undefined })); setMemoryOn(on !== false); return c.json({ on: memoryOn() }); });
 
 configApi.get('/language', (c) => c.json({ language: getLanguage(), languages: LANGUAGES }));
 configApi.put('/language', async (c) => {
