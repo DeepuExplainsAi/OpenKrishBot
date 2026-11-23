@@ -12,4 +12,10 @@ fs.cpSync(path.join(root, 'server/dist'), path.join(d, 'server/dist'), { recursi
 fs.cpSync(path.join(root, 'server/skills'), path.join(d, 'server/skills'), { recursive: true });
 fs.copyFileSync(path.join(root, 'server/package.json'), path.join(d, 'server/package.json'));
 fs.cpSync(path.join(root, 'web/dist'), path.join(d, 'web/dist'), { recursive: true });
+// desktop/package.json must list every server dependency (the packaged app only has what it installs)
+const dp = path.join(d, 'package.json');
+const dpkg = JSON.parse(fs.readFileSync(dp, 'utf8'));
+const spkg = JSON.parse(fs.readFileSync(path.join(root, 'server/package.json'), 'utf8'));
+dpkg.dependencies = Object.fromEntries(Object.entries({ ...spkg.dependencies, 'electron-updater': dpkg.dependencies['electron-updater'] }).sort(([a], [b]) => a.localeCompare(b)));
+fs.writeFileSync(dp, JSON.stringify(dpkg, null, 2) + '\n');
 console.log('desktop/ is ready');
