@@ -9,7 +9,7 @@ checkinsApi.use('*', requireUser);
 checkinsApi.get('/', (c) => c.json(getCheckins(c.get('user').id)));
 
 checkinsApi.put('/', async (c) => {
-  const body = await c.req.json<{ enabled?: boolean; times?: string[]; timezone?: string }>();
+  const body = await c.req.json<{ enabled?: boolean; times?: string[]; timezone?: string; quietEnabled?: boolean; quietStart?: string; quietEnd?: string }>();
   try {
     return c.json(setCheckins(c.get('user').id, body));
   } catch (e: any) {

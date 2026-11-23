@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Toolkit } from '@shared/types';
 import { BotAvatarFor } from '../../avatar/BotAvatar';
-import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type Goal, type ProjectInfo, type VaultItem, type GoalLevel, type GoalStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo, type DangerMode } from '../../lib/configApi';
+import { configApi, type AuditEntry, type Flow, type TelegramInfo, type LibrarySkill, type Issue, type IssueStatus, type Goal, type ProjectInfo, type VaultItem, type GoalLevel, type GoalStatus, type FlowRun, type FlowStep, type ComputerDetails, type PhoneInfo, type WhatsAppInfo, type DangerMode, type Checkins } from '../../lib/configApi';
 import { relativeShort } from '../../lib/time';
 import { useConfigUI, type AppSection, type Theme } from '../../configStore';
 import { useStore } from '../../store';
@@ -145,6 +145,7 @@ function GeneralSection() {
         </div>
       </section>
       <MemorySection />
+      <CheckinsSection />
       <KeepOutSection />
       <LanguageSection />
       <UpdateSection />
@@ -168,6 +169,58 @@ function MemorySection() {
           </div>
           <Switch on={on} onChange={(v) => configApi.setMemorySetting(v).then((r) => setOn(r.on))} label="Memory" />
         </div>
+      </div>
+    </section>
+  );
+}
+
+/** Proactive check-ins from the main Bot, with quiet hours (nod proactivity). */
+function CheckinsSection() {
+  const [c, setC] = useState<Checkins | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+  useEffect(() => {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // the stored zone starts as UTC: use this computer's own zone
+    configApi.checkins().then((r) => (zone && r.timezone !== zone ? configApi.setCheckins({ timezone: zone }) : r)).then(setC).catch(() => {});
+  }, []);
+  if (!c) return null;
+  const save = (p: Partial<Checkins>) => { setErr(null); configApi.setCheckins(p).then(setC).catch((e) => setErr((e as Error).message)); };
+  const setTime = (i: number, v: string) => { const t = [...c.times]; t[i] = v; setC({ ...c, times: t }); if (/^\d\d:\d\d$/.test(v)) save({ times: t }); };
+  return (
+    <section className="cfg-section">
+      <div className="cfg-section__label">Check-ins</div>
+      <div className="cfg-card">
+        <div className="cfg-row">
+          <div className="cfg-row__text">
+            <div className="cfg-row__title">Main Bot checks in on its own</div>
+            <div className="cfg-row__sub">At the times below it looks at your tasks, approvals and routines, and writes only when something is worth your time. Time zone: {c.timezone}.</div>
+          </div>
+          <Switch on={c.enabled} onChange={(v) => save({ enabled: v })} label="Check-ins" />
+        </div>
+        {c.enabled && (
+          <div className="cfg-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            {c.times.map((t, i) => <input key={i} type="time" className="text-input" style={{ width: 120 }} value={t} onChange={(e) => setTime(i, e.target.value)} aria-label={`Check-in time ${i + 1}`} />)}
+            {c.times.length < 6 && <button type="button" className="cfg-btn cfg-btn--ghost" onClick={() => save({ times: [...c.times, '12:00'] })}>Add time</button>}
+            {c.times.length > 1 && <button type="button" className="cfg-btn cfg-btn--ghost" onClick={() => save({ times: c.times.slice(0, -1) })}>Remove last</button>}
+            <button type="button" className="cfg-btn cfg-btn--secondary" disabled={sent} onClick={() => { setSent(true); configApi.checkinNow().catch(() => {}).finally(() => setTimeout(() => setSent(false), 4000)); }}>{sent ? 'Asked' : 'Check in now'}</button>
+          </div>
+        )}
+        <div className="cfg-row">
+          <div className="cfg-row__text">
+            <div className="cfg-row__title">Quiet hours</div>
+            <div className="cfg-row__sub">No check-ins in this window.</div>
+          </div>
+          <Switch on={c.quietEnabled} onChange={(v) => save({ quietEnabled: v })} label="Quiet hours" />
+        </div>
+        {c.quietEnabled && (
+          <div className="cfg-row" style={{ gap: 8 }}>
+            <input type="time" className="text-input" style={{ width: 120 }} value={c.quietStart} onChange={(e) => { setC({ ...c, quietStart: e.target.value }); if (e.target.value) save({ quietStart: e.target.value }); }} aria-label="Quiet hours start" />
+            <span>to</span>
+            <input type="time" className="text-input" style={{ width: 120 }} value={c.quietEnd} onChange={(e) => { setC({ ...c, quietEnd: e.target.value }); if (e.target.value) save({ quietEnd: e.target.value }); }} aria-label="Quiet hours end" />
+          </div>
+        )}
+        {err && <div className="cfg-row__sub" style={{ color: 'var(--color-danger)', padding: '0 12px 8px' }}>{err}</div>}
       </div>
     </section>
   );

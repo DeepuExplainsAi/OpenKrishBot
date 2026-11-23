@@ -18,24 +18,41 @@ export function initProactive(enqueue: (botId: string, t: any) => void) {
     silent_streak INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL
   )`);
+  for (const [col, ddl] of [['quiet_enabled', 'INTEGER NOT NULL DEFAULT 0'], ['quiet_start', "TEXT NOT NULL DEFAULT '22:00'"], ['quiet_end', "TEXT NOT NULL DEFAULT '08:00'"]]) {
+    if (!(db.prepare('PRAGMA table_info(proactivity)').all() as any[]).some((c) => c.name === col)) db.exec(`ALTER TABLE proactivity ADD COLUMN ${col} ${ddl}`);
+  }
   enqueueFn = enqueue;
   setInterval(tick, 60_000).unref();
   console.log(`[proactive] ${(db.prepare('SELECT COUNT(*) n FROM proactivity WHERE enabled=1').get() as any).n} user(s) with check-ins`);
 }
 
+const HM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DEFAULT_QUIET = { quietEnabled: false, quietStart: '22:00', quietEnd: '08:00' };
+
 export function getCheckins(userId: string) {
   const r = db.prepare('SELECT * FROM proactivity WHERE user_id=?').get(userId) as any;
-  return r ? { enabled: !!r.enabled, times: JSON.parse(r.times) as string[], timezone: r.timezone } : { enabled: false, times: ['09:00', '16:30'], timezone: 'UTC' };
+  return r
+    ? { enabled: !!r.enabled, times: JSON.parse(r.times) as string[], timezone: r.timezone, quietEnabled: !!r.quiet_enabled, quietStart: r.quiet_start as string, quietEnd: r.quiet_end as string }
+    : { enabled: false, times: ['09:00', '16:30'], timezone: 'UTC', ...DEFAULT_QUIET };
 }
 
-export function setCheckins(userId: string, p: { enabled?: boolean; times?: string[]; timezone?: string }) {
+/** From nod preferences.isQuietTime: no check-ins between quietStart and quietEnd (may wrap midnight) in the user's time zone. */
+export function isQuietTime(q: { quietEnabled: boolean; quietStart: string; quietEnd: string; timezone: string }, at = new Date()) {
+  if (!q.quietEnabled) return false;
+  const cur = new Intl.DateTimeFormat('en-GB', { timeZone: q.timezone || 'UTC', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(at);
+  return q.quietStart !== q.quietEnd && (q.quietStart < q.quietEnd ? cur >= q.quietStart && cur < q.quietEnd : cur >= q.quietStart || cur < q.quietEnd);
+}
+
+export function setCheckins(userId: string, p: { enabled?: boolean; times?: string[]; timezone?: string; quietEnabled?: boolean; quietStart?: string; quietEnd?: string }) {
   const cur = getCheckins(userId);
-  const times = (p.times ?? cur.times).filter((t) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t)).slice(0, 6);
+  const times = (p.times ?? cur.times).filter((t) => HM.test(t)).slice(0, 6);
   const tz = p.timezone ?? cur.timezone;
   new Intl.DateTimeFormat('en-US', { timeZone: tz }); // throws on a bad zone
-  db.prepare(`INSERT INTO proactivity(user_id,enabled,times,timezone,updated_at) VALUES (?,?,?,?,?)
-    ON CONFLICT(user_id) DO UPDATE SET enabled=excluded.enabled, times=excluded.times, timezone=excluded.timezone, updated_at=excluded.updated_at`)
-    .run(userId, (p.enabled ?? cur.enabled) ? 1 : 0, JSON.stringify(times), tz, now());
+  const qs = p.quietStart ?? cur.quietStart, qe = p.quietEnd ?? cur.quietEnd;
+  if (!HM.test(qs) || !HM.test(qe)) throw new Error('Quiet hours must be HH:MM');
+  db.prepare(`INSERT INTO proactivity(user_id,enabled,times,timezone,updated_at,quiet_enabled,quiet_start,quiet_end) VALUES (?,?,?,?,?,?,?,?)
+    ON CONFLICT(user_id) DO UPDATE SET enabled=excluded.enabled, times=excluded.times, timezone=excluded.timezone, updated_at=excluded.updated_at, quiet_enabled=excluded.quiet_enabled, quiet_start=excluded.quiet_start, quiet_end=excluded.quiet_end`)
+    .run(userId, (p.enabled ?? cur.enabled) ? 1 : 0, JSON.stringify(times), tz, now(), (p.quietEnabled ?? cur.quietEnabled) ? 1 : 0, qs, qe);
   return getCheckins(userId);
 }
 
@@ -59,6 +76,7 @@ function tick() {
       const times: string[] = JSON.parse(r.times);
       const slot = times.find((t) => minutesBetween(t, hm) >= 0 && minutesBetween(t, hm) < 5);
       if (!slot) continue;
+      if (isQuietTime(getCheckins(r.user_id))) continue;
       const key = `${date} ${slot}`;
       if (r.last_fired === key) continue;
       db.prepare('UPDATE proactivity SET last_fired=? WHERE user_id=?').run(key, r.user_id);

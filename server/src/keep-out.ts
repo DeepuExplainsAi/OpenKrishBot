@@ -2,6 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import { db } from './db.js';
+import { isSecretFile } from './local-files-rules.js';
 
 /** nod's "keep-out" list (local-files + keep-out.ts) on SQLite: folders and files Bots must never read, write or list. */
 const KEY = 'local_keep_out';
@@ -27,6 +28,7 @@ export function removeKeepOut(entry: string): string[] { const l = keepOutList()
 
 /** True when `target` is one of the kept-out paths or inside one (symlinks resolved). */
 export function isKeptOut(target: string): boolean {
+  if (isSecretFile(target)) return true;
   const list = keepOutList();
   if (!list.length) return false;
   const t = [norm(target), real(target)];

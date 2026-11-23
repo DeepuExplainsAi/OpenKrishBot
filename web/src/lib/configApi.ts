@@ -65,6 +65,8 @@ export interface TelegramInfo { status: 'off' | 'running' | 'error'; bot: string
 export interface VaultItem { id: string; name: string; origin: string; auth: 'bearer' | 'header' | 'basic' | 'login'; header: string; username: string; updatedAt: number }
 export interface ProjectInfo { id: string; name: string; instructions: string; files: { id: string; name: string; size: number }[]; botIds: string[]; updatedAt: number }
 
+export interface Checkins { enabled: boolean; times: string[]; timezone: string; quietEnabled: boolean; quietStart: string; quietEnd: string }
+
 export const configApi = {
   telegram: () => req<TelegramInfo>('GET', '/telegram'),
   telegramToken: (token: string) => req<{ status: string; error: string | null }>('PUT', '/telegram/token', { token }),
@@ -131,6 +133,9 @@ export const configApi = {
   phoneTunnel: (on: boolean) => req<{ ok: true; url: string | null }>('POST', '/phone/tunnel', { on }),
   phoneRemove: (id: string) => req<{ ok: true }>('DELETE', `/phone/devices/${id}`),
   settings: (botId: string) => req<BotSettingsBundle>('GET', `/bots/${botId}/settings`),
+  checkins: () => req<Checkins>('GET', '/checkins'),
+  setCheckins: (p: Partial<Checkins>) => req<Checkins>('PUT', '/checkins', p),
+  checkinNow: () => req<{ ok: true }>('POST', '/checkins/now'),
   keepOut: () => req<{ items: string[] }>('GET', '/keep-out'),
   addKeepOut: (path: string) => req<{ items: string[] }>('POST', '/keep-out', { path }),
   removeKeepOut: (path: string) => req<{ items: string[] }>('DELETE', '/keep-out', { path }),
