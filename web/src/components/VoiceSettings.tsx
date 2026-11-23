@@ -62,10 +62,12 @@ export function VoiceSettings({ bot }: { bot: Bot }) {
     prepAbort.current = new AbortController();
     setPreparing(true); setPrepError('');
     try {
-      const r = await speech('/prepare', {}, prepAbort.current.signal);
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error ?? 'Download failed.');
-      setLocal(j.local);
+      for (const body of [{}, { inputOnly: true }]) { // voices, then offline speech input
+        const r = await speech('/prepare', body, prepAbort.current.signal);
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error ?? 'Download failed.');
+        setLocal(j.local);
+      }
     } catch (e) { if (!prepAbort.current?.signal.aborted) setPrepError((e as Error).message); }
     finally { setPreparing(false); speech().then((r) => r.json()).then((j) => setLocal(j.local)).catch(() => {}); }
   };
