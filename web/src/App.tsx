@@ -1,3 +1,4 @@
+import { BotAvatar } from './avatar/BotAvatar';
 import { useEffect } from 'react';
 import { startEvents } from './lib/events';
 import { useStore } from './store';
@@ -73,6 +74,6 @@ export function App() {
   const authChecked = useStore((s) => s.authChecked);
   const user = useStore((s) => s.user);
   useEffect(() => { useStore.getState().checkAuth(); }, []);
-  if (!authChecked) return <div className="boot" />;
+  if (!authChecked) return <div className="boot"><BotAvatar shape="blob" color="black" size={84} /></div>;
   return user ? <Shell /> : <SignIn />;
 }

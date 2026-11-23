@@ -18,6 +18,7 @@ import { ModelsSection } from './ModelsSection';
 import { Memory } from '../../nod/pages/memory';
 import '../../nod/pages/memory.css';
 import '../../nod/components/controls.css';
+import { KeepOutList } from '../../nod/components/keep-out-list';
 import '../../nod/components/dialog.css';
 import '../../nod/components/action-menu.css';
 import '../../styles/nod-tokens.css';
@@ -144,6 +145,7 @@ function GeneralSection() {
         </div>
       </section>
       <MemorySection />
+      <KeepOutSection />
       <LanguageSection />
       <UpdateSection />
     </>
@@ -166,6 +168,29 @@ function MemorySection() {
           </div>
           <Switch on={on} onChange={(v) => configApi.setMemorySetting(v).then((r) => setOn(r.on))} label="Memory" />
         </div>
+      </div>
+    </section>
+  );
+}
+
+/** Folders and files Bots must never touch (nod keep-out list). */
+function KeepOutSection() {
+  const [items, setItems] = useState<string[] | null>(null);
+  const [path, setPath] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => { configApi.keepOut().then((r) => setItems(r.items)).catch(() => setItems([])); }, []);
+  if (items === null) return null;
+  const add = async (e: React.FormEvent) => { e.preventDefault(); setErr(null); try { setItems((await configApi.addKeepOut(path)).items); setPath(''); } catch (x) { setErr((x as Error).message); } };
+  return (
+    <section className="cfg-section">
+      <div className="cfg-section__label">Keep out</div>
+      <div className="cfg-card nod-ui">
+        <KeepOutList title="Folders and files Bots must not touch" hint="Bots cannot read, write or list these, or anything inside them." items={items} removeLabel={(i) => `Remove ${i}`} disabled={false} onRemove={(i) => configApi.removeKeepOut(i).then((r) => setItems(r.items)).catch(() => {})} />
+        <form onSubmit={add} style={{ display: 'flex', gap: 8, padding: 8 }}>
+          <input className="text-input" value={path} onChange={(e) => setPath(e.target.value)} placeholder="C:\\Users\\me\\Private or ~/Documents/Taxes" aria-label="Path to keep out" />
+          <button type="submit" className="cfg-btn cfg-btn--secondary" disabled={!path.trim()}>Add</button>
+        </form>
+        {err && <div className="cfg-row__sub" style={{ color: 'var(--color-danger)', padding: '0 8px 8px' }}>{err}</div>}
       </div>
     </section>
   );

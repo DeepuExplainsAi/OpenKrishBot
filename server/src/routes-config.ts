@@ -10,6 +10,7 @@ import { Readable } from 'node:stream';
 import { env } from './env.js';
 import { libraryRoot } from './paths.js';
 import { emitBot, getBotRow, listRoutines, listTasks } from './store.js';
+import { addKeepOut, keepOutList, removeKeepOut } from './keep-out.js';
 import { LANGUAGES, getLanguage, memoryOn, setLanguage, setMemoryOn } from './language.js';
 import { computerState, readyScreen, resetBotScreen } from './computer.js';
 import { box } from './box.js';
@@ -314,6 +315,9 @@ configApi.get('/bots/:id/files/raw', (c) => {
 
 // ---------- computer: screens, reset, hibernation ----------
 
+configApi.get('/keep-out', (c) => c.json({ items: keepOutList() }));
+configApi.post('/keep-out', async (c) => { const { path } = await c.req.json<{ path?: string }>().catch(() => ({ path: '' })); const r = addKeepOut(String(path ?? '')); return 'error' in r ? c.json({ error: r.error }, 400) : c.json({ items: r.list }); });
+configApi.delete('/keep-out', async (c) => { const { path } = await c.req.json<{ path?: string }>().catch(() => ({ path: '' })); return c.json({ items: removeKeepOut(String(path ?? '')) }); });
 configApi.get('/memory-setting', (c) => c.json({ on: memoryOn() }));
 configApi.put('/memory-setting', async (c) => { const { on } = await c.req.json<{ on?: boolean }>().catch(() => ({ on: undefined })); setMemoryOn(on !== false); return c.json({ on: memoryOn() }); });
 

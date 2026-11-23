@@ -7,6 +7,8 @@ const net = require('node:net');
 const path = require('node:path');
 const { autoUpdater } = require('electron-updater');
 
+process.on('uncaughtException', (e) => { try { fs.writeSync(logFd, `uncaught: ${e?.stack ?? e}\n`); } catch {} });
+process.on('unhandledRejection', (e) => { try { fs.writeSync(logFd, `unhandled: ${e?.stack ?? e}\n`); } catch {} });
 const PREFERRED_PORT = Number(process.env.PORT) || 8787;
 let server = null;
 const logFile = path.join(os.homedir(), '.openkrishbot', 'desktop.log');
@@ -34,6 +36,7 @@ async function start() {
     stdio: ['ignore', logFd, logFd],
     windowsHide: true,
   });
+  server.on('error', (e) => { dialog.showErrorBox('OpenKrishBot could not start', `${e.message}\n\nDetails: ${logFile}`); app.quit(); });
   server.on('exit', (code) => {
     server = null;
     if (code && !app.isQuitting) {
@@ -46,7 +49,9 @@ async function start() {
   throw new Error('The OpenKrishBot server did not start.');
 }
 
-const LOADING = 'data:text/html,' + encodeURIComponent('<body style="margin:0;display:grid;place-items:center;height:100vh;background:#121212;color:#9aa0aa;font:15px system-ui">Starting OpenKrishBot…</body>');
+const LOGO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="96" height="96"><circle cx="256" cy="256" r="244" fill="#000"/><g stroke="#fff" stroke-width="44" stroke-linecap="round"><line x1="196" y1="296" x2="226" y2="206"/><line x1="286" y1="206" x2="316" y2="296"/></g></svg>';
+// dark splash with the logo only (no text: a data URL without a charset showed "â€¦" garbage); charset is declared
+const LOADING = 'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><meta charset="utf-8"><title>OpenKrishBot</title><style>html,body{margin:0;height:100%;background:#121212}body{display:grid;place-items:center}svg{border-radius:50%;box-shadow:0 0 0 1px #2a2a2a;animation:b 2.4s ease-in-out infinite}@keyframes b{50%{transform:translateY(-6px)}}</style>${LOGO}`);
 
 async function open() {
   win = new BrowserWindow({
@@ -59,6 +64,9 @@ async function open() {
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('http://127.0.0.1:') && !url.startsWith('data:')) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });
   win.webContents.session.setPermissionRequestHandler((_wc, permission, cb) => cb(['media', 'clipboard-sanitized-write', 'notifications', 'fullscreen'].includes(permission)));
   win.on('closed', () => { win = null; });
+  // a crashed or failed page reloads itself instead of staying blank
+  win.webContents.on('render-process-gone', () => { if (win && !app.isQuitting) win.reload(); });
+  win.webContents.on('did-fail-load', (_e, code, _d, url, isMain) => { if (isMain && code !== -3 && url.startsWith('http') && win) setTimeout(() => win?.loadURL(url).catch(() => {}), 1000); });
   win.loadURL(LOADING);
   const port = await start();
   await win?.loadURL(`http://127.0.0.1:${port}`);

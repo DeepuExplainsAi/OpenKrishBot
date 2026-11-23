@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { BROWSER_TOOLS } from '../screen/tools.js';
+import { isKeptOut, keepOutError } from '../keep-out.js';
 import { stamp, transcribeFile, transcriptText } from '../transcribe.js';
 
 /** Local tools every OpenKrishBot agent has (from the OpenManus toolset: shell, python, file edit, web). They run on this computer. */
@@ -52,6 +53,7 @@ function searchFiles(root: string, pattern: string | null): string {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       if (hits.length >= 100 || scanned > 5000) return;
       const f = path.join(dir, e.name);
+      if (isKeptOut(f)) continue;
       if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(f); continue; }
       if (!e.isFile()) continue;
       scanned++;
@@ -86,6 +88,7 @@ const BASE_TOOLS: LocalTool[] = [
     description: 'Read a text file. Relative paths are inside the bot\'s workspace.',
     parameters: obj({ path: { type: 'string' }, offset: { type: 'number' }, limit: { type: 'number', description: 'max lines, default 400' } }, ['path']),
     async run(a, c) {
+      if (isKeptOut(abs(String(a.path), c.cwd))) return keepOutError(String(a.path));
       const lines = fs.readFileSync(abs(String(a.path), c.cwd), 'utf8').split('\n');
       const o = Math.max(0, Number(a.offset) || 0);
       const n = Math.min(Number(a.limit) || 400, 2000);
@@ -98,6 +101,7 @@ const BASE_TOOLS: LocalTool[] = [
     parameters: obj({ path: { type: 'string' }, content: { type: 'string' } }, ['path', 'content']),
     async run(a, c) {
       const f = abs(String(a.path), c.cwd);
+      if (isKeptOut(f)) return keepOutError(String(a.path));
       const existed = fs.existsSync(f);
       fs.mkdirSync(path.dirname(f), { recursive: true });
       fs.writeFileSync(f, String(a.content));
@@ -110,6 +114,7 @@ const BASE_TOOLS: LocalTool[] = [
     parameters: obj({ path: { type: 'string' }, old_text: { type: 'string' }, new_text: { type: 'string' } }, ['path', 'old_text', 'new_text']),
     async run(a, c) {
       const f = abs(String(a.path), c.cwd);
+      if (isKeptOut(f)) return keepOutError(String(a.path));
       const raw = fs.readFileSync(f, 'utf8');
       // Windows files use CRLF; the model writes LF. Match on LF, write back in the file's own style.
       const crlf = raw.includes('\r\n');
@@ -128,7 +133,7 @@ const BASE_TOOLS: LocalTool[] = [
     name: 'search_files',
     description: 'List files in a folder, or search file contents with a regex (grep).',
     parameters: obj({ path: { type: 'string', description: 'folder, default workspace' }, pattern: { type: 'string', description: 'regex to search for in contents (optional)' } }),
-    async run(a, c) { return searchFiles(abs(String(a.path ?? '.'), c.cwd), a.pattern ? String(a.pattern) : null); },
+    async run(a, c) { const root = abs(String(a.path ?? '.'), c.cwd); return isKeptOut(root) ? keepOutError(String(a.path ?? '.')) : searchFiles(root, a.pattern ? String(a.pattern) : null); },
   },
   {
     name: 'web_search',
