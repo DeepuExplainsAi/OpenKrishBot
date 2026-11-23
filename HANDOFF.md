@@ -549,3 +549,10 @@ Done:
 - Copied from OpenMausBot's approach: trycua `cua-driver` (MIT) as a local MCP server (`cua-driver mcp`). New catalog app `computer` in `server/src/apps.ts`; `server/src/cua.ts` downloads the pinned v0.41.3 release archive for this OS (same version and SHA-256 as Maus's `scripts/cua-linux-release.mjs`; mac/win hashes from upstream `SHA256SUMS`), checks the hash, unpacks to `~/.openkrishbot/cua/0.41.3/`. Connect on the Apps screen installs and starts it. Test: `server/test/cua.test.mts`.
 - NOT verified on real hardware: the VM has no desktop, so `cua-driver mcp` was never started here. Mac needs Accessibility + Screen Recording permission on first use.
 - Tests: every test that starts the server DB must set its own `DB_PATH` (the default `server/data` DB is shared by parallel test processes -> `duplicate column name` races). Fixed in browser-tools. Chrome launch now kills the process on timeout (a Windows CI run hung 16 min).
+
+### v1.9.1 part 10 — Speech UI (nod)
+- Copied verbatim from nod `src/web`: `components/{voice-picker,voice-recorder,audio-player}.tsx`, `voice-settings.css`, `hooks/use-voice-recorder.ts`, `lib/{recording,audio-waveform,attachment-url}.ts`, `shared/speech.ts` (into `web/src/nod/*`, `web/src/shared/speech.ts`).
+- Seams: `nod/lib/api.ts` gained `requestAccountVersion` (constant) and `apiBytes`; `nod/components/models.tsx` (only `ModelProviderLogo`) and `attachment-images.tsx` (only `ImagePreview`) are stubs.
+- Wired: `components/VoiceSettings.tsx` has an "Offline voice" row using nod's `VoicePicker` (13 Kokoro voices incl. Hindi `hf_alpha`/`hm_omega`, download button with progress via `/api/speech/prepare`). `voice/speech.ts` `speak()` plays any `local:` voice from `/api/speech/speak`.
+- NOT wired yet: `voice-recorder` / `use-voice-recorder` (offline speech input via `/api/speech/transcribe`) and `audio-player` are copied but no screen uses them. Voice chat still uses the browser's recognition.
+- Not run in a real browser; CI typecheck only.
