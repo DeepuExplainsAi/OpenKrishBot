@@ -560,3 +560,8 @@ Done:
 ### v1.9.1 part 11 — Q7 re-check against OpenMausBot
 - Chief of Staff rename pencil: already in `Sidebar.tsx` ChiefTile. Computer history: Settings > Activity log already lists every action. Bot/department delete: bot delete asks first; added `DepartmentMenu` (BotMenu.tsx) on sidebar department titles: Rename, Delete (Maus wording: its Bots and chats stay, server `deleteProject` already unassigns bots).
 - Open items for Q6: nod ledger/proactivity/local-files/keep-out store (Postgres+Fastify, not a copy job).
+
+### v1.9.1 part 12 — release fix
+- v1.9.0/1.9.1 desktop builds failed the packaged smoke test: `libphonenumber-js` (and tldts, speech libs) were in `server/package.json` but not in `desktop/package.json`, so the installed app lacked them. Fixed by syncing; `scripts/desktop-prep.mjs` now copies server dependencies into desktop/package.json on every build.
+- v1.9.1 tag moved to the fix commit. Build green on Windows/Mac/Linux, release published: https://github.com/DeepuExplainsAi/OpenKrishBot/releases/tag/v1.9.1
+- Still not copied (Postgres+Fastify in nod): ledger, proactivity, local-files, keep-out store.

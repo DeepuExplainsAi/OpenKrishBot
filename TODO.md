@@ -10,4 +10,4 @@ Sources: milind-soni/OpenMausBot (Apache-2.0) and n8n-io/nod (Apache-2.0), clone
 - [x] **Q5 nod memory**: memory-tree, memory-recall, memory-learning, memory-lint, learned-skills (copied from nod)
 - [x] **Q6 nod schedules, ledger, vault, keep-out, proactivity, local-files, feedback-redaction** (vault, feedback-redaction, learned-skills, skills done; ledger/proactivity/local-files/keep-out NOT copied: Postgres+Fastify rewrite, see HANDOFF part 7)
 - [x] **Q7 Missing bits from first list**: bot delete/keep options (Maus bot menu), Computer view history, Chief of Staff pencil: re-check each against Maus (checked vs Maus: Chief pencil and Activity log were already there; added department menu with keep-bots delete)
-- [ ] **Q8 Release v1.9.1**: CI green Windows/Mac/Linux, send the link
+- [x] **Q8 Release v1.9.1**: CI green Windows/Mac/Linux, released: https://github.com/DeepuExplainsAi/OpenKrishBot/releases/tag/v1.9.1
