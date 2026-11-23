@@ -8,7 +8,7 @@ import { displayName, useStore } from '../store';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
 import { Menu } from './Menu';
-import { AddMenu, BotMenu } from './BotMenu';
+import { AddMenu, BotMenu, DepartmentMenu } from './BotMenu';
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -108,6 +108,8 @@ export function Sidebar() {
   const others = bots.filter((b) => !b.isPrimary && !b.archived).sort((a, b) => b.lastActivityAt - a.lastActivityAt);
   // Bots of a company are listed under its name.
   const [companies, setCompanies] = useState<Record<string, string>>({});
+  const [deptMenu, setDeptMenu] = useState<string | null>(null);
+  const reloadCompanies = () => configApi.projects().then((r) => setCompanies(Object.fromEntries(r.projects.map((p) => [p.id, p.name])))).catch(() => {});
   const companyKey = bots.map((b) => b.projectId ?? '').join(',');
   useEffect(() => { configApi.projects().then((r) => setCompanies(Object.fromEntries(r.projects.map((p) => [p.id, p.name])))).catch(() => {}); }, [companyKey]);
   const groups = useMemo(() => {
@@ -148,7 +150,13 @@ export function Sidebar() {
         <div className="bot-list">
           {groups.map(([key, list]) => (
             <div key={key || 'none'}>
-              {!collapsed && key && <div className="bot-group__title">{companies[key]}</div>}
+              {!collapsed && key && (
+                <div className="bot-group__title" onContextMenu={(e) => { e.preventDefault(); setDeptMenu(key); }} style={{ position: 'relative' }}>
+                  {companies[key]}
+                  <button type="button" className="icon-btn" aria-label={`Actions for ${companies[key]} department`} aria-haspopup="menu" onClick={() => setDeptMenu(deptMenu === key ? null : key)}>…</button>
+                  {deptMenu === key && <DepartmentMenu id={key} name={companies[key]} onClose={() => setDeptMenu(null)} onChanged={() => { setDeptMenu(null); void reloadCompanies(); void useStore.getState().loadBots(); }} />}
+                </div>
+              )}
               {list.map((b) =>
                 collapsed ? (
                   <button key={b.id} type="button" className={`bot-rail-item${selectedBotId === b.id ? ' is-selected' : ''}`} onClick={() => selectBot(b.id)} title={displayName(b)}>

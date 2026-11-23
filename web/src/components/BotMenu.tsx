@@ -82,3 +82,13 @@ export function AddMenu({ onClose }: { onClose: () => void }) {
     />
   );
 }
+
+/** Department actions (OpenMausBot's team menu): rename, or delete it while its Bots and chats stay. */
+export function DepartmentMenu({ id, name, onClose, onChanged }: { id: string; name: string; onClose: () => void; onChanged: () => void }) {
+  const run = (p: Promise<unknown>) => p.then(onChanged).catch((e) => window.alert(e.message));
+  const items: MenuItem[] = [
+    { label: 'Rename department', onSelect: () => { const next = window.prompt('Department name', name)?.trim(); if (next && next !== name) run(configApi.patchProject(id, { name: next })); } },
+    { label: 'Delete department', danger: true, divider: true, onSelect: () => { if (window.confirm(`Delete ${name} department? Its Bots and group chats stay, with their conversations, outside any department. The department and its shared instructions are deleted. This cannot be undone.`)) run(configApi.deleteProject(id)); } },
+  ];
+  return <Menu align="left" onClose={onClose} items={items} />;
+}
