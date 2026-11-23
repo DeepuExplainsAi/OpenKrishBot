@@ -20,3 +20,17 @@ export function apiResponse(path: string, options: RequestInit = {}) {
 export async function responseError(res: Response) {
   try { return new ApiError(((await res.json()) as { error?: string }).error ?? res.statusText, res.status); } catch { return new ApiError(res.statusText, res.status); }
 }
+
+// Single local owner: there is no account switch, so the version never changes.
+export function requestAccountVersion() {
+  return 0;
+}
+
+// nod's apiBytes (lib/api.ts), reading the response directly instead of through its request wrapper.
+export async function apiBytes(path: string, limit: number, options: RequestInit = {}) {
+  const res = await apiResponse(path, options);
+  if (!res.ok) throw await responseError(res);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes.byteLength > limit) throw new Error('The file is too large to preview.');
+  return bytes;
+}

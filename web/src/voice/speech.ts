@@ -45,6 +45,7 @@ function pick(voices: SpeechSynthesisVoice[], voice: string | undefined, lang: s
 
 /** Speak text; resolves when finished or cancelled. Long text is spoken sentence group by group (Chrome stops long utterances). */
 export async function speak(text: string, o: { voice?: string; speed?: number; language?: string }, signal?: AbortSignal): Promise<void> {
+  if (o.voice?.startsWith('local:')) return speakLocal(text, o.voice, o.speed ?? 1, signal);
   const s = window.speechSynthesis;
   if (!s) throw new Error('This browser can’t speak aloud.');
   const lang = recLang(o.language);
@@ -68,4 +69,22 @@ export async function speak(text: string, o: { voice?: string; speed?: number; l
       s.speak(u);
     });
   }
+}
+
+/** nod's on-device Kokoro voices, synthesized by this computer's server (/api/speech/speak); nothing leaves the machine. */
+async function speakLocal(text: string, voice: string, speed: number, signal?: AbortSignal): Promise<void> {
+  const res = await fetch('/api/speech/speak', { method: 'POST', credentials: 'include', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: speakable(text).slice(0, 5000), voice }) });
+  if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'Local voice failed.');
+  const url = URL.createObjectURL(await res.blob());
+  const audio = new Audio(url);
+  audio.playbackRate = speed;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const stop = () => { audio.pause(); resolve(); };
+      signal?.addEventListener('abort', stop, { once: true });
+      audio.onended = () => resolve();
+      audio.onerror = () => reject(new Error('Could not play the voice.'));
+      void audio.play().catch(reject);
+    });
+  } finally { URL.revokeObjectURL(url); }
 }

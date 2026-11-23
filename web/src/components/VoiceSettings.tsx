@@ -1,10 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Bot } from '@shared/types';
 import { useStore } from '../store';
 import { voiceApi, type VoiceOptions } from '../voice/api';
 import { endCall, isCallActive, previewVoice, startCall, useVoice } from '../voice/call';
 import { listVoices } from '../voice/speech';
 import { Icon } from './Icon';
+import { VoicePicker, type LocalVoiceStatus } from '../nod/components/voice-picker';
+import { speechVoices } from '../shared/speech';
+import '../nod/components/voice-settings.css';
+
+const localVoices = speechVoices.filter((v) => v.source === 'local');
+const speech = (path = '', body?: unknown, signal?: AbortSignal) =>
+  fetch(`/api/speech${path}`, { credentials: 'include', signal, ...(body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
 
 const FALLBACK: VoiceOptions = {
   languages: [{ code: 'auto', name: 'Auto-detect' }, { code: 'en-US', name: 'English' }],
@@ -39,11 +46,29 @@ export function VoiceSettings({ bot }: { bot: Bot }) {
   const [browserVoices, setBrowserVoices] = useState<{ id: string; name: string }[]>([]);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [local, setLocal] = useState<LocalVoiceStatus>();
+  const [preparing, setPreparing] = useState(false);
+  const [prepError, setPrepError] = useState('');
+  const prepAbort = useRef<AbortController>();
   const inCall = useVoice((s) => isCallActive(s) && s.botId === bot.id);
 
   useEffect(() => { voiceApi.options().then(setOpts).catch(() => {}); }, []);
   useEffect(() => { void listVoices().then((v) => setBrowserVoices([{ id: '', name: 'Automatic' }, ...v.map((x) => ({ id: x.voiceURI, name: `${x.name} (${x.lang})` }))])); }, []);
   useEffect(() => setError(null), [bot.id]);
+  useEffect(() => { speech().then((r) => r.json()).then((j) => setLocal(j.local)).catch(() => {}); }, []);
+
+  const prepare = async () => {
+    prepAbort.current = new AbortController();
+    setPreparing(true); setPrepError('');
+    try {
+      const r = await speech('/prepare', {}, prepAbort.current.signal);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? 'Download failed.');
+      setLocal(j.local);
+    } catch (e) { if (!prepAbort.current?.signal.aborted) setPrepError((e as Error).message); }
+    finally { setPreparing(false); speech().then((r) => r.json()).then((j) => setLocal(j.local)).catch(() => {}); }
+  };
 
   const save = async (patch: Partial<Pick<Bot, 'voice' | 'voiceSpeed' | 'voiceLanguage'>>) => {
     const prev = useStore.getState().bots.find((b) => b.id === bot.id);
@@ -78,6 +103,32 @@ export function VoiceSettings({ bot }: { bot: Bot }) {
           <button type="button" className="voice-preview" onClick={preview} disabled={previewing} title={`Hear ${bot.name}'s voice`}>{previewing ? 'Playing…' : 'Preview'}</button>
           <NativeSelect label="Voice" value={bot.voice} options={voices.map((v) => ({ value: v.id, label: v.name }))} onChange={(voice) => save({ voice })} />
         </span>
+      </div>
+      <div className="panel-row panel-row--setting">
+        <span id="voice-local-label">Offline voice</span>
+        <VoicePicker
+          voices={localVoices}
+          value={bot.voice.startsWith('local:') ? bot.voice : null}
+          open={pickerOpen}
+          disabled={false}
+          labelledBy="voice-local-label"
+          loading={previewing ? bot.voice : null}
+          playing={null}
+          error=""
+          local={local}
+          preparing={preparing}
+          preparationError={prepError}
+          refreshing={false}
+          providers={[]}
+          onOpenChange={setPickerOpen}
+          onChange={(v) => { if (v) void save({ voice: v }); }}
+          onPreview={(v) => { void save({ voice: v }).then(preview); }}
+          onStop={() => {}}
+          onPrepare={prepare}
+          onCancelPreparation={() => prepAbort.current?.abort()}
+          onConnect={() => {}}
+          onRefresh={() => {}}
+        />
       </div>
       <div className="panel-row panel-row--setting">
         <span>Speed</span>
