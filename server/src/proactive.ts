@@ -8,7 +8,7 @@ import { db, now } from './db.js';
 
 let enqueueFn: ((botId: string, t: any) => void) | null = null;
 
-export function initProactive(enqueue: (botId: string, t: any) => void) {
+function ensureSchema() {
   db.exec(`CREATE TABLE IF NOT EXISTS proactivity (
     user_id TEXT PRIMARY KEY,
     enabled INTEGER NOT NULL DEFAULT 0,
@@ -21,6 +21,10 @@ export function initProactive(enqueue: (botId: string, t: any) => void) {
   for (const [col, ddl] of [['quiet_enabled', 'INTEGER NOT NULL DEFAULT 0'], ['quiet_start', "TEXT NOT NULL DEFAULT '22:00'"], ['quiet_end', "TEXT NOT NULL DEFAULT '08:00'"]]) {
     if (!(db.prepare('PRAGMA table_info(proactivity)').all() as any[]).some((c) => c.name === col)) db.exec(`ALTER TABLE proactivity ADD COLUMN ${col} ${ddl}`);
   }
+}
+ensureSchema();
+
+export function initProactive(enqueue: (botId: string, t: any) => void) {
   enqueueFn = enqueue;
   setInterval(tick, 60_000).unref();
   console.log(`[proactive] ${(db.prepare('SELECT COUNT(*) n FROM proactivity WHERE enabled=1').get() as any).n} user(s) with check-ins`);

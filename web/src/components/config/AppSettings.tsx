@@ -181,8 +181,8 @@ function CheckinsSection() {
   const [sent, setSent] = useState(false);
   useEffect(() => {
     const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    // the stored zone starts as UTC: use this computer's own zone
-    configApi.checkins().then((r) => (zone && r.timezone !== zone ? configApi.setCheckins({ timezone: zone }) : r)).then(setC).catch(() => {});
+    // the stored zone starts as UTC and nothing has been chosen yet: take this computer's own zone once, then leave it alone
+    configApi.checkins().then((r) => (zone && r.timezone === 'UTC' && !r.enabled ? configApi.setCheckins({ timezone: zone }) : r)).then(setC).catch(() => {});
   }, []);
   if (!c) return null;
   const save = (p: Partial<Checkins>) => { setErr(null); configApi.setCheckins(p).then(setC).catch((e) => setErr((e as Error).message)); };
@@ -203,7 +203,7 @@ function CheckinsSection() {
             {c.times.map((t, i) => <input key={i} type="time" className="text-input" style={{ width: 120 }} value={t} onChange={(e) => setTime(i, e.target.value)} aria-label={`Check-in time ${i + 1}`} />)}
             {c.times.length < 6 && <button type="button" className="cfg-btn cfg-btn--ghost" onClick={() => save({ times: [...c.times, '12:00'] })}>Add time</button>}
             {c.times.length > 1 && <button type="button" className="cfg-btn cfg-btn--ghost" onClick={() => save({ times: c.times.slice(0, -1) })}>Remove last</button>}
-            <button type="button" className="cfg-btn cfg-btn--secondary" disabled={sent} onClick={() => { setSent(true); configApi.checkinNow().catch(() => {}).finally(() => setTimeout(() => setSent(false), 4000)); }}>{sent ? 'Asked' : 'Check in now'}</button>
+            <button type="button" className="cfg-btn cfg-btn--secondary" disabled={sent} onClick={() => { setSent(true); configApi.checkinNow().then(() => setErr(null)).catch((e) => setErr((e as Error).message)).finally(() => setTimeout(() => setSent(false), 4000)); }}>{sent ? 'Asked' : 'Check in now'}</button>
           </div>
         )}
         <div className="cfg-row">
@@ -231,7 +231,7 @@ function KeepOutSection() {
   const [items, setItems] = useState<string[] | null>(null);
   const [path, setPath] = useState('');
   const [err, setErr] = useState<string | null>(null);
-  useEffect(() => { configApi.keepOut().then((r) => setItems(r.items)).catch(() => setItems([])); }, []);
+  useEffect(() => { configApi.keepOut().then((r) => setItems(r.items)).catch((e) => { setErr((e as Error).message); setItems([]); }); }, []);
   if (items === null) return null;
   const add = async (e: React.FormEvent) => { e.preventDefault(); setErr(null); try { setItems((await configApi.addKeepOut(path)).items); setPath(''); } catch (x) { setErr((x as Error).message); } };
   return (

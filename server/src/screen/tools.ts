@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { libraryRoot } from '../paths.js';
+import { isKeptOut } from '../keep-out.js';
 import type { LocalTool } from '../krish/tools.js';
 import { screenOf } from './manager.js';
 import { db } from '../db.js';
@@ -242,6 +243,7 @@ export const BROWSER_TOOLS: LocalTool[] = [
       const id = botOf(c.home); const s = await screenOf(id);
       const file = path.resolve(path.join(c.home, 'work'), String(a.path));
       if (!fs.existsSync(file)) throw new Error(`No file at ${file}`);
+      if (isKeptOut(file)) throw new Error(`${file} is on the owner's keep-out list. Do not upload it.`);
       const r = await s.send('Runtime.evaluate', { expression: `document.querySelector('[data-kid="${Number(a.index)}"]')` });
       if (!r.result?.objectId) throw new Error(`No element [${a.index}]. Run browser_snapshot again.`);
       await s.send('DOM.setFileInputFiles', { files: [file], objectId: r.result.objectId });

@@ -64,12 +64,16 @@ async function open() {
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('http://127.0.0.1:') && !url.startsWith('data:')) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });
   win.webContents.session.setPermissionRequestHandler((_wc, permission, cb) => cb(['media', 'clipboard-sanitized-write', 'notifications', 'fullscreen'].includes(permission)));
   win.on('closed', () => { win = null; });
-  // a crashed or failed page reloads itself instead of staying blank
-  win.webContents.on('render-process-gone', () => { if (win && !app.isQuitting) win.reload(); });
-  win.webContents.on('did-fail-load', (_e, code, _d, url, isMain) => { if (isMain && code !== -3 && url.startsWith('http') && win) setTimeout(() => win?.loadURL(url).catch(() => {}), 1000); });
+  // a crashed or failed page reloads itself, at most 5 times in a row, then shows a clear message instead of a blank window
+  let recoveries = 0;
+  const giveUp = (why) => { if (win) win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><meta charset="utf-8"><body style="margin:0;display:grid;place-items:center;height:100vh;background:#121212;color:#c8ccd4;font:15px system-ui;text-align:center">${LOGO}<p>OpenKrishBot could not show its window (${why}).<br>Close and open it again. Log: ${logFile.replace(/[<&]/g, '')}</p></body>`)).catch(() => {}); };
+  const recover = (why, url) => { if (!win || app.isQuitting) return; if (++recoveries > 5) return giveUp(why); setTimeout(() => (url ? win?.loadURL(url) : win?.reload())?.catch?.(() => {}), 1000); };
+  win.webContents.on('did-finish-load', () => { if (win?.webContents.getURL().startsWith('http')) recoveries = 0; });
+  win.webContents.on('render-process-gone', (_e, d) => recover(`renderer ${d.reason}`));
+  win.webContents.on('did-fail-load', (_e, code, desc, url, isMain) => { if (isMain && code !== -3 && url.startsWith('http')) recover(desc, url); });
   win.loadURL(LOADING);
   const port = await start();
-  await win?.loadURL(`http://127.0.0.1:${port}`);
+  await win?.loadURL(`http://127.0.0.1:${port}`).catch(() => {}); // a failed first load is retried by did-fail-load above
 }
 
 // ---- updates: the same kind of install updates itself (Windows Setup, Linux AppImage/deb); Mac and Windows Portable download the new file and open it ----

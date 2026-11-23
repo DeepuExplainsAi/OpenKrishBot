@@ -43,7 +43,7 @@ const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '__pycache__
 /** List a folder, or grep file contents. Pure Node so it works the same on Windows, Mac and Linux. */
 function searchFiles(root: string, pattern: string | null): string {
   if (!pattern) {
-    return fs.readdirSync(root, { withFileTypes: true }).map((e) => `${e.isDirectory() ? 'd' : '-'} ${e.name}`).join('\n') || '(empty folder)';
+    return fs.readdirSync(root, { withFileTypes: true }).filter((e) => !isKeptOut(path.join(root, e.name))).map((e) => `${e.isDirectory() ? 'd' : '-'} ${e.name}`).join('\n') || '(empty folder)';
   }
   let re: RegExp;
   try { re = new RegExp(pattern); } catch (e: any) { return JSON.stringify({ error: `bad regex: ${e.message}` }); }
@@ -177,6 +177,7 @@ const BASE_TOOLS: LocalTool[] = [
     parameters: obj({ path: { type: 'string' }, language: { type: 'string', description: 'ISO code like en or hi; default auto-detect' } }, ['path']),
     async run(a, c) {
       const f = abs(String(a.path), c.cwd);
+      if (isKeptOut(f) || isKeptOut(`${f}.transcript.txt`)) return keepOutError(String(a.path));
       const t = await transcribeFile(f, { language: a.language ? String(a.language) : undefined });
       const text = transcriptText(t);
       const saved = `${f}.transcript.txt`;

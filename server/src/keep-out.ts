@@ -9,7 +9,18 @@ const KEY = 'local_keep_out';
 export const KEEP_OUT_LIMIT = 100;
 
 const norm = (p: string) => { const r = path.resolve(p.replace(/^~(?=$|[\\/])/, os.homedir())); return process.platform === 'win32' ? r.toLowerCase() : r; };
-const real = (p: string) => { try { return norm(fs.realpathSync(p)); } catch { return norm(p); } };
+/** Real path with symlinks resolved; for a path that does not exist yet, the nearest existing parent is resolved and the rest appended. */
+const real = (p: string): string => {
+  const abs = path.resolve(p.replace(/^~(?=$|[\\/])/, os.homedir()));
+  let head = abs; const tail: string[] = [];
+  for (;;) {
+    try { return norm(path.join(fs.realpathSync(head), ...tail.reverse())); } catch { /* not there yet */ }
+    const up = path.dirname(head);
+    if (up === head) return norm(abs);
+    tail.push(path.basename(head)); head = up;
+  }
+};
+const within = (child: string, parent: string) => child === parent || child.startsWith(parent.endsWith(path.sep) ? parent : parent + path.sep);
 
 export function keepOutList(): string[] {
   try { const v = (db.prepare('SELECT value FROM kv WHERE key=?').get(KEY) as { value: string } | undefined)?.value; const l = v ? JSON.parse(v) : []; return Array.isArray(l) ? l.filter((x) => typeof x === 'string') : []; } catch { return []; }
@@ -28,10 +39,10 @@ export function removeKeepOut(entry: string): string[] { const l = keepOutList()
 
 /** True when `target` is one of the kept-out paths or inside one (symlinks resolved). */
 export function isKeptOut(target: string): boolean {
-  if (isSecretFile(target)) return true;
+  const t = [norm(target), real(target)];
+  if (t.some((x, i) => isSecretFile(i ? x : target))) return true; // the name of the link and of what it points to
   const list = keepOutList();
   if (!list.length) return false;
-  const t = [norm(target), real(target)];
-  return list.some((e) => { const k = [norm(e), real(e)]; return k.some((kp) => t.some((tp) => tp === kp || tp.startsWith(kp + path.sep))); });
+  return list.some((e) => [norm(e), real(e)].some((kp) => t.some((tp) => within(tp, kp))));
 }
 export const keepOutError = (target: string) => JSON.stringify({ error: `${target} is on the owner's keep-out list. Do not read, write or list it.` });

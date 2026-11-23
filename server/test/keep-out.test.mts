@@ -34,6 +34,20 @@ test('secret files in the home folder are kept out, a bot workspace is not', () 
   assert.ok(!isKeptOut(path.join(os.tmpdir(), 'other', 'id_rsa')));
 });
 
+test('keep-out survives symlinks, new files behind a link, and listings', async () => {
+  const dir = path.join(home, 'Private'); fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(dir, 'k.txt'), 'x');
+  addKeepOut(dir);
+  const link = path.join(home, 'innocent'); 
+  try { fs.symlinkSync(dir, link, 'dir'); } catch { removeKeepOut(dir); return; } // no symlink rights (Windows CI): skip
+  assert.ok(isKeptOut(path.join(link, 'k.txt')), 'through a link');
+  assert.ok(isKeptOut(path.join(link, 'new', 'file.txt')), 'a new file behind a link');
+  const search = LOCAL_TOOLS.find((t) => t.name === 'search_files')!;
+  const list = await search.run({ path: home }, { home, cwd: home });
+  assert.ok(!/Private/.test(list), 'listing hides kept-out entries');
+  removeKeepOut(dir);
+});
+
 test('quiet hours wrap midnight and respect the time zone', () => {
   const q = { quietEnabled: true, quietStart: '22:00', quietEnd: '08:00', timezone: 'UTC' };
   assert.ok(isQuietTime(q, new Date('2026-01-01T23:30:00Z')) && isQuietTime(q, new Date('2026-01-01T07:59:00Z')));
