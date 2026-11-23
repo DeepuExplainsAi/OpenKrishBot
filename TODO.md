@@ -1,4 +1,4 @@
-# OpenKrishBot to-do (v1.9.1): copy, do not rewrite
+# OpenKrishBot to-do (v1.9.2): copy, do not rewrite
 
 Rule: copy files straight from the source repo, only adjust imports/names to fit. After every part: typecheck, update HANDOFF.md, commit, push.
 Sources: milind-soni/OpenMausBot (Apache-2.0) and n8n-io/nod (Apache-2.0), cloned in ~/OpenMausBot and ~/nod.

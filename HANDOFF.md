@@ -565,3 +565,10 @@ Done:
 - v1.9.0/1.9.1 desktop builds failed the packaged smoke test: `libphonenumber-js` (and tldts, speech libs) were in `server/package.json` but not in `desktop/package.json`, so the installed app lacked them. Fixed by syncing; `scripts/desktop-prep.mjs` now copies server dependencies into desktop/package.json on every build.
 - v1.9.1 tag moved to the fix commit. Build green on Windows/Mac/Linux, release published: https://github.com/DeepuExplainsAi/OpenKrishBot/releases/tag/v1.9.1
 - Still not copied (Postgres+Fastify in nod): ledger, proactivity, local-files, keep-out store.
+
+### v1.9.2 — splash, keep-out, check-ins
+- Splash (desktop/main.cjs): dark page with only the black-circle logo (same SVG as assets/icon.svg), `charset=utf-8` (the old data URL had none, so "…" showed as "â€¦"). Web boot screen (`.boot` in App.tsx) shows `/favicon.svg`. Window recovery: renderer crash / failed load reload up to 5 times, then a clear message with the log path; uncaught errors go to ~/.openkrishbot/desktop.log.
+- Keep-out (nod `keep-out`, SQLite `kv` key `local_keep_out`): `server/src/keep-out.ts`; Settings > Keep out; enforced in read_file, write_file, patch, search_files (also hides entries), transcribe, browser_upload; symlinks and not-yet-existing files resolved. `server/src/local-files-rules.ts` = nod's secret-file names (pem, id_rsa, .kdbx, .env, wallet.dat ...) outside the bots' own workspace. The shell tool is NOT confined (a Bot with shell can still run `cat`); keep-out is for the file tools.
+- Check-ins (nod proactivity, trimmed): Settings > Check-ins (switch, times, "Check in now", quiet hours that wrap midnight, time zone taken once from this computer). `server/src/proactive.ts` quiet_* columns, `isQuietTime` from nod preferences.
+- Not copied on purpose (Postgres/Fastify tables with no SQLite counterpart and the app already has the equivalent): nod `ledger` (= Settings > Activity log + usage/budget), nod `local-files` file actions (= the bots' own file tools + keep-out + secret rules).
+- Tests: server/test/keep-out.test.mts. `browser-tools` can fail once with "Chrome did not start in time" on Ubuntu CI; a rerun passes.
