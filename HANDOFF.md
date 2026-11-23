@@ -556,3 +556,7 @@ Done:
 - Wired: `components/VoiceSettings.tsx` has an "Offline voice" row using nod's `VoicePicker` (13 Kokoro voices incl. Hindi `hf_alpha`/`hm_omega`, download button with progress via `/api/speech/prepare`). `voice/speech.ts` `speak()` plays any `local:` voice from `/api/speech/speak`.
 - Composer dictation (`voice/dictation.ts`) now uses nod's `useVoiceRecorder` + `/api/speech/transcribe` when the offline input model is ready (checked at mount via `GET /api/speech` -> `localInput.state`); otherwise it falls back to the browser recognition. The Voice settings download button fetches voices, then the input model. Still unused: `voice-recorder.tsx` (nod's recorder UI) and `audio-player.tsx`; the live voice *call* (`voice/call.ts`) still uses browser recognition.
 - Not run in a real browser; CI typecheck only.
+
+### v1.9.1 part 11 — Q7 re-check against OpenMausBot
+- Chief of Staff rename pencil: already in `Sidebar.tsx` ChiefTile. Computer history: Settings > Activity log already lists every action. Bot/department delete: bot delete asks first; added `DepartmentMenu` (BotMenu.tsx) on sidebar department titles: Rename, Delete (Maus wording: its Bots and chats stay, server `deleteProject` already unassigns bots).
+- Open items for Q6: nod ledger/proactivity/local-files/keep-out store (Postgres+Fastify, not a copy job).
