@@ -50,7 +50,7 @@ export function VoiceSettings({ bot }: { bot: Bot }) {
   const [local, setLocal] = useState<LocalVoiceStatus>();
   const [preparing, setPreparing] = useState(false);
   const [prepError, setPrepError] = useState('');
-  const prepAbort = useRef<AbortController>();
+  const prepAbort = useRef<AbortController | undefined>(undefined);
   const inCall = useVoice((s) => isCallActive(s) && s.botId === bot.id);
 
   useEffect(() => { voiceApi.options().then(setOpts).catch(() => {}); }, []);
